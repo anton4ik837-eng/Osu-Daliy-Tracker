@@ -13,7 +13,7 @@ Path("data").mkdir(exist_ok=True); Path("reports").mkdir(exist_ok=True)
 def main():
     cid=os.getenv("OSU_CLIENT_ID"); secret=os.getenv("OSU_CLIENT_SECRET")
     if not cid or not secret: raise RuntimeError("Set OSU_CLIENT_ID and OSU_CLIENT_SECRET in GitHub Actions secrets")
-    token=requests.post("https://osu.ppy.sh/oauth/token",json={"client_id":int(cid),"client_secret":secret,"grant_type":"client_credentials","scope":"public"},timeout=30)
+    token=requests.post("https://osu.ppy.sh/oauth/token",data={"client_id":int(cid),"client_secret":secret,"grant_type":"client_credentials","scope":"public"},timeout=30)
     token.raise_for_status(); headers={"Authorization":"Bearer "+token.json()["access_token"]}
     s=requests.Session(); s.headers.update(headers)
     now=datetime.now(timezone.utc).isoformat(timespec="seconds")
