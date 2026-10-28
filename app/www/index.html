@@ -4,34 +4,93 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0f17"><title>osu! Daily Tracker</title>
 <style>
-:root{color-scheme:dark;--bg:#0b0f17;--panel:#141b28;--line:#2d4054;--ice:#a9e7ff;--cyan:#57c9e8;--text:#f0f6ff;--muted:#91a3b9}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 80% 0%,#24384d 0,transparent 38%),var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,sans-serif}.wrap{max-width:760px;margin:auto;padding:22px 16px calc(30px + env(safe-area-inset-bottom))}.brand{font-size:12px;letter-spacing:.2em;color:var(--ice);font-weight:800}.hero,.panel{border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,#172131ee,#111722ee);padding:22px;margin-top:16px}.hero h1{font-size:clamp(32px,8vw,48px);line-height:1.02;letter-spacing:-.05em;margin:12px 0}.hero h1 span{color:var(--ice)}p,.muted{color:var(--muted)}label{display:block;font-size:13px;color:var(--muted);margin:16px 0 7px}input{width:100%;min-height:48px;border:1px solid #3a5268;border-radius:12px;background:#0c1420;color:var(--text);padding:12px;font:inherit}button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;border:1px solid #5796b4;border-radius:12px;padding:10px 15px;background:linear-gradient(120deg,#1a4054,#172b3d);color:var(--ice);font:inherit;font-weight:750;text-decoration:none;cursor:pointer;width:100%;margin-top:12px}button.secondary{background:#141b28;border-color:var(--line);color:var(--text)}.status{border-radius:12px;padding:12px;background:#0d1722;border:1px solid var(--line);margin-top:12px;overflow-wrap:anywhere}.profile{display:none;gap:14px;align-items:center}.profile img{width:76px;height:76px;object-fit:cover;border-radius:15px;background:#24384d}.profile h2{margin:0;font-size:22px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:12px;padding:13px;background:#101722}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:21px;overflow-wrap:anywhere}.fine{font-size:12px}.foot{padding:20px 4px;color:#71849b;font-size:11px;text-align:center}@media(min-width:560px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+:root{color-scheme:dark;--bg:#0b0f17;--panel:#141b28;--line:#2d4054;--ice:#a9e7ff;--cyan:#57c9e8;--text:#f0f6ff;--muted:#91a3b9;--good:#8ce0b0}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 80% 0%,#24384d 0,transparent 38%),var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,sans-serif}.wrap{max-width:850px;margin:auto;padding:22px 16px calc(30px + env(safe-area-inset-bottom))}.brand{font-size:12px;letter-spacing:.2em;color:var(--ice);font-weight:800}.hero,.panel{border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,#172131ee,#111722ee);padding:20px;margin-top:16px}.hero h1{font-size:clamp(32px,8vw,48px);line-height:1.02;letter-spacing:-.05em;margin:12px 0}.hero h1 span{color:var(--ice)}p,.muted{color:var(--muted)}label{display:block;font-size:13px;color:var(--muted);margin:16px 0 7px}input{width:100%;min-height:48px;border:1px solid #3a5268;border-radius:12px;background:#0c1420;color:var(--text);padding:12px;font:inherit}button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;border:1px solid #5796b4;border-radius:12px;padding:10px 15px;background:linear-gradient(120deg,#1a4054,#172b3d);color:var(--ice);font:inherit;font-weight:750;text-decoration:none;cursor:pointer;width:100%;margin-top:12px}button:disabled{opacity:.55;cursor:wait}.button.secondary,button.secondary{background:#141b28;border-color:var(--line);color:var(--text)}.status{border-radius:12px;padding:12px;background:#0d1722;border:1px solid var(--line);margin-top:12px;overflow-wrap:anywhere}.status[data-kind="error"]{border-color:#9b5555;color:#ffb7b7}.status[data-kind="success"]{border-color:#376c57;color:var(--good)}.profile{display:none;gap:14px;align-items:center}.profile img{width:76px;height:76px;object-fit:cover;border-radius:15px;background:#24384d}.profile h2{margin:0;font-size:22px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:12px;padding:13px;background:#101722;min-width:0}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:clamp(17px,4vw,23px);overflow-wrap:anywhere}.fine{font-size:12px}.foot{padding:20px 4px;color:#71849b;font-size:11px;text-align:center}.row{display:flex;align-items:center;gap:12px}.row>*{min-width:0}.row .grow{flex:1}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}.section-title h2{margin:0}.pill{font-size:11px;border:1px solid var(--line);border-radius:99px;padding:4px 9px;color:var(--muted)}.progress-list{display:grid;gap:12px}.progress-item{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #243243;padding-bottom:10px}.progress-item:last-child{border-bottom:0;padding-bottom:0}.progress-item span{color:var(--muted)}.empty{color:var(--muted);font-size:14px}.chart{width:100%;height:auto;display:block;margin-top:12px}.actions{display:grid;grid-template-columns:1fr;gap:8px}@media(min-width:560px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.actions{grid-template-columns:1fr 1fr}.wrap{padding-top:30px}}
 </style></head>
 <body><main class="wrap">
 <div class="brand">OSU! PERFORMANCE TOOLKIT</div>
-<section class="hero"><div class="brand">APP PREVIEW · 0.1.0</div><h1>OSU! <span>DAILY TRACKER</span></h1><p>Локальное приложение для публичного профиля osu!, статистики и Replay Lab. Существующий сайт продолжает работать отдельно.</p></section>
+<section class="hero"><div class="brand">APP FOUNDATION · 0.2.0</div><h1>OSU! <span>DAILY TRACKER</span></h1><p>Профиль, ключевые показатели и динамика ранга. Replay Lab остаётся отдельным инструментом; подключение OAuth и импорт реплеев добавим следующими этапами.</p></section>
 <section class="panel">
-<h2>Подключить публичный профиль</h2>
-<p class="fine">Введи ник или ID. Это не вход в аккаунт: пароль и токен не нужны. Профиль и доступные публичные данные будут открываться через osu!.</p>
-<form id="connectForm"><label for="osuUser">Никнейм или ID osu!</label><input id="osuUser" name="osuUser" placeholder="Например, EmptyMiyabi или 34437510" autocomplete="off" required maxlength="80"><button type="submit">Открыть профиль</button></form>
-<div id="status" class="status" role="status" aria-live="polite">Профиль ещё не выбран.</div>
-<div id="profile" class="profile" style="margin-top:18px"><img id="avatar" alt="Аватар osu!"><div><h2 id="username"></h2><div id="userid" class="muted"></div></div></div>
+<div class="section-title"><h2>Профиль osu!</h2><span class="pill">Публичные данные</span></div>
+<p class="fine">Введи никнейм или ID. Пароль не нужен. Данные загружаются с нашего Worker, а выбранный профиль сохраняется только на этом устройстве.</p>
+<form id="connectForm"><label for="osuUser">Никнейм или ID osu!</label><div class="row"><div class="grow"><input id="osuUser" name="osuUser" placeholder="EmptyMiyabi или 34437510" autocomplete="off" required maxlength="80"></div></div><button id="loadButton" type="submit">Загрузить статистику</button></form>
+<div id="status" class="status" role="status" aria-live="polite">Введи ник или ID, чтобы загрузить профиль.</div>
+<div id="profile" class="profile" style="margin-top:18px"><img id="avatar" alt="Аватар osu!"><div class="grow"><h2 id="username"></h2><div id="userid" class="muted"></div><div id="country" class="muted fine"></div></div></div>
 <div id="stats" class="stats"></div>
-<a id="openProfile" class="button" href="#" target="_blank" rel="noopener" style="display:none">Открыть страницу на osu.ppy.sh</a>
+<div class="actions"><a id="openProfile" class="button secondary" href="#" target="_blank" rel="noopener" style="display:none">Открыть профиль на osu.ppy.sh</a><button id="refreshButton" class="secondary" type="button" style="display:none">Обновить данные</button></div>
 </section>
-<section class="panel"><h2>Replay Lab</h2><p>Анализ .osr пока доступен в существующем веб-инструменте. Интеграция выбора реплея из профиля — следующий этап.</p><a class="button" href="https://anton4ik837-eng.github.io/Osu-Daliy-Tracker/replay.html" target="_blank" rel="noopener">Открыть Replay Lab</a></section>
-<section class="panel"><h2>Что будет дальше</h2><p>После проверки способа чтения публичного профиля добавим сохранение выбранного профиля на устройстве, статистические экраны и экспорт. История и синхронизация между устройствами не включены.</p><p class="fine">Приложение не запрашивает пароль osu! и не содержит OAuth Client Secret.</p></section>
+<section id="progressPanel" class="panel" hidden><div class="section-title"><h2>Сводка прогресса</h2><span class="pill">osu! standard</span></div><div id="progress" class="progress-list" style="margin-top:14px"></div><h3>История глобального ранга</h3><p class="fine">Показывает точки, которые вернул API. Чем ниже номер ранга, тем лучше позиция.</p><svg id="rankChart" class="chart" viewBox="0 0 600 190" role="img" aria-label="График истории глобального ранга"></svg><div id="chartNote" class="fine muted"></div></section>
+<section class="panel"><div class="section-title"><h2>Replay Lab</h2><span class="pill">Отдельный модуль</span></div><p>Анализ .osr пока работает в существующем веб-инструменте. Интеграция импорта реплеев в приложение — отдельный этап.</p><a class="button" href="https://anton4ik837-eng.github.io/Osu-Daliy-Tracker/replay.html" target="_blank" rel="noopener">Открыть Replay Lab</a></section>
+<section class="panel"><h2>План разработки</h2><div class="progress-list"><div class="progress-item"><span>Публичный профиль и базовая статистика</span><b>В работе</b></div><div class="progress-item"><span>Динамика ранга и сводка</span><b>Добавлено</b></div><div class="progress-item"><span>OAuth-вход и безопасное хранение токена</span><b>Следующий этап</b></div><div class="progress-item"><span>Лучшие результаты и ежедневные снимки</span><b>Следующий этап</b></div><div class="progress-item"><span>Импорт .osr и Replay Lab внутри приложения</span><b>Позже</b></div></div><p class="fine">Неофициальное приложение сообщества. Секретный ключ osu! хранится только на сервере.</p></section>
 <div class="foot">OSU! DAILY TRACKER · COMMUNITY APP · НЕОФИЦИАЛЬНОЕ ПРИЛОЖЕНИЕ</div>
 </main>
 <script>
+const API_BASE='https://osu-daily-tracker-oauth.anton4ik837.workers.dev';
+const STORAGE_KEY='osu-daily-tracker-profile';
 const $=id=>document.getElementById(id);
-const fmt=(n,d=0)=>n==null?'—':Number(n).toLocaleString('ru-RU',{maximumFractionDigits:d});
-function profileUrl(value){const s=value.trim();if(/^\d+$/.test(s))return 'https://osu.ppy.sh/users/'+encodeURIComponent(s);return 'https://osu.ppy.sh/users/'+encodeURIComponent(s);}
-$('connectForm').addEventListener('submit',e=>{
- e.preventDefault();const value=$('osuUser').value.trim();if(!value)return;
- const url=profileUrl(value);$('status').textContent='Открываем публичную страницу osu! для «'+value+'». Прямое получение статистики будет включено после проверки совместимого публичного API-доступа.';
- $('openProfile').href=url;$('openProfile').style.display='inline-flex';
- // Keep navigation user-initiated and do not attempt to send credentials.
- window.open(url,'_blank','noopener');
-});
+const fmt=(n,d=0)=>n==null||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString('ru-RU',{maximumFractionDigits:d});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function setStatus(message,kind='info'){$('status').textContent=message;$('status').dataset.kind=kind}
+function profileUrl(user){return 'https://osu.ppy.sh/users/'+encodeURIComponent(String(user))+'/osu'}
+function metric(label,value){return '<div class="stat"><small>'+esc(label)+'</small><b>'+esc(value)+'</b></div>'}
+function renderRankChart(history){
+ const svg=$('rankChart');svg.replaceChildren();
+ const ns='http://www.w3.org/2000/svg';
+ const add=(tag,attrs,parent=svg)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);parent.appendChild(el);return el};
+ const data=(history||[]).filter(n=>Number.isFinite(Number(n))&&Number(n)>0);
+ if(data.length<2){$('chartNote').textContent='Пока недостаточно точек для графика.';return}
+ const sample=data.length>100?data.filter((_,i)=>i%Math.ceil(data.length/100)===0||i===data.length-1):data;
+ const lo=Math.min(...sample),hi=Math.max(...sample),span=Math.max(1,hi-lo);
+ const pts=sample.map((v,i)=>[18+i*564/Math.max(1,sample.length-1),18+(Number(v)-lo)/span*132]);
+ [0,0.5,1].forEach(t=>{const y=18+t*132;add('line',{x1:18,y1:y,x2:582,y2:y,stroke:'#2d4054','stroke-width':1});});
+ add('polyline',{points:pts.map(p=>p.join(',')).join(' '),fill:'none',stroke:'#79d8f4','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'});
+ add('text',{x:18,y:177,fill:'#91a3b9','font-size':11},svg).textContent='#'+fmt(hi);
+ add('text',{x:582,y:177,fill:'#91a3b9','font-size':11,'text-anchor':'end'},svg).textContent='#'+fmt(lo);
+ $('chartNote').textContent='Показано '+sample.length+' точек из '+data.length+'. Текущий ранг: #'+fmt(sample[sample.length-1])+'.';
+}
+function renderProfile(data){
+ const s=data.statistics||{},rank=s.global_rank,countryRank=s.country_rank??s.rank?.country;
+ $('profile').style.display='flex';$('avatar').src=data.avatar_url||'';$('avatar').onerror=()=>{$('avatar').style.visibility='hidden'};$('avatar').style.visibility='visible';
+ $('username').textContent=data.username||'Unknown';$('userid').textContent='ID '+data.id+' · '+(data.playmode||'osu');
+ $('country').textContent=(data.country?.name||data.country_code||'')+(data.is_online?' · В сети':'');
+ $('stats').innerHTML=[
+  metric('Performance Points',fmt(s.pp,2)),
+  metric('Глобальный ранг',rank?'#'+fmt(rank):'—'),
+  metric('Ранг в стране',countryRank?'#'+fmt(countryRank):'—'),
+  metric('Точность',s.hit_accuracy==null?'—':fmt(s.hit_accuracy,2)+'%'),
+  metric('Игр сыграно',fmt(s.play_count)),
+  metric('Макс. комбо',fmt(s.maximum_combo)),
+  metric('Уровень',s.level?.current==null?'—':fmt(s.level.current)+' · '+fmt(s.level.progress)+'%'),
+  metric('Всего попаданий',fmt(s.total_hits))
+ ].join('');
+ $('openProfile').href=profileUrl(data.id);$('openProfile').style.display='inline-flex';$('refreshButton').style.display='inline-flex';
+ const playHours=Number(s.play_time||0)/3600;
+ $('progress').innerHTML=[
+  ['Время в игре',fmt(playHours,1)+' ч'],
+  ['Рейтинговый счёт',fmt(s.ranked_score)],
+  ['Всего очков',fmt(s.total_score)],
+  ['300 / 100 / 50',fmt(s.count_300)+' / '+fmt(s.count_100)+' / '+fmt(s.count_50)],
+  ['Промахи',fmt(s.count_miss)],
+  ['Медали S / SS / A',fmt(s.grade_counts?.s)+' / '+fmt((s.grade_counts?.ss||0)+(s.grade_counts?.ssh||0))+' / '+fmt(s.grade_counts?.a)]
+ ].map(([k,v])=>'<div class="progress-item"><span>'+esc(k)+'</span><b>'+esc(v)+'</b></div>').join('');
+ $('progressPanel').hidden=false;renderRankChart(data.rank_history?.data||data.rankHistory?.data||[]);
+}
+async function loadProfile(value){
+ const user=String(value||'').trim();if(!user)return;
+ $('loadButton').disabled=true;$('refreshButton').disabled=true;setStatus('Загружаем профиль «'+user+'»…');
+ try{
+  const response=await fetch(API_BASE+'/api/users/'+encodeURIComponent(user),{headers:{'Accept':'application/json'}});
+  const body=await response.text();let data;
+  try{data=JSON.parse(body)}catch{throw new Error('Worker вернул не JSON (HTTP '+response.status+').')}
+  if(!response.ok)throw new Error('HTTP '+response.status+': '+(data.error_description||data.error||data.message||'ошибка запроса'));
+  if(!data||!data.id||!data.statistics)throw new Error(data?.error_description||data?.error||'Ответ не содержит статистику профиля.');
+  renderProfile(data);$('osuUser').value=data.username||user;
+  try{localStorage.setItem(STORAGE_KEY,data.username||user)}catch{}
+  setStatus('Профиль загружен. Данные получены через osu! API.','success');
+ }catch(err){setStatus('Не удалось загрузить профиль: '+(err?.message||String(err)),'error')}
+ finally{$('loadButton').disabled=false;$('refreshButton').disabled=false}
+}
+$('connectForm').addEventListener('submit',e=>{e.preventDefault();loadProfile($('osuUser').value)});
+$('refreshButton').addEventListener('click',()=>loadProfile($('osuUser').value));
+try{const saved=localStorage.getItem(STORAGE_KEY);if(saved){$('osuUser').value=saved;loadProfile(saved)}}catch{}
 </script></body></html>
