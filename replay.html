@@ -84,7 +84,7 @@ function renderCritique(a){
    const lanes=Array.from({length:a.keys||0},(_,lane)=>matched.filter(r=>r.lane===lane));
    const laneStats=lanes.map((rs,lane)=>({lane,rs,mean:rs.length?rs.reduce((s,r)=>s+r.offset,0)/rs.length:0,abs:rs.length?rs.reduce((s,r)=>s+Math.abs(r.offset),0)/rs.length:0})).filter(x=>x.rs.length>=8);
    if(laneStats.length>=2){
-    const earliest=[...laneStats].sort((x,y)=>x.mean-y.mean)[0],latest=[...laneStats].sort((x,y)=>y.mean-y.mean)[0];
+    const earliest=[...laneStats].sort((x,y)=>x.mean-y.mean)[0],latest=[...laneStats].sort((x,y)=>y.mean-x.mean)[0];
     const spread=latest.mean-earliest.mean;
     if(spread>=25)negatives.push('Между дорожками есть устойчивое различие тайминга: дорожка '+(earliest.lane+1)+' в среднем раньше, а дорожка '+(latest.lane+1)+' позже; разница около '+Math.round(spread)+' мс. Это может быть особенностью чередования пальцев, но проверь, что выборка дорожек достаточно разнообразна.');
     else positives.push('На дорожках mania нет крупного систематического разрыва по среднему таймингу (сравниваются дорожки минимум с 8 найденными нотами).');
