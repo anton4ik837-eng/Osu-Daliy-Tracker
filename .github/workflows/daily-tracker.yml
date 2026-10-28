@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -69,7 +71,7 @@ jobs:
           for table_mode, table, api_mode in checks:
               known = {row[0] for row in conn.execute(f"SELECT id FROM {table}")}
               response = session.get(
-                  f"https://osu.ppy.sh/api/v2/users/34437510/scores/recent",
+                  "https://osu.ppy.sh/api/v2/users/34437510/scores/recent",
                   params={"mode": api_mode, "limit": 20, "include_fails": 1, "legacy_only": 0},
                   timeout=30,
               )
@@ -82,7 +84,7 @@ jobs:
                   new_score = True
           conn.close()
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              output.write(f"new_score={'true' if new_score else 'false'}\\n")
+              output.write(f"new_score={'true' if new_score else 'false'}\n")
           print("New score detected." if new_score else "No new scores; skipping dashboard regeneration.")
           PY
 
@@ -99,8 +101,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/tracker.sqlite reports/
-          git diff --cached --quiet || git commit -m "Update osu! tracker after new score"
-          git push
+          if git diff --cached --quiet; then
+            echo "No history changes to commit."
+          else
+            git commit -m "Update osu! tracker after new score"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
 
       - name: Prepare site
         run: |
