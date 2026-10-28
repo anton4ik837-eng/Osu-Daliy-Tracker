@@ -123,6 +123,42 @@ def main():
 > Значения берутся из API во время запуска. API выдаёт ограниченный список best/recent, поэтому при большом количестве игр между запусками часть недавних результатов может быть пропущена.
 """
     Path("reports/latest.md").write_text(report,encoding="utf-8")
+
+    # Build the Miyabi/Frost HTML dashboard from the current snapshot and saved history.
+    dashboard_template = Path("dashboard_template.html")
+    if dashboard_template.exists():
+        dashboard_stats = {
+            "pp": st.get("pp"),
+            "global_rank": st.get("global_rank"),
+            "country_rank": st.get("country_rank"),
+            "accuracy": st.get("hit_accuracy"),
+            "playcount": st.get("play_count"),
+            "playtime_hours": round(st.get("play_time") / 3600, 1) if st.get("play_time") is not None else None,
+            "max_combo": st.get("maximum_combo"),
+            "level": (level or {}).get("current") if isinstance(level, dict) else level,
+        }
+        dashboard_snapshots = [
+            {"ts": r[0], "pp": r[2], "global_rank": r[3], "accuracy": r[5]}
+            for r in rows
+        ]
+        dashboard_scores = [
+            {"id": r[0], "kind": r[1], "ended_at": r[2], "beatmap_id": r[3],
+             "title": r[4], "pp": r[5], "accuracy": r[6], "combo": r[7],
+             "rank": r[8], "mods": r[9], "misses": r[10]}
+            for r in ordered_scores
+        ]
+        dashboard_data = {
+            "updated": now,
+            "stats": dashboard_stats,
+            "snapshots": dashboard_snapshots,
+            "scores": dashboard_scores,
+        }
+        dashboard_html = dashboard_template.read_text(encoding="utf-8").replace(
+            "__DASHBOARD_DATA__", json.dumps(dashboard_data, ensure_ascii=False, separators=(",", ":"))
+        )
+        Path("reports/dashboard.html").write_text(dashboard_html, encoding="utf-8")
+        print("Generated reports/dashboard.html")
+
     print(report); conn.close()
 
 if __name__=="__main__": main()
