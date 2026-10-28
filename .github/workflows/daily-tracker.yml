@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: osu-tracker
@@ -80,7 +82,7 @@ jobs:
                   new_score = True
           conn.close()
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              output.write(f"new_score={'true' if new_score else 'false'}\n")
+              output.write(f"new_score={'true' if new_score else 'false'}\\n")
           print("New score detected." if new_score else "No new scores; skipping dashboard regeneration.")
           PY
 
@@ -99,3 +101,17 @@ jobs:
           git add data/tracker.sqlite reports/
           git diff --cached --quiet || git commit -m "Update osu! tracker after new score"
           git push
+
+      - name: Prepare site
+        run: |
+          mkdir -p site
+          cp reports/dashboard.html site/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
