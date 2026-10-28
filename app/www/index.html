@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f17"><title>osu! Daily Tracker</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0f17;--panel:#141b28;--line:#2d4054;--ice:#a9e7ff;--cyan:#57c9e8;--text:#f0f6ff;--muted:#91a3b9}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 80% 0%,#24384d 0,transparent 38%),var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,sans-serif}.wrap{max-width:760px;margin:auto;padding:22px 16px calc(30px + env(safe-area-inset-bottom))}.brand{font-size:12px;letter-spacing:.2em;color:var(--ice);font-weight:800}.hero,.panel{border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,#172131ee,#111722ee);padding:22px;margin-top:16px}.hero h1{font-size:clamp(32px,8vw,48px);line-height:1.02;letter-spacing:-.05em;margin:12px 0}.hero h1 span{color:var(--ice)}p,.muted{color:var(--muted)}label{display:block;font-size:13px;color:var(--muted);margin:16px 0 7px}input{width:100%;min-height:48px;border:1px solid #3a5268;border-radius:12px;background:#0c1420;color:var(--text);padding:12px;font:inherit}button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;border:1px solid #5796b4;border-radius:12px;padding:10px 15px;background:linear-gradient(120deg,#1a4054,#172b3d);color:var(--ice);font:inherit;font-weight:750;text-decoration:none;cursor:pointer;width:100%;margin-top:12px}button.secondary{background:#141b28;border-color:var(--line);color:var(--text)}.status{border-radius:12px;padding:12px;background:#0d1722;border:1px solid var(--line);margin-top:12px;overflow-wrap:anywhere}.profile{display:none;gap:14px;align-items:center}.profile img{width:76px;height:76px;object-fit:cover;border-radius:15px;background:#24384d}.profile h2{margin:0;font-size:22px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:12px;padding:13px;background:#101722}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:21px;overflow-wrap:anywhere}.fine{font-size:12px}.foot{padding:20px 4px;color:#71849b;font-size:11px;text-align:center}@media(min-width:560px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+</style></head>
+<body><main class="wrap">
+<div class="brand">OSU! PERFORMANCE TOOLKIT</div>
+<section class="hero"><div class="brand">APP PREVIEW · 0.1.0</div><h1>OSU! <span>DAILY TRACKER</span></h1><p>Локальное приложение для публичного профиля osu!, статистики и Replay Lab. Существующий сайт продолжает работать отдельно.</p></section>
+<section class="panel">
+<h2>Подключить публичный профиль</h2>
+<p class="fine">Введи ник или ID. Это не вход в аккаунт: пароль и токен не нужны. Профиль и доступные публичные данные будут открываться через osu!.</p>
+<form id="connectForm"><label for="osuUser">Никнейм или ID osu!</label><input id="osuUser" name="osuUser" placeholder="Например, EmptyMiyabi или 34437510" autocomplete="off" required maxlength="80"><button type="submit">Открыть профиль</button></form>
+<div id="status" class="status" role="status" aria-live="polite">Профиль ещё не выбран.</div>
+<div id="profile" class="profile" style="margin-top:18px"><img id="avatar" alt="Аватар osu!"><div><h2 id="username"></h2><div id="userid" class="muted"></div></div></div>
+<div id="stats" class="stats"></div>
+<a id="openProfile" class="button" href="#" target="_blank" rel="noopener" style="display:none">Открыть страницу на osu.ppy.sh</a>
+</section>
+<section class="panel"><h2>Replay Lab</h2><p>Анализ .osr пока доступен в существующем веб-инструменте. Интеграция выбора реплея из профиля — следующий этап.</p><a class="button" href="https://anton4ik837-eng.github.io/Osu-Daliy-Tracker/replay.html" target="_blank" rel="noopener">Открыть Replay Lab</a></section>
+<section class="panel"><h2>Что будет дальше</h2><p>После проверки способа чтения публичного профиля добавим сохранение выбранного профиля на устройстве, статистические экраны и экспорт. История и синхронизация между устройствами не включены.</p><p class="fine">Приложение не запрашивает пароль osu! и не содержит OAuth Client Secret.</p></section>
+<div class="foot">OSU! DAILY TRACKER · COMMUNITY APP · НЕОФИЦИАЛЬНОЕ ПРИЛОЖЕНИЕ</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=(n,d=0)=>n==null?'—':Number(n).toLocaleString('ru-RU',{maximumFractionDigits:d});
+function profileUrl(value){const s=value.trim();if(/^\d+$/.test(s))return 'https://osu.ppy.sh/users/'+encodeURIComponent(s);return 'https://osu.ppy.sh/users/'+encodeURIComponent(s);}
+$('connectForm').addEventListener('submit',e=>{
+ e.preventDefault();const value=$('osuUser').value.trim();if(!value)return;
+ const url=profileUrl(value);$('status').textContent='Открываем публичную страницу osu! для «'+value+'». Прямое получение статистики будет включено после проверки совместимого публичного API-доступа.';
+ $('openProfile').href=url;$('openProfile').style.display='inline-flex';
+ // Keep navigation user-initiated and do not attempt to send credentials.
+ window.open(url,'_blank','noopener');
+});
+</script></body></html>
