@@ -7,7 +7,7 @@ on:
       - 'app/**'
       - '.github/workflows/android-apk.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,9 +35,25 @@ jobs:
       - name: Build debug APK
         working-directory: app/android
         run: ./gradlew assembleDebug
-      - name: Upload APK
+      - name: Rename APK for pre-alpha release
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v0.1.0-prealpha.apk
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-debug-apk
-          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          name: osu-daily-tracker-v0.1.0-prealpha
+          path: osu-daily-tracker-v0.1.0-prealpha.apk
           if-no-files-found: error
+      - name: Publish GitHub pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-prealpha
+          name: osu! Daily Tracker v0.1.0-pre-alpha
+          prerelease: true
+          make_latest: false
+          body: |
+            **Статус: PRE-ALPHA — ранняя тестовая сборка.**
+
+            Это первая техническая Android-сборка интерфейса приложения. Многие функции ещё не реализованы: подключение профиля пока открывает публичную страницу osu!, а получение статистики через API ещё не подключено. Replay Lab открывается в веб-версии.
+
+            Возможны ошибки и изменения без сохранения совместимости. APK собран как debug-сборка для тестирования, не является финальным релизом.
+          files: osu-daily-tracker-v0.1.0-prealpha.apk
