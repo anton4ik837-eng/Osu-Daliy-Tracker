@@ -48,6 +48,8 @@ def main():
                 region_data=(country_regions.get("regions") or {}).get(region_code,{})
                 region_info["region_name"]=region_data.get("name") or region_code
                 region_info["flag_url"]=region_data.get("flag")
+    except (requests.RequestException, ValueError, TypeError, AttributeError) as exc:
+        print(f"Regional osu! World data unavailable: {exc}")
 
     best=s.get(f"{API}/users/{UID}/scores/best",params={"mode":"osu","limit":100,"legacy_only":0},timeout=30); best.raise_for_status()
     recent=s.get(f"{API}/users/{UID}/scores/recent",params={"mode":"osu","limit":100,"include_fails":1,"legacy_only":0},timeout=30); recent.raise_for_status()
