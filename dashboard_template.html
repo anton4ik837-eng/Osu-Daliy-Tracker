@@ -57,7 +57,7 @@ document.getElementById('updated').textContent=D.updated?('UPDATED '+dateFmt(D.u
 const scores=D.scores||[];
 const best=scores[0]||null;
 const daily=scores[1]||null;
-function recCard(tag,s,caption){if(!s)return'<article class="card record"><span class="tag">'+tag+'</span><div class="empty">Пока нет данных для этого блока</div></article>';return '<article class="card record"><span class="tag">'+tag+'</span><h3>'+esc(s.title||'Unknown map')+'</h3><div class="pp">'+fmt(s.pp,2)+' PP</div><small>'+fmt((s.accuracy||0)*100,2)+'% accuracy · '+esc(s.rank||'—')+' · '+dateFmt(s.ended_at)+'</small><div class="metric-sub">'+caption+'</div></article>'}
+function recCard(tag,s,caption){if(!s)return'<article class="card record"><span class="tag">'+tag+'</span><div class="empty">Пока нет данных для этого блока</div></article>';return '<article class="card record"><span class="tag">'+tag+'</span><h3>'+esc(s.title||'Unknown map')+'</h3><div class="pp">'+fmt(s.pp,0)+' PP</div><small>'+fmt((s.accuracy||0)*100,2)+'% accuracy · '+esc(s.rank||'—')+' · '+dateFmt(s.ended_at)+'</small><div class="metric-sub">'+caption+'</div></article>'}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 document.getElementById('featured').innerHTML=recCard('01 / ALL-TIME BEST',best,'Абсолютный рекорд')+recCard('02 / TODAY BEST',daily,'Лучший результат за сегодня')+recCard('03 / ARCHIVE','' , ''); 
 // Replace the third featured tile with the newest chronological score.
