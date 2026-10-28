@@ -113,6 +113,7 @@ jobs:
         run: |
           mkdir -p site
           cp reports/dashboard.html site/index.html
+          cp replay.html site/replay.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
