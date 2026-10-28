@@ -40,11 +40,11 @@ def main():
     rows=conn.execute("SELECT ts,username,pp,global_rank,country_rank,accuracy,playcount,playtime,max_combo,level FROM snapshots ORDER BY ts").fetchall()
     with open("reports/snapshots.csv","w",newline="",encoding="utf-8") as f:
         w=csv.writer(f); w.writerow(["ts","username","pp","global_rank","country_rank","accuracy","playcount","playtime","max_combo","level"]); w.writerows(rows)
-    # Order score records: all-time highest PP, today's highest PP (Berlin local date),
-    # then all remaining scores by acquisition time. Each score appears only once.
+    # Feature the all-time PP record first, then the highest-PP score from the
+    # most recent day the user actually played (not today's calendar date).
+    # If that score is the all-time record, omit the second featured slot.
     scores=conn.execute("SELECT id,kind,ended_at,beatmap_id,title,pp,accuracy,combo,rank,mods,misses FROM scores").fetchall()
     berlin = ZoneInfo("Europe/Berlin")
-    today_local = datetime.now(berlin).date().isoformat()
 
     def score_datetime(value):
         if not value:
@@ -66,12 +66,22 @@ def main():
         key=lambda r: float(r[5]),
         default=None
     )
-    todays_scores = [r for r in scores if r[5] is not None and local_score_date(r) == today_local]
-    highest_today = max(todays_scores, key=lambda r: float(r[5]), default=None)
+    latest_play_date = max(
+        (local_score_date(r) for r in scores if r[2]),
+        default=None
+    )
+    latest_day_scores = [
+        r for r in scores
+        if r[5] is not None and latest_play_date is not None
+        and local_score_date(r) == latest_play_date
+    ]
+    highest_latest_day = max(
+        latest_day_scores, key=lambda r: float(r[5]), default=None
+    )
 
     ordered_scores = []
     used_ids = set()
-    for featured in (highest_all_time, highest_today):
+    for featured in (highest_all_time, highest_latest_day):
         if featured is not None and featured[0] not in used_ids:
             ordered_scores.append(featured)
             used_ids.add(featured[0])
