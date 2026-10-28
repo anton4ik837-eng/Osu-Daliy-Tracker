@@ -49,7 +49,7 @@ let activeData=D;
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function renderMode(mode){
  activeMode=mode;
- activeData=mode==='mania'?{stats:D.mania_stats||{},snapshots:D.mania_snapshots||[],scores:D.mania_scores||[]}:D;
+ activeData=mode==='mania'?{stats:D.mania_stats||{},snapshots:D.mania_snapshots||[],scores:D.mania_scores||[],rank_history:D.mania_rank_history||[]}:D;
  document.querySelectorAll('.mode-tab').forEach(b=>{const on=b.dataset.mode===mode;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});
  const stats=activeData.stats||{};
  const metrics=[
