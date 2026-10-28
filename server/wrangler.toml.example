@@ -1,0 +1,8 @@
+name = "osu-daily-tracker-oauth"
+main = "worker.js"
+compatibility_date = "2026-10-29"
+
+# Create a KV namespace and replace the placeholder ID before deploying.
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
