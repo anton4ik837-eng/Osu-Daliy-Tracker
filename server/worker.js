@@ -54,6 +54,43 @@ export default {
       });
     }
 
+    // Safe OAuth diagnostics: show the exact non-secret authorization parameters without redirecting.
+    // This helps distinguish a Worker/KV problem from osu!'s OAuth client configuration.
+    if (url.pathname === "/oauth/diagnostics" && request.method === "GET") {
+      const clientId = typeof env.OSU_CLIENT_ID === "string" ? env.OSU_CLIENT_ID.trim() : "";
+      const redirectUri = typeof env.OAUTH_REDIRECT_URI === "string" ? env.OAUTH_REDIRECT_URI.trim() : "";
+      const expectedRedirectUri = new URL(request.url).origin + "/oauth/callback";
+      let kvWriteReadDelete = false;
+      if (env.OAUTH_KV) {
+        const key = "diagnostic:" + crypto.randomUUID();
+        try {
+          await env.OAUTH_KV.put(key, "ok", { expirationTtl: 60 });
+          kvWriteReadDelete = (await env.OAUTH_KV.get(key)) === "ok";
+          await env.OAUTH_KV.delete(key);
+        } catch {
+          try { await env.OAUTH_KV.delete(key); } catch {}
+        }
+      }
+      const authorize = new URL("https://osu.ppy.sh/oauth/authorize");
+      authorize.searchParams.set("client_id", clientId);
+      authorize.searchParams.set("redirect_uri", redirectUri);
+      authorize.searchParams.set("response_type", "code");
+      authorize.searchParams.set("scope", "public identify");
+      return json({
+        worker: "osu-daily-tracker-oauth",
+        client_id_present: clientId.length > 0,
+        client_id_numeric: /^[0-9]+$/.test(clientId),
+        redirect_uri: redirectUri || null,
+        redirect_uri_matches_worker_callback: redirectUri === expectedRedirectUri,
+        expected_redirect_uri: expectedRedirectUri,
+        kv_bound: Boolean(env.OAUTH_KV),
+        kv_write_read_delete_ok: kvWriteReadDelete,
+        authorize_host: authorize.hostname,
+        authorize_path: authorize.pathname,
+        scope: "public identify",
+      });
+    }
+
     if (url.pathname === "/oauth/start" && request.method === "GET") {
       const state = url.searchParams.get("state");
       if (!validState(state)) return json({ error: "invalid_state" }, 400);
