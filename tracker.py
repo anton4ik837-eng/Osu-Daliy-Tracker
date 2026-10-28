@@ -158,7 +158,7 @@ def main():
             "country_rank": st.get("country_rank"),
             "accuracy": st.get("hit_accuracy"),
             "playcount": st.get("play_count"),
-            "playtime_hours": round(st.get("play_time") / 3600, 1) if st.get("play_time") is not None else None,
+            "playtime_seconds": st.get("play_time"),
             "max_combo": st.get("maximum_combo"),
             "level": (level or {}).get("current") if isinstance(level, dict) else level,
         }
@@ -183,7 +183,7 @@ def main():
             "pp": mania_stats.get("pp"), "global_rank": mania_stats.get("global_rank"),
             "country_rank": mania_stats.get("country_rank"), "accuracy": mania_stats.get("hit_accuracy"),
             "playcount": mania_stats.get("play_count"),
-            "playtime_hours": round(mania_stats.get("play_time") / 3600, 1) if mania_stats.get("play_time") is not None else None,
+            "playtime_seconds": mania_stats.get("play_time"),
             "max_combo": mania_stats.get("maximum_combo"), "level": mania_level_value,
         }
         mania_dashboard_snapshots = [{"ts": r[0], "pp": r[2], "global_rank": r[3], "accuracy": r[5]} for r in mania_rows]
