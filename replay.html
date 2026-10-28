@@ -35,29 +35,49 @@ function showSegment(i){selectedSegment=i;const s=analysis.segments[i];$('segmen
 function playSegment(s){playerNow=s.start;playerStopAt=s.end;playerRunning=true;lastFrame=0;if(audioElement&&audioEnabled){audioElement.currentTime=Math.max(0,(playerNow+audioOffsetMs)/1000);audioElement.play().catch(()=>{$('audioStatus').textContent='Браузер заблокировал звук — нажми «Включить песню» ещё раз.'})}$('playToggle').textContent='Ⅱ Пауза';drawPlayfield();drawHitbar();cancelAnimationFrame(rafId);rafId=requestAnimationFrame(tickPlayer)}
 function renderRows(rows){$('eventRows').innerHTML=rows.map(r=>'<tr data-row="'+r.index+'" class="'+(r.miss?'':'')+'"><td>'+r.index+'</td><td>'+fmtTime(r.time)+'</td><td class="'+(r.offset==null?'':r.offset<0?'early':'late')+'">'+(r.offset==null?'MISS':(r.offset>0?'+':'')+r.offset+' ms')+'</td><td>'+r.type+'</td><td>'+(r.miss?'Пропуск':Math.abs(r.offset)<=20?'Отлично':Math.abs(r.offset)<=50?'Хорошо':Math.abs(r.offset)<=100?'Поздно/рано':'Сильно мимо')+'</td></tr>').join('');}
 function renderCritique(a){
- const matched=a.matched, segs=a.segments||[], good=[...segs].sort((x,y)=>x.quality-y.quality), worst=[...segs].sort((x,y)=>y.quality-x.quality);
- const avg=a.mean, med=a.median, missCount=a.rows.filter(r=>r.miss).length, n=a.rows.length;
- const early=matched.filter(r=>r.offset<0), late=matched.filter(r=>r.offset>0);
+ const matched=a.matched||[],segs=a.segments||[],good=[...segs].sort((x,y)=>x.quality-y.quality),worst=[...segs].sort((x,y)=>y.quality-x.quality);
+ const avg=a.mean,med=a.median,missCount=a.rows.filter(r=>r.miss).length,n=a.rows.length;
+ const early=matched.filter(r=>r.offset<0),late=matched.filter(r=>r.offset>0),onTime=matched.filter(r=>r.offset===0);
  const meanSigned=matched.length?matched.reduce((s,r)=>s+r.offset,0)/matched.length:0;
+ const absOffsets=matched.map(r=>Math.abs(r.offset)).sort((x,y)=>x-y);
  const absPct=matched.length?matched.filter(r=>Math.abs(r.offset)<=50).length/matched.length*100:0;
+ const tightPct=matched.length?matched.filter(r=>Math.abs(r.offset)<=30).length/matched.length*100:0;
+ const mode=a.mode===3?'mania':'standard';
  const card=(title,items,cls)=>'<div style="border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0;background:#101722"><h3 style="margin:0 0 8px;color:'+(cls==='good'?'var(--green)':cls==='bad'?'var(--red)':'var(--ice)')+'">'+title+'</h3><ul style="margin:0;padding-left:20px">'+items.map(x=>'<li style="margin:5px 0">'+x+'</li>').join('')+'</ul></div>';
  let positives=[],negatives=[],details=[];
- if(!matched.length){positives.push('Пока не удалось надёжно сопоставить нажатия с объектами карты — выводы о технике делать рано.');negatives.push('Проверь, что загружена именно та сложность, на которой сыгран реплей.');}
- else{
-  if(absPct>=75)positives.push('У '+Math.round(absPct)+'% сопоставленных нажатий абсолютное отклонение не превышает 50 ms — большая часть распознанных попаданий близка к моменту объекта.');
-  else if(absPct>=50)positives.push('Более половины распознанных нажатий попали в диапазон ±50 ms; есть база для дальнейшей стабилизации.');
-  else negatives.push('Только '+Math.round(absPct)+'% сопоставленных нажатий находятся в пределах ±50 ms. Тайминг стоит проверить на самых нестабильных отрезках.');
-  if(Math.abs(meanSigned)>=12)negatives.push('Есть общий сдвиг тайминга '+(meanSigned<0?'в раннюю':'в позднюю')+' сторону: среднее signed offset '+(meanSigned>0?'+':'')+Math.round(meanSigned)+' ms. Это тенденция данного разбора, а не доказательство причины.');
-  else positives.push('Выраженного общего сдвига в раннюю или позднюю сторону не видно (средний signed offset '+(meanSigned>0?'+':'')+Math.round(meanSigned)+' ms).');
-  if(missCount===0)positives.push('Эвристика не обнаружила непарных объектов в пределах выбранного окна ±150 ms.');
-  else negatives.push('Не сопоставлено '+missCount+' из '+n+' объектов ('+Math.round(missCount/Math.max(1,n)*100)+'%). Часть может быть настоящими пропусками, но часть — ошибкой упрощённого алгоритма, особенно на слайдерах/стримах.');
-  if(a.unmatchedPresses>0)negatives.push('Осталось '+a.unmatchedPresses+' нажатий без пары. Это могут быть лишние нажатия, нажатия вне окна или ошибки сопоставления — по одному счётчику отличить их нельзя.');
-  if(med!=null)details.push('Медианное абсолютное отклонение: '+Math.round(med)+' ms; среднее абсолютное: '+Math.round(avg)+' ms.');
+ if(!matched.length){
+  positives.push('Пока нет подтверждённых пар «нажатие — нота», поэтому оценка техники была бы выдумкой.');
+  negatives.push('Сначала нужно добиться сопоставления нажатий: проверь соответствие реплея и сложности карты.');
+ }else{
+  positives.push('Разобрано '+matched.length+' из '+n+' объектов ('+Math.round(matched.length/Math.max(1,n)*100)+'% сопоставлено). Ниже выводы основаны на найденных парах, а не на предположениях о стиле игры.');
+  if(absPct>=85)positives.push('Тайминг стабилен по базовому критерию: '+Math.round(absPct)+'% найденных нажатий лежат в пределах ±50 мс.');
+  else if(absPct>=65)positives.push('У '+Math.round(absPct)+'% найденных нажатий отклонение не больше 50 мс — большинство попаданий достаточно близко к таймингу карты.');
+  else negatives.push('Только '+Math.round(absPct)+'% найденных нажатий лежат в пределах ±50 мс. Это конкретный сигнал по таймингу: начни с худшего сегмента ниже, а не пытайся менять всё сразу.');
+  if(tightPct>=60)positives.push(Math.round(tightPct)+'% найденных нажатий укладываются в ±30 мс — это сильный результат по точности времени.');
+  else if(tightPct<35)negatives.push('Лишь '+Math.round(tightPct)+'% найденных нажатий попали в ±30 мс. Для следующего прогона выбери короткий участок и попробуй выровнять нажатия относительно ритма.');
+  if(Math.abs(meanSigned)>=12){
+   const direction=meanSigned<0?'раньше объектов':'позже объектов';
+   negatives.push('Есть заметный систематический сдвиг: в среднем '+Math.round(Math.abs(meanSigned))+' мс '+direction+'. Это измеренная тенденция реплея; сначала проверь её на аудио и нескольких соседних сегментах, прежде чем менять оффсет.');
+  }else positives.push('Средний signed offset '+(meanSigned>0?'+':'')+Math.round(meanSigned)+' мс: явного общего сдвига в раннюю или позднюю сторону нет.');
+  const earlyPct=Math.round(early.length/Math.max(1,matched.length)*100),latePct=Math.round(late.length/Math.max(1,matched.length)*100);
+  if(earlyPct-latePct>=15)details.push('Распределение смещено в раннюю сторону: '+earlyPct+'% ранних против '+latePct+'% поздних нажатий.');
+  else if(latePct-earlyPct>=15)details.push('Распределение смещено в позднюю сторону: '+latePct+'% поздних против '+earlyPct+'% ранних нажатий.');
+  else details.push('Ранние/поздние нажатия распределены относительно ровно: '+earlyPct+'% ранних, '+latePct+'% поздних, '+onTime.length+' с нулевым отклонением.');
+  if(missCount===0)positives.push('Алгоритм нашёл пару для каждого объекта в окне ±150 мс. Это не гарантирует идеальное попадание, но в этой проверке явных несопоставленных нот нет.');
+  else{
+   const missPct=Math.round(missCount/Math.max(1,n)*100);
+   if(mode==='mania')negatives.push('Не сопоставлено '+missCount+' из '+n+' нот ('+missPct+'%). Для mania это стоит проверить как возможные пропуски/неверные нажатия; открой самый плохой сегмент и сравни ноты с маркерами нажатий.');
+   else negatives.push('Не сопоставлено '+missCount+' из '+n+' объектов ('+missPct+'%). Это конкретные кандидаты на пропуски, но в standard часть может объясняться упрощённым сопоставлением слайдеров и плотных паттернов.');
+  }
+  if(a.unmatchedPresses>0)negatives.push('Есть '+a.unmatchedPresses+' нажатий без пары. Они могут указывать на лишние нажатия или на ограничения алгоритма; проверь их вместе с таймлайном, а не считай автоматически миссами.');
+  if(med!=null)details.push('Медианное абсолютное отклонение — '+Math.round(med)+' мс; среднее абсолютное — '+Math.round(avg)+' мс. Медиана показывает типичное отклонение, среднее сильнее реагирует на большие срывы.');
+  if(absOffsets.length){const p90=absOffsets[Math.min(absOffsets.length-1,Math.floor(absOffsets.length*.9))];details.push('90-й перцентиль абсолютного отклонения — '+Math.round(p90)+' мс: примерно 9 из 10 найденных нажатий не выходят за этот уровень.');}
  }
- if(good.length){const s=good[0];details.push('Лучший 10-секундный отрезок: '+fmtTime(s.start)+'–'+fmtTime(s.end)+', среднее |offset| '+Math.round(s.avg)+' ms, пропуски '+s.rows.filter(r=>r.miss).length+'/'+s.rows.length+'.');}
- if(worst.length){const s=worst[0];details.push('Самый проблемный 10-секундный отрезок: '+fmtTime(s.start)+'–'+fmtTime(s.end)+', среднее |offset| '+Math.round(s.avg)+' ms, пропуски '+s.rows.filter(r=>r.miss).length+'/'+s.rows.length+'.');}
- if(good.length>1&&worst.length>1){const gap=worst[0].quality-good[0].quality;if(gap>25)negatives.push('Качество заметно меняется по карте: худший сегмент хуже лучшего на '+Math.round(gap)+' условных пунктов метрики. Это повод отдельно пересмотреть худший отрезок.');else positives.push('По грубой сегментной метрике качество между лучшим и худшим участком различается не резко.');}
- $('critiqueContent').innerHTML=card('Сильные стороны',positives,'good')+card('Что стоит улучшить',negatives,'bad')+card('Конкретные участки и цифры',details.length?details:['Недостаточно сопоставленных данных для надёжных выводов.'],'info')+'<p class="muted">Важно: этот отчёт оценивает в первую очередь тайминг и качество сопоставления. Он не может честно утверждать, что аим, стрим-стамина или чтение сильные/слабые, пока не измерены траектория курсора, реальные hit windows и структура паттернов. Цвет сегмента относительный — лучший/худший внутри этого же рана, не сравнение с другими игроками.</p>';
+ if(good.length){const s=good[0];details.push('Лучший сегмент '+fmtTime(s.start)+'–'+fmtTime(s.end)+': среднее |offset| '+Math.round(s.avg)+' мс, пропуски/несопоставленные объекты '+s.rows.filter(r=>r.miss).length+'/'+s.rows.length+'. Используй его как ориентир для сравнения.');}
+ if(worst.length){const s=worst[0];details.push('Главная точка для работы — '+fmtTime(s.start)+'–'+fmtTime(s.end)+': среднее |offset| '+Math.round(s.avg)+' мс, пропуски/несопоставленные объекты '+s.rows.filter(r=>r.miss).length+'/'+s.rows.length+'. Нажми этот сегмент: просмотр остановится на его конце.');}
+ if(good.length>1&&worst.length>1){const gap=worst[0].quality-good[0].quality;if(gap>25)negatives.push('Результат заметно проседает на отдельных участках: разница между худшим и лучшим сегментом — '+Math.round(gap)+' пунктов внутренней метрики. Тренируй сначала худший отрезок, сохраняя темп, вместо повторения всей карты.');else positives.push('Разница между лучшим и худшим сегментом небольшая по внутренней метрике: качество выглядит относительно равномерным по карте.');}
+ if(!negatives.length)negatives.push('По доступным измерениям явной критичной проблемы не обнаружено. Для дальнейшего роста сравни худший сегмент с лучшим и следи, не увеличивается ли отклонение к концу.');
+ $('critiqueContent').innerHTML=card('Что реально получается',positives,'good')+card('Что конкретно улучшить',negatives,'bad')+card('Доказательства из этого реплея',details.length?details:['Пока недостаточно сопоставленных данных для надёжного вывода.'],'info')+'<p class="muted">Отчёт делает выводы по измеренным таймингам и сопоставлению объектов. В standard слайдеры и плотные паттерны могут давать ошибки алгоритма; в mania hold оценивается по началу ноты, без анализа отпускания/удержания. Цвет сегмента сравнивает участки только внутри этого реплея, а не с другими игроками.</p>';
  $('critiquePanel').hidden=false;
 }
 function renderAnalysis(){analysis.segments=makeSegments(analysis);$('summary').hidden=false;$('eventsPanel').hidden=false;const a=analysis;const m=[['OBJECTS',a.objects.length],['HITS MATCHED',a.matched.length],['MEDIAN |OFFSET|',a.median==null?'—':Math.round(a.median)+' ms'],['UNMATCHED PRESSES',a.unmatchedPresses]];$('metrics').innerHTML=m.map(x=>'<div class="metric"><small>'+x[0]+'</small><b>'+x[1]+'</b></div>').join('');$('timeEnd').textContent=fmtTime(a.duration);drawTimeline();renderRows(a.rows);renderCritique(a);$('timeline').onclick=e=>{const r=$('timeline').getBoundingClientRect(),i=Math.max(0,Math.min(a.segments.length-1,Math.floor((e.clientX-r.left)/r.width*a.segments.length)));showSegment(i)};$('eventRows').onclick=e=>{const tr=e.target.closest('tr[data-row]');if(!tr)return;const r=a.rows.find(x=>x.index===Number(tr.dataset.row));const seg=a.segments.find(s=>s.rows.includes(r));if(seg)showSegment(seg.index);document.querySelectorAll('#eventRows tr').forEach(x=>x.classList.toggle('selected',x===tr));}}
