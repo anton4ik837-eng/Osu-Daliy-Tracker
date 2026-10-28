@@ -5,13 +5,13 @@
 <meta name="theme-color" content="#17141b"><title>osu! Daily Tracker</title>
 <style>
 :root{color-scheme:dark;--bg:#17141b;--surface:#211d26;--surface2:#2b2531;--line:#403544;--pink:#ff66aa;--pink2:#ff8fc2;--text:#fff7fc;--muted:#b8aab8;--good:#8ee4b5;--danger:#ff9baf}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,#58304d 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.55 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.topbar{position:sticky;top:0;z-index:5;background:#17141beF;border-bottom:1px solid #3c2b3b;backdrop-filter:blur(16px)}.topinner{max-width:1050px;margin:auto;min-height:58px;padding:10px 18px;display:flex;align-items:center;gap:12px}.logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:-.04em;font-size:17px}.logo-mark{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--pink);color:#28151f;font-weight:1000;font-size:19px}.topnav{margin-left:auto;display:flex;gap:8px}.navlink{color:var(--muted);text-decoration:none;padding:8px 10px;border-radius:9px;font-size:13px}.navlink:hover,.navlink.active{color:var(--text);background:var(--surface2)}.wrap{max-width:1050px;margin:auto;padding:26px 16px calc(35px + env(safe-area-inset-bottom))}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--pink2);font-weight:850}.hero{position:relative;overflow:hidden;border:1px solid #56384d;border-radius:22px;padding:clamp(22px,5vw,40px);background:linear-gradient(115deg,#332431 0%,#241c29 62%,#302034 100%);box-shadow:0 18px 50px #0002}.hero:after{content:"osu!";position:absolute;right:-12px;bottom:-47px;font-size:clamp(100px,23vw,220px);font-weight:1000;letter-spacing:-.1em;color:#ff66aa0b;pointer-events:none}.hero h1{position:relative;z-index:1;font-size:clamp(34px,8vw,62px);line-height:.98;letter-spacing:-.065em;margin:13px 0}.hero h1 span{color:var(--pink)}.hero p{position:relative;z-index:1;max-width:620px;color:#d0c1d0;margin:14px 0 0}.hero-actions{position:relative;z-index:1;display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.8fr);gap:16px;margin-top:16px}.panel{min-width:0;border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,#25202a,#201c25);padding:20px}.panel h2{font-size:19px;letter-spacing:-.025em;margin:0}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}.pill{white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#f6a6cd;border:1px solid #68445a;background:#42283a;border-radius:99px;padding:5px 9px}.muted,p{color:var(--muted)}.fine{font-size:12px}.label{display:block;font-size:12px;color:var(--muted);margin:16px 0 7px}input{width:100%;min-height:46px;border:1px solid #554456;border-radius:11px;background:#17141c;color:var(--text);padding:11px 13px;font:inherit;outline:none}input:focus{border-color:var(--pink);box-shadow:0 0 0 3px #ff66aa1f}button,.button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border:1px solid #ff8fc2;border-radius:11px;padding:10px 15px;background:var(--pink);color:#2a1420;font:inherit;font-weight:850;text-decoration:none;cursor:pointer;transition:transform .15s,filter .15s;width:100%;margin-top:11px}button:hover,.button:hover{filter:brightness(1.07);transform:translateY(-1px)}button:disabled{opacity:.55;cursor:wait;transform:none}.secondary,button.secondary{background:#2b2531;border-color:#514153;color:var(--text)}.oauth-button{background:linear-gradient(110deg,#ff66aa,#ff91c3);font-size:15px}.osu-icon{font-weight:1000;font-size:18px;line-height:1}.status{border-radius:10px;padding:11px 12px;background:#17141c;border:1px solid var(--line);margin-top:12px;overflow-wrap:anywhere;font-size:13px}.status[data-kind=error]{border-color:#91455b;color:var(--danger)}.status[data-kind=success]{border-color:#376c57;color:var(--good)}.profile{display:none;gap:13px;align-items:center;margin-top:18px}.profile img{width:68px;height:68px;object-fit:cover;border-radius:15px;background:#342a38;border:1px solid #574154}.profile h3{margin:0;font-size:20px}.grow{flex:1;min-width:0}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}.stat{border:1px solid #403544;border-radius:12px;padding:12px;background:#1a171f;min-width:0}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:clamp(17px,3vw,22px);letter-spacing:-.03em;overflow-wrap:anywhere}.actions{display:grid;grid-template-columns:1fr;gap:2px}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}.progress-list{display:grid;gap:11px;margin-top:14px}.progress-item{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #39303d;padding-bottom:10px;font-size:13px}.progress-item:last-child{border-bottom:0;padding-bottom:0}.progress-item span{color:var(--muted)}.progress-item b{text-align:right}.chart{width:100%;height:auto;display:block;margin-top:12px}.feature{padding:13px 0;border-bottom:1px solid #39303d}.feature:last-child{border:0;padding-bottom:0}.feature b{display:block;font-size:13px}.feature span{display:block;color:var(--muted);font-size:12px;margin-top:3px}.dot{display:inline-block;width:7px;height:7px;background:var(--pink);border-radius:50%;margin-right:7px}.foot{text-align:center;color:#887b8b;font-size:11px;padding:24px 4px}.hidden{display:none!important}@media(max-width:720px){.layout{grid-template-columns:1fr}.wrap{padding-top:18px}.topnav .navlink:first-child{display:none}.hero{border-radius:18px}.panel{padding:17px}}@media(min-width:560px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.actions{grid-template-columns:1fr 1fr}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,#58304d 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.55 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.topbar{position:sticky;top:0;z-index:5;background:#17141beF;border-bottom:1px solid #3c2b3b;backdrop-filter:blur(16px)}.topinner{max-width:1050px;margin:auto;min-height:58px;padding:10px 18px;display:flex;align-items:center;gap:12px}.logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:-.04em;font-size:17px}.logo-mark{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--pink);color:#28151f;font-weight:1000;font-size:19px}.topnav{margin-left:auto;display:flex;gap:8px}.navlink{color:var(--muted);text-decoration:none;padding:8px 10px;border-radius:9px;font-size:13px}.navlink:hover,.navlink.active{color:var(--text);background:var(--surface2)}.wrap{max-width:1050px;margin:auto;padding:26px 16px calc(35px + env(safe-area-inset-bottom))}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--pink2);font-weight:850}.hero{position:relative;overflow:hidden;border:1px solid #56384d;border-radius:22px;padding:clamp(22px,5vw,40px);background:linear-gradient(115deg,#332431 0%,#241c29 62%,#302034 100%);box-shadow:0 18px 50px #0002}.hero:after{content:"osu!";position:absolute;right:-12px;bottom:-47px;font-size:clamp(100px,23vw,220px);font-weight:1000;letter-spacing:-.1em;color:#ff66aa0b;pointer-events:none}.hero h1{position:relative;z-index:1;font-size:clamp(34px,8vw,62px);line-height:.98;letter-spacing:-.065em;margin:13px 0}.hero h1 span{color:var(--pink)}.hero p{position:relative;z-index:1;max-width:620px;color:#d0c1d0;margin:14px 0 0}.hero-actions{position:relative;z-index:1;display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.8fr);gap:16px;margin-top:16px}.panel{min-width:0;border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,#25202a,#201c25);padding:20px}.panel h2{font-size:19px;letter-spacing:-.025em;margin:0}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}.pill{white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#f6a6cd;border:1px solid #68445a;background:#42283a;border-radius:99px;padding:5px 9px}.muted,p{color:var(--muted)}.fine{font-size:12px}.label{display:block;font-size:12px;color:var(--muted);margin:16px 0 7px}input{width:100%;min-height:46px;border:1px solid #554456;border-radius:11px;background:#17141c;color:var(--text);padding:11px 13px;font:inherit;outline:none}input:focus{border-color:var(--pink);box-shadow:0 0 0 3px #ff66aa1f}button,.button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border:1px solid #ff8fc2;border-radius:11px;padding:10px 15px;background:var(--pink);color:#2a1420;font:inherit;font-weight:850;text-decoration:none;cursor:pointer;transition:transform .15s,filter .15s;width:100%;margin-top:11px}button:hover,.button:hover{filter:brightness(1.07);transform:translateY(-1px)}button:disabled{opacity:.55;cursor:wait;transform:none}.secondary,button.secondary{background:#2b2531;border-color:#514153;color:var(--text)}.oauth-button{background:linear-gradient(110deg,#ff66aa,#ff91c3);font-size:15px}.osu-icon{font-weight:1000;font-size:18px;line-height:1}.status{border-radius:10px;padding:11px 12px;background:#17141c;border:1px solid var(--line);margin-top:12px;overflow-wrap:anywhere;font-size:13px}.status[data-kind=error]{border-color:#91455b;color:var(--danger)}.status[data-kind=success]{border-color:#376c57;color:var(--good)}.profile{display:none;gap:13px;align-items:center;margin-top:18px}.profile img{width:68px;height:68px;object-fit:cover;border-radius:15px;background:#342a38;border:1px solid #574154}.profile h3{margin:0;font-size:20px}.grow{flex:1;min-width:0}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}.stat{border:1px solid #403544;border-radius:12px;padding:12px;background:#1a171f;min-width:0}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:clamp(17px,3vw,22px);letter-spacing:-.03em;overflow-wrap:anywhere}.actions{display:grid;grid-template-columns:1fr;gap:2px}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}.progress-list{display:grid;gap:11px;margin-top:14px}.progress-item{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #39303d;padding-bottom:10px;font-size:13px}.progress-item:last-child{border-bottom:0;padding-bottom:0}.progress-item span{color:var(--muted)}.progress-item b{text-align:right}.chart{width:100%;height:auto;display:block;margin-top:12px}.feature{padding:13px 0;border-bottom:1px solid #39303d}.feature:last-child{border:0;padding-bottom:0}.feature b{display:block;font-size:13px}.feature span{display:block;color:var(--muted);font-size:12px;margin-top:3px}.dot{display:inline-block;width:7px;height:7px;background:var(--pink);border-radius:50%;margin-right:7px}.foot{text-align:center;color:#887b8b;font-size:11px;padding:24px 4px}.mode-switch{display:flex;gap:8px;margin-top:16px}.mode-button{width:auto;min-width:92px;margin:0;background:#1a171f;border-color:#554456;color:var(--muted)}.mode-button.active{background:#42283a;border-color:var(--pink);color:var(--text)}.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.chart-card{min-width:0;border:1px solid #403544;border-radius:12px;padding:12px;background:#1a171f}.chart-card h3{font-size:15px;margin:0}.chart-card p{margin:4px 0}.chart{width:100%;height:auto;display:block;margin-top:8px;overflow:visible}.chart-note{overflow-wrap:anywhere}@media(max-width:720px){.chart-grid{grid-template-columns:1fr}}.hidden{display:none!important}@media(max-width:720px){.layout{grid-template-columns:1fr}.wrap{padding-top:18px}.topnav .navlink:first-child{display:none}.hero{border-radius:18px}.panel{padding:17px}}@media(min-width:560px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.actions{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
 <header class="topbar"><div class="topinner"><div class="logo"><span class="logo-mark">o!</span><span>Daily Tracker</span></div><nav class="topnav"><a class="navlink active" href="#dashboard">Обзор</a><a class="navlink" href="#replay">Replay Lab</a><a class="navlink" href="#about">О проекте</a></nav></div></header>
 <main class="wrap" id="dashboard">
-<section class="hero"><div class="eyebrow">Community performance toolkit · v0.2.0-prealpha</div><h1>Твоя игра.<br><span>Твой прогресс.</span></h1><p>Подключи аккаунт osu!, смотри статистику и следи за рангом. Дальше добавим историю результатов, ежедневные изменения и анализ реплеев прямо в приложении.</p><div class="hero-actions"><a class="button" href="#account" style="width:auto">Подключить osu! аккаунт <span aria-hidden="true">↗</span></a><a class="button secondary" href="#progressPanel" style="width:auto">Моя статистика ↓</a></div></section>
+<section class="hero"><div class="eyebrow">Community performance toolkit · v0.3.0-prealpha</div><h1>Твоя игра.<br><span>Твой прогресс.</span></h1><p>Подключи аккаунт osu!, смотри статистику и следи за рангом. Дальше добавим историю результатов, ежедневные изменения и анализ реплеев прямо в приложении.</p><div class="hero-actions"><a class="button" href="#account" style="width:auto">Подключить osu! аккаунт <span aria-hidden="true">↗</span></a><a class="button secondary" href="#progressPanel" style="width:auto">Моя статистика ↓</a></div></section>
 <div class="layout">
 <section class="panel" id="account">
 <div class="panel-head"><h2>Аккаунт osu!</h2><span class="pill" id="authBadge">Не подключён</span></div>
@@ -24,6 +24,7 @@
 <form id="connectForm"><label class="label" for="osuUser">Никнейм или ID osu!</label><input id="osuUser" name="osuUser" placeholder="Например, EmptyMiyabi" autocomplete="off" required maxlength="80"><button id="loadButton" type="submit" class="secondary">Загрузить статистику</button></form>
 <div id="status" class="status" role="status" aria-live="polite">Профиль ещё не загружен.</div>
 <div id="profile" class="profile"><img id="avatar" alt="Аватар osu!"><div class="grow"><h3 id="username"></h3><div id="userid" class="muted fine"></div><div id="country" class="muted fine"></div></div></div>
+<div id="modeSwitch" class="mode-switch hidden" role="group" aria-label="Режим игры"><button type="button" class="mode-button active" data-mode="osu" aria-pressed="true">STD</button><button type="button" class="mode-button" data-mode="mania" aria-pressed="false">MANIA</button></div>
 <div id="stats" class="stats"></div>
 <div class="actions"><a id="openProfile" class="button secondary hidden" href="#" target="_blank" rel="noopener">Открыть профиль на osu.ppy.sh</a><button id="refreshButton" class="secondary hidden" type="button">Обновить статистику</button></div>
 </section>
@@ -35,7 +36,7 @@
 <p class="fine" style="margin-top:18px">Неофициальное приложение сообщества osu!. OAuth использует серверный Worker; секрет приложения не помещается в APK.</p>
 </aside>
 </div>
-<section id="progressPanel" class="panel hidden" style="margin-top:16px"><div class="panel-head"><h2>Сводка прогресса</h2><span class="pill">osu! standard</span></div><div id="progress" class="progress-list"></div><h3 style="font-size:15px;margin:22px 0 0">История глобального ранга</h3><p class="fine">Чем меньше номер ранга, тем выше позиция. История зависит от данных, которые возвращает API.</p><svg id="rankChart" class="chart" viewBox="0 0 600 190" role="img" aria-label="График истории глобального ранга"></svg><div id="chartNote" class="fine muted"></div></section>
+<section id="progressPanel" class="panel hidden" style="margin-top:16px"><div class="panel-head"><h2>История прогресса</h2><span class="pill" id="chartModeLabel">STD</span></div><div id="progress" class="progress-list"></div><div class="chart-grid"><div class="chart-card"><h3>Performance Points</h3><p class="fine">История PP по сохранённым снимкам профиля.</p><svg id="ppChart" class="chart" viewBox="0 0 600 220" role="img" aria-label="График истории PP"></svg><div id="ppChartNote" class="fine muted"></div></div><div class="chart-card"><h3>Глобальный ранг</h3><p class="fine">Чем меньше номер, тем выше место в мировом рейтинге.</p><svg id="rankChart" class="chart" viewBox="0 0 600 220" role="img" aria-label="График истории глобального ранга"></svg><div id="rankChartNote" class="fine muted"></div></div></div></section>
 <section class="panel" id="replay" style="margin-top:16px"><div class="panel-head"><h2>Replay Lab</h2><span class="pill">Экспериментальный</span></div><p>Открой отдельный инструмент анализа .osr. Интеграция в единый интерфейс приложения — один из следующих этапов.</p><a class="button secondary" href="https://anton4ik837-eng.github.io/Osu-Daliy-Tracker/replay.html" target="_blank" rel="noopener">Открыть Replay Lab ↗</a></section>
 <div class="foot">OSU! DAILY TRACKER · COMMUNITY APP · НЕОФИЦИАЛЬНОЕ ПРИЛОЖЕНИЕ</div>
 </main>
@@ -49,37 +50,89 @@ const fmt=(n,d=0)=>n==null||!Number.isFinite(Number(n))?'—':Number(n).toLocale
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setStatus(message,kind='info'){$('status').textContent=message;$('status').dataset.kind=kind}
 function setAuthStatus(message,kind='info'){$('authStatus').textContent=message;$('authStatus').dataset.kind=kind}
-function profileUrl(user){return 'https://osu.ppy.sh/users/'+encodeURIComponent(String(user))+'/osu'}
+function profileUrl(user,mode=activeMode){return 'https://osu.ppy.sh/users/'+encodeURIComponent(String(user))+'/'+encodeURIComponent(mode)}
 function metric(label,value){return '<div class="stat"><small>'+esc(label)+'</small><b>'+esc(value)+'</b></div>'}
-function renderRankChart(history){
- const svg=$('rankChart');svg.replaceChildren();const ns='http://www.w3.org/2000/svg';
- const add=(tag,attrs)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);svg.appendChild(el);return el};
- const data=(history||[]).filter(n=>Number.isFinite(Number(n))&&Number(n)>0);
- if(data.length<2){$('chartNote').textContent='Пока недостаточно точек для графика.';return}
- const sample=data.length>100?data.filter((_,i)=>i%Math.ceil(data.length/100)===0||i===data.length-1):data;
- const lo=Math.min(...sample),hi=Math.max(...sample),span=Math.max(1,hi-lo);
- const pts=sample.map((v,i)=>[18+i*564/Math.max(1,sample.length-1),18+(Number(v)-lo)/span*132]);
- [0,.5,1].forEach(t=>{const y=18+t*132;add('line',{x1:18,y1:y,x2:582,y2:y,stroke:'#403544','stroke-width':1})});
- add('polyline',{points:pts.map(p=>p.join(',')).join(' '),fill:'none',stroke:'#ff66aa','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'});
- add('text',{x:18,y:177,fill:'#b8aab8','font-size':11}).textContent='#'+fmt(hi);
- add('text',{x:582,y:177,fill:'#b8aab8','font-size':11,'text-anchor':'end'}).textContent='#'+fmt(lo);
- $('chartNote').textContent='Показано '+sample.length+' точек из '+data.length+'. Последняя точка: #'+fmt(sample[sample.length-1])+'.';
+let activeMode='osu';
+let currentProfileData=null;
+const modeLabel=mode=>mode==='mania'?'MANIA':'STD';
+const countryFlag=code=>{const c=String(code||'').trim().toUpperCase();if(!/^[A-Z]{2}$/.test(c))return '🏳️';return String.fromCodePoint(...[...c].map(ch=>127397+ch.charCodeAt(0)))};
+function setModeButtons(){document.querySelectorAll('.mode-button').forEach(b=>{const on=b.dataset.mode===activeMode;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))});$('chartModeLabel').textContent=modeLabel(activeMode)}
+function addLocalSnapshot(data){
+ const s=data.statistics||{},key='osu-daily-tracker-history-'+data.id+'-'+activeMode;
+ let items=[];try{items=JSON.parse(localStorage.getItem(key)||'[]')}catch{}
+ const now=Date.now(),last=items[items.length-1];
+ if(!last||now-Date.parse(last.ts)>6*60*60*1000||Number(last.pp)!==Number(s.pp)||Number(last.global_rank)!==Number(s.global_rank)){
+  items.push({ts:new Date(now).toISOString(),pp:s.pp??null,global_rank:s.global_rank??null});
+  items=items.slice(-180);try{localStorage.setItem(key,JSON.stringify(items))}catch{}
+ }
+ return items;
 }
+function makeRankPoints(data){
+ const vals=data?.rank_history?.data;
+ if(!Array.isArray(vals))return [];
+ const now=Date.now();
+ return vals.map((v,i)=>({ts:new Date(now-(vals.length-1-i)*86400000).toISOString(),value:Number(v)})).filter(p=>Number.isFinite(p.value)&&p.value>0);
+}
+function renderLineChart(id,items,kind,noteId){
+ const svg=$(id);svg.replaceChildren();const ns='http://www.w3.org/2000/svg';
+ const add=(tag,attrs={})=>{const el=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,String(v)));svg.appendChild(el);return el};
+ const points=(items||[]).map(p=>({ts:p.ts||p.x,value:Number(p.value??p.y)})).filter(p=>Number.isFinite(Date.parse(p.ts))&&Number.isFinite(p.value)&&p.value>0).sort((a,b)=>Date.parse(a.ts)-Date.parse(b.ts));
+ if(points.length<2){add('text',{x:300,y:104,fill:'#b8aab8','font-size':14,'text-anchor':'middle'}).textContent=points.length?'Одна точка — история ещё накапливается':'История пока недоступна';$(noteId).textContent=points.length?'Точка записана '+new Date(points[0].ts).toLocaleDateString('ru-RU'):'Обновляй статистику, чтобы сохранять историю.';return}
+ const W=600,H=220,L=66,R=18,T=18,B=42,plotW=W-L-R,plotH=H-T-B;
+ const ys=points.map(p=>p.value),lo=Math.min(...ys),hi=Math.max(...ys);
+ const minX=Date.parse(points[0].ts),maxX=Date.parse(points[points.length-1].ts),timeSpan=maxX-minX||1;
+ const px=p=>L+plotW*(Date.parse(p.ts)-minX)/timeSpan;
+ const py=p=>T+plotH*(kind==='rank'?(p.value-lo)/(hi-lo||1):(hi-p.value)/(hi-lo||1));
+ [0,0.5,1].forEach(t=>{const y=T+plotH*t;add('line',{x1:L,y1:y,x2:W-R,y2:y,stroke:'#403544','stroke-width':1});const v=kind==='rank'?lo+(hi-lo)*t:hi-(hi-lo)*t;add('text',{x:L-8,y:y+4,fill:'#b8aab8','font-size':11,'text-anchor':'end'}).textContent=kind==='rank'?'#'+fmt(v):fmt(v,0)});
+ add('polyline',{points:points.map(p=>px(p)+','+py(p)).join(' '),fill:'none',stroke:kind==='rank'?'#ff8fc2':'#ff66aa','stroke-width':2.8,'stroke-linecap':'round','stroke-linejoin':'round'});
+ points.forEach(p=>add('circle',{cx:px(p),cy:py(p),r:2.8,fill:kind==='rank'?'#ff8fc2':'#ff66aa'}));
+ add('text',{x:L,y:H-10,fill:'#b8aab8','font-size':11}).textContent=new Date(points[0].ts).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'});
+ add('text',{x:W-R,y:H-10,fill:'#b8aab8','font-size':11,'text-anchor':'end'}).textContent=new Date(points[points.length-1].ts).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'});
+ $(noteId).textContent=points.length+' точек · '+(kind==='rank'?'меньше — лучше':'PP по датам');
+}
+async function loadWebsiteHistory(data){
+ if(String(data?.id)!=='34437510'||window.__osuWebsiteHistoryLoaded)return;
+ window.__osuWebsiteHistoryLoaded=true;
+ try{
+  const response=await fetch('https://anton4ik837-eng.github.io/Osu-Daliy-Tracker/',{headers:{Accept:'text/html'}});
+  if(!response.ok)return;
+  const page=await response.text(),start=page.indexOf('const D = '),end=page.indexOf(';\nconst fmt',start);
+  if(start<0||end<0)return;
+  const siteData=JSON.parse(page.slice(start+'const D = '.length,end));
+  window.__osuWebsiteHistory={osu:{snapshots:siteData.snapshots||[],ranks:siteData.rank_history||[]},mania:{snapshots:siteData.mania_snapshots||[],ranks:siteData.mania_rank_history||[]}};
+  if(currentProfileData)renderCharts(currentProfileData);
+ }catch{/* Use locally collected history if the website cannot be reached. */}
+}
+function renderCharts(data){
+ const local=addLocalSnapshot(data),modeKey=activeMode==='mania'?'mania':'osu';
+ const site=window.__osuWebsiteHistory?.[modeKey];
+ const snapshots=site?.snapshots?.length?site.snapshots:local;
+ const ppPoints=snapshots.map(p=>({ts:p.ts,value:p.pp??p.value}));
+ const siteRanks=(site?.ranks||[]).map(p=>({ts:p.ts,value:p.global_rank??p.value}));
+ const apiRanks=makeRankPoints(data);
+ const localRanks=local.map(p=>({ts:p.ts,value:p.global_rank}));
+ const rankPoints=siteRanks.length>1?siteRanks:apiRanks.length>1?apiRanks:localRanks;
+ renderLineChart('ppChart',ppPoints,'pp','ppChartNote');
+ renderLineChart('rankChart',rankPoints,'rank','rankChartNote');
+}
+
 function renderProfile(data){
- const s=data.statistics||{},rank=s.global_rank,countryRank=s.country_rank??s.rank?.country;
+ currentProfileData=data;
+ const s=data.statistics||{},rank=s.global_rank,countryRank=s.country_rank??s.rank?.country,code=data.country_code||data.country?.code;
  $('profile').style.display='flex';$('avatar').src=data.avatar_url||'';$('avatar').onerror=()=>{$('avatar').style.visibility='hidden'};$('avatar').style.visibility='visible';
- $('username').textContent=data.username||'Unknown';$('userid').textContent='ID '+data.id+' · '+(data.playmode||'osu');
- $('country').textContent=(data.country?.name||data.country_code||'')+(data.is_online?' · В сети':'');
+ $('username').textContent=data.username||'Unknown';$('userid').textContent='ID '+data.id+' · '+modeLabel(activeMode);
+ $('country').textContent=countryFlag(code)+' '+(data.country?.name||code||'Страна не указана')+(data.is_online?' · В сети':'');
+ $('modeSwitch').classList.remove('hidden');setModeButtons();
  $('stats').innerHTML=[metric('Performance Points',fmt(s.pp,2)),metric('Глобальный ранг',rank?'#'+fmt(rank):'—'),metric('Ранг в стране',countryRank?'#'+fmt(countryRank):'—'),metric('Точность',s.hit_accuracy==null?'—':fmt(s.hit_accuracy,2)+'%'),metric('Игр сыграно',fmt(s.play_count)),metric('Макс. комбо',fmt(s.maximum_combo)),metric('Уровень',s.level?.current==null?'—':fmt(s.level.current)+' · '+fmt(s.level.progress)+'%'),metric('Всего попаданий',fmt(s.total_hits))].join('');
- $('openProfile').href=profileUrl(data.id);$('openProfile').classList.remove('hidden');$('refreshButton').classList.remove('hidden');
+ $('openProfile').href=profileUrl(data.id,activeMode);$('openProfile').classList.remove('hidden');$('refreshButton').classList.remove('hidden');
  $('progress').innerHTML=[['Время в игре',fmt(Number(s.play_time||0)/3600,1)+' ч'],['Рейтинговый счёт',fmt(s.ranked_score)],['Всего очков',fmt(s.total_score)],['300 / 100 / 50',fmt(s.count_300)+' / '+fmt(s.count_100)+' / '+fmt(s.count_50)],['Промахи',fmt(s.count_miss)],['Медали S / SS / A',fmt(s.grade_counts?.s)+' / '+fmt((s.grade_counts?.ss||0)+(s.grade_counts?.ssh||0))+' / '+fmt(s.grade_counts?.a)]].map(([k,v])=>'<div class="progress-item"><span>'+esc(k)+'</span><b>'+esc(v)+'</b></div>').join('');
- $('progressPanel').classList.remove('hidden');renderRankChart(data.rank_history?.data||data.rankHistory?.data||[]);
+ $('progressPanel').classList.remove('hidden');renderCharts(data);loadWebsiteHistory(data);
 }
 async function loadProfile(value){
  const user=String(value||'').trim();if(!user)return;
  $('loadButton').disabled=true;$('refreshButton').disabled=true;setStatus('Загружаем профиль «'+user+'»…');
  try{
-  const response=await fetch(API_BASE+'/api/users/'+encodeURIComponent(user),{headers:{Accept:'application/json'}});
+  const response=await fetch(API_BASE+'/api/users/'+encodeURIComponent(user)+'?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json'}});
   const body=await response.text();let data;try{data=JSON.parse(body)}catch{throw new Error('Worker вернул не JSON (HTTP '+response.status+').')}
   if(!response.ok)throw new Error('HTTP '+response.status+': '+(data.error_description||data.error||data.message||'ошибка запроса'));
   if(!data||!data.id||!data.statistics)throw new Error(data?.error_description||data?.error||'Ответ не содержит статистику профиля.');
@@ -116,7 +169,29 @@ async function startOAuth(){
 }
 $('authorizeButton').addEventListener('click',startOAuth);
 $('connectForm').addEventListener('submit',e=>{e.preventDefault();loadProfile($('osuUser').value)});
-$('refreshButton').addEventListener('click',()=>loadProfile($('osuUser').value));
+async function refreshCurrentProfile(){
+ const session=window.__osuOAuthSession;
+ if(session&&session.accessToken&&session.expiresAt>Date.now()+5000){
+  try{
+   const response=await fetch(API_BASE+'/api/me?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json',Authorization:'Bearer '+session.accessToken}});
+   const data=await response.json();if(!response.ok)throw new Error(data.error||'osu! API error');
+   renderProfile(data);setStatus('Статистика '+modeLabel(activeMode)+' обновлена.','success');
+  }catch(error){setStatus('Не удалось обновить статистику: '+(error.message||String(error)),'error')}
+ }else await loadProfile($('osuUser').value);
+}
+$('refreshButton').addEventListener('click',refreshCurrentProfile);
+document.querySelectorAll('.mode-button').forEach(button=>button.addEventListener('click',async()=>{
+ const next=button.dataset.mode;if(next===activeMode)return;activeMode=next;setModeButtons();
+ if(window.__osuOAuthSession?.accessToken&&window.__osuOAuthSession.expiresAt>Date.now()+5000){
+  setAuthStatus('Загружаем статистику '+modeLabel(activeMode)+'…');
+  try{
+   const response=await fetch(API_BASE+'/api/me?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json',Authorization:'Bearer '+window.__osuOAuthSession.accessToken}});
+   const data=await response.json();if(!response.ok)throw new Error(data.error||'osu! API error');
+   renderProfile(data);$('osuUser').value=data.username||String(data.id);setAuthStatus('Аккаунт подключён · '+modeLabel(activeMode)+'.','success');
+  }catch(error){setAuthStatus('Не удалось загрузить '+modeLabel(activeMode)+': '+(error.message||String(error)),'error')}
+ }else if($('osuUser').value.trim())await loadProfile($('osuUser').value);
+ else {$('chartModeLabel').textContent=modeLabel(activeMode)}
+}));
 function handleOAuthReturn(rawUrl){
  try{
   const u=new URL(rawUrl);if(u.protocol!=='osudailytracker:'||u.hostname!=='oauth')return;
@@ -140,7 +215,7 @@ async function redeemHandoff(handoff){
   // keep this session in memory only.
   window.__osuOAuthSession={accessToken:tokens.access_token,refreshToken:tokens.refresh_token,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};
   setAuthStatus('Вход подтверждён. Загружаем твою статистику…');
-  const profileResponse=await fetch(API_BASE+'/api/me?mode=osu',{headers:{Accept:'application/json',Authorization:'Bearer '+tokens.access_token}});
+  const profileResponse=await fetch(API_BASE+'/api/me?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json',Authorization:'Bearer '+tokens.access_token}});
   const profileBody=await profileResponse.text();let profileData;
   try{profileData=JSON.parse(profileBody)}catch{throw new Error('Worker вернул не JSON при загрузке профиля (HTTP '+profileResponse.status+').')}
   if(!profileResponse.ok)throw new Error('Не удалось загрузить статистику (HTTP '+profileResponse.status+'): '+(profileData.error_description||profileData.error||profileData.message||'ошибка osu! API'));
