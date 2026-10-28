@@ -3,7 +3,7 @@ name: Daily osu! tracker
 on:
   workflow_dispatch:
   schedule:
-    - cron: "15 18 * * *"
+    - cron: "30 17 * * *"
 
 permissions:
   contents: write
