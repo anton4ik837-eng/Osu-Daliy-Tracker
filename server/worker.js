@@ -39,17 +39,34 @@ export default {
       return json({ ok: true, service: "osu-daily-tracker-oauth", version: 1 });
     }
 
+    // Safe configuration diagnostics: never return credential values.
+    if (url.pathname === "/oauth/config-check" && request.method === "GET") {
+      const clientId = typeof env.OSU_CLIENT_ID === "string" ? env.OSU_CLIENT_ID.trim() : "";
+      const redirectUri = typeof env.OAUTH_REDIRECT_URI === "string" ? env.OAUTH_REDIRECT_URI.trim() : "";
+      return json({
+        client_id_present: clientId.length > 0,
+        client_id_numeric: /^[0-9]+$/.test(clientId),
+        client_id_length: clientId.length,
+        client_secret_present: typeof env.OSU_CLIENT_SECRET === "string" && env.OSU_CLIENT_SECRET.trim().length > 0,
+        redirect_uri_present: redirectUri.length > 0,
+        redirect_uri_is_expected: redirectUri === new URL(request.url).origin + "/oauth/callback",
+        kv_bound: Boolean(env.OAUTH_KV),
+      });
+    }
+
     if (url.pathname === "/oauth/start" && request.method === "GET") {
       const state = url.searchParams.get("state");
       if (!validState(state)) return json({ error: "invalid_state" }, 400);
-      if (!env.OSU_CLIENT_ID || !env.OAUTH_REDIRECT_URI || !env.OAUTH_KV) {
+      const clientId = typeof env.OSU_CLIENT_ID === "string" ? env.OSU_CLIENT_ID.trim() : "";
+      const redirectUri = typeof env.OAUTH_REDIRECT_URI === "string" ? env.OAUTH_REDIRECT_URI.trim() : "";
+      if (!clientId || !/^[0-9]+$/.test(clientId) || !redirectUri || !env.OAUTH_KV) {
         return json({ error: "oauth_not_configured" }, 503);
       }
 
       await env.OAUTH_KV.put("state:" + state, "1", { expirationTtl: 600 });
       const authorize = new URL("https://osu.ppy.sh/oauth/authorize");
-      authorize.searchParams.set("client_id", env.OSU_CLIENT_ID);
-      authorize.searchParams.set("redirect_uri", env.OAUTH_REDIRECT_URI);
+      authorize.searchParams.set("client_id", clientId);
+      authorize.searchParams.set("redirect_uri", redirectUri);
       authorize.searchParams.set("response_type", "code");
       authorize.searchParams.set("scope", "public identify");
       authorize.searchParams.set("state", state);
@@ -69,16 +86,19 @@ export default {
       const valid = await env.OAUTH_KV.get(stateKey);
       await env.OAUTH_KV.delete(stateKey);
       if (!valid) return safeAppRedirect(env, { error: "state_mismatch" });
-      if (!env.OSU_CLIENT_ID || !env.OSU_CLIENT_SECRET || !env.OAUTH_REDIRECT_URI) {
+      const clientId = typeof env.OSU_CLIENT_ID === "string" ? env.OSU_CLIENT_ID.trim() : "";
+      const clientSecret = typeof env.OSU_CLIENT_SECRET === "string" ? env.OSU_CLIENT_SECRET.trim() : "";
+      const redirectUri = typeof env.OAUTH_REDIRECT_URI === "string" ? env.OAUTH_REDIRECT_URI.trim() : "";
+      if (!clientId || !/^[0-9]+$/.test(clientId) || !clientSecret || !redirectUri) {
         return safeAppRedirect(env, { error: "oauth_not_configured" });
       }
 
       const body = new URLSearchParams({
-        client_id: env.OSU_CLIENT_ID,
-        client_secret: env.OSU_CLIENT_SECRET,
+        client_id: clientId,
+        client_secret: clientSecret,
         code,
         grant_type: "authorization_code",
-        redirect_uri: env.OAUTH_REDIRECT_URI,
+        redirect_uri: redirectUri,
       });
       const tokenResponse = await fetch("https://osu.ppy.sh/oauth/token", {
         method: "POST",
