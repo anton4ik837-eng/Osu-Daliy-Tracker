@@ -22,9 +22,15 @@ def main():
     st=user.get("statistics") or {}
     best=s.get(f"{API}/users/{UID}/scores/best",params={"mode":"osu","limit":100,"legacy_only":0},timeout=30); best.raise_for_status()
     recent=s.get(f"{API}/users/{UID}/scores/recent",params={"mode":"osu","limit":100,"include_fails":1,"legacy_only":0},timeout=30); recent.raise_for_status()
+    mania_user_resp=s.get(f"{API}/users/{UID}/mania",params={"key":"id"},timeout=30); mania_user_resp.raise_for_status(); mania_user=mania_user_resp.json()
+    mania_stats=mania_user.get("statistics") or {}
+    mania_best_resp=s.get(f"{API}/users/{UID}/scores/best",params={"mode":"mania","limit":100,"legacy_only":0},timeout=30); mania_best_resp.raise_for_status()
+    mania_recent_resp=s.get(f"{API}/users/{UID}/scores/recent",params={"mode":"mania","limit":100,"include_fails":1,"legacy_only":0},timeout=30); mania_recent_resp.raise_for_status()
     conn=sqlite3.connect("data/tracker.sqlite")
     conn.execute("""CREATE TABLE IF NOT EXISTS snapshots(ts TEXT PRIMARY KEY, username TEXT, pp REAL, global_rank INTEGER, country_rank INTEGER, accuracy REAL, playcount INTEGER, playtime INTEGER, max_combo INTEGER, level REAL, raw TEXT)""")
     conn.execute("""CREATE TABLE IF NOT EXISTS scores(id TEXT PRIMARY KEY, kind TEXT, ended_at TEXT, beatmap_id INTEGER, title TEXT, pp REAL, accuracy REAL, combo INTEGER, rank TEXT, mods TEXT, misses INTEGER, raw TEXT)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS mania_snapshots(ts TEXT PRIMARY KEY, username TEXT, pp REAL, global_rank INTEGER, country_rank INTEGER, accuracy REAL, playcount INTEGER, playtime INTEGER, max_combo INTEGER, level REAL, raw TEXT)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS mania_scores(id TEXT PRIMARY KEY, kind TEXT, ended_at TEXT, beatmap_id INTEGER, title TEXT, pp REAL, accuracy REAL, combo INTEGER, rank TEXT, mods TEXT, misses INTEGER, raw TEXT)""")
     prev=conn.execute("SELECT pp,global_rank,accuracy FROM snapshots ORDER BY ts DESC LIMIT 1").fetchone()
     level=(user.get("statistics") or {}).get("level")
     conn.execute("INSERT OR REPLACE INTO snapshots VALUES(?,?,?,?,?,?,?,?,?,?,?)",(now,user.get("username"),st.get("pp"),st.get("global_rank"),st.get("country_rank"),st.get("hit_accuracy"),st.get("play_count"),st.get("play_time"),st.get("maximum_combo"),(level or {}).get("current") if isinstance(level,dict) else level,json.dumps(user,ensure_ascii=False)))
@@ -36,7 +42,16 @@ def main():
             modstr="".join(str(m.get("acronym","")) if isinstance(m,dict) else str(m) for m in mods) or "NM"
             cur=conn.execute("INSERT OR IGNORE INTO scores VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",(str(x.get("id")),kind,x.get("ended_at") or x.get("created_at"),x.get("beatmap_id") or bid.get("id"),bset.get("title") or bid.get("version") or "Unknown",x.get("pp"),x.get("accuracy"),x.get("max_combo"),x.get("rank"),modstr,stats.get("miss",0),json.dumps(x,ensure_ascii=False)))
             added+=cur.rowcount
+    mania_level=(mania_user.get("statistics") or {}).get("level")
+    conn.execute("INSERT OR REPLACE INTO mania_snapshots VALUES(?,?,?,?,?,?,?,?,?,?,?)",(now,mania_user.get("username"),mania_stats.get("pp"),mania_stats.get("global_rank"),mania_stats.get("country_rank"),mania_stats.get("hit_accuracy"),mania_stats.get("play_count"),mania_stats.get("play_time"),mania_stats.get("maximum_combo"),(mania_level or {}).get("current") if isinstance(mania_level,dict) else mania_level,json.dumps(mania_user,ensure_ascii=False)))
+    for kind,items in [("best",mania_best_resp.json()),("recent",mania_recent_resp.json())]:
+        for x in items:
+            bid=x.get("beatmap") or {}; bset=x.get("beatmapset") or {}; score_stats=x.get("statistics") or {}
+            mods=x.get("mods") or []
+            modstr="".join(str(m.get("acronym","")) if isinstance(m,dict) else str(m) for m in mods) or "NM"
+            conn.execute("INSERT OR IGNORE INTO mania_scores VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",(str(x.get("id")),kind,x.get("ended_at") or x.get("created_at"),x.get("beatmap_id") or bid.get("id"),bset.get("title") or bid.get("version") or "Unknown",x.get("pp"),x.get("accuracy"),x.get("max_combo"),x.get("rank"),modstr,score_stats.get("miss",0),json.dumps(x,ensure_ascii=False)))
     conn.commit()
+    mania_rows=conn.execute("SELECT ts,username,pp,global_rank,country_rank,accuracy,playcount,playtime,max_combo,level FROM mania_snapshots ORDER BY ts").fetchall()
     rows=conn.execute("SELECT ts,username,pp,global_rank,country_rank,accuracy,playcount,playtime,max_combo,level FROM snapshots ORDER BY ts").fetchall()
     with open("reports/snapshots.csv","w",newline="",encoding="utf-8") as f:
         w=csv.writer(f); w.writerow(["ts","username","pp","global_rank","country_rank","accuracy","playcount","playtime","max_combo","level"]); w.writerows(rows)
@@ -157,11 +172,25 @@ def main():
              "rank": r[8], "mods": r[9], "misses": r[10]}
             for r in ordered_scores
         ]
+        mania_dashboard_scores = [
+            {"id": r[0], "kind": r[1], "ended_at": r[2], "beatmap_id": r[3],
+             "title": r[4], "pp": r[5], "accuracy": r[6], "combo": r[7],
+             "rank": r[8], "mods": r[9], "misses": r[10]}
+            for r in conn.execute("SELECT id,kind,ended_at,beatmap_id,title,pp,accuracy,combo,rank,mods,misses FROM mania_scores ORDER BY ended_at DESC").fetchall()
+        ]
+        mania_level_value=(mania_level or {}).get("current") if isinstance(mania_level,dict) else mania_level
+        mania_dashboard_stats = {
+            "pp": mania_stats.get("pp"), "global_rank": mania_stats.get("global_rank"),
+            "country_rank": mania_stats.get("country_rank"), "accuracy": mania_stats.get("hit_accuracy"),
+            "playcount": mania_stats.get("play_count"),
+            "playtime_hours": round(mania_stats.get("play_time") / 3600, 1) if mania_stats.get("play_time") is not None else None,
+            "max_combo": mania_stats.get("maximum_combo"), "level": mania_level_value,
+        }
+        mania_dashboard_snapshots = [{"ts": r[0], "pp": r[2], "global_rank": r[3], "accuracy": r[5]} for r in mania_rows]
         dashboard_data = {
-            "updated": now,
-            "stats": dashboard_stats,
-            "snapshots": dashboard_snapshots,
-            "scores": dashboard_scores,
+            "updated": now, "stats": dashboard_stats, "snapshots": dashboard_snapshots, "scores": dashboard_scores,
+            "mania_stats": mania_dashboard_stats, "mania_snapshots": mania_dashboard_snapshots,
+            "mania_scores": mania_dashboard_scores,
         }
         dashboard_html = dashboard_template.read_text(encoding="utf-8").replace(
             "__DASHBOARD_DATA__", json.dumps(dashboard_data, ensure_ascii=False, separators=(",", ":"))
