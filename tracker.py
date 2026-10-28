@@ -20,6 +20,35 @@ def main():
     now=datetime.now(timezone.utc).isoformat(timespec="seconds")
     p=s.get(f"{API}/users/{UID}/osu",params={"key":"id"},timeout=30); p.raise_for_status(); user=p.json()
     st=user.get("statistics") or {}
+    country_code=(user.get("country") or {}).get("code")
+
+    # Regional placement and flag are provided by osu! World, also used by the
+    # osu! subdivide nations extension. Missing/unassigned regions are non-fatal.
+    region_info = {"country_code": country_code, "region_code": None, "region_name": None,
+                   "placement": None, "flag_url": None}
+    try:
+        rw=requests.get(f"https://osuworld.octo.moe/api/users/{UID}",params={"mode":"osu"},timeout=20)
+        rw.raise_for_status()
+        world_user=rw.json()
+        if isinstance(world_user,dict) and not world_user.get("error"):
+            world_country=world_user.get("country_id") or country_code
+            region_code=world_user.get("region_id")
+            region_info.update({
+                "country_code": world_country,
+                "region_code": region_code,
+                "placement": world_user.get("placement"),
+            })
+            if world_country and region_code:
+                flags_response=requests.get(
+                    "https://raw.githubusercontent.com/Cavitedev/osu-subdivide-nations/main/extension/public/flags.json",
+                    timeout=25,
+                )
+                flags_response.raise_for_status()
+                country_regions=flags_response.json().get(world_country,{})
+                region_data=(country_regions.get("regions") or {}).get(region_code,{})
+                region_info["region_name"]=region_data.get("name") or region_code
+                region_info["flag_url"]=region_data.get("flag")
+
     best=s.get(f"{API}/users/{UID}/scores/best",params={"mode":"osu","limit":100,"legacy_only":0},timeout=30); best.raise_for_status()
     recent=s.get(f"{API}/users/{UID}/scores/recent",params={"mode":"osu","limit":100,"include_fails":1,"legacy_only":0},timeout=30); recent.raise_for_status()
     conn=sqlite3.connect("data/tracker.sqlite")
@@ -136,6 +165,7 @@ def main():
             "playtime_hours": round(st.get("play_time") / 3600, 1) if st.get("play_time") is not None else None,
             "max_combo": st.get("maximum_combo"),
             "level": (level or {}).get("current") if isinstance(level, dict) else level,
+            "country_code": country_code,
         }
         dashboard_snapshots = [
             {"ts": r[0], "pp": r[2], "global_rank": r[3], "accuracy": r[5]}
@@ -152,6 +182,7 @@ def main():
             "stats": dashboard_stats,
             "snapshots": dashboard_snapshots,
             "scores": dashboard_scores,
+            "region": region_info,
         }
         dashboard_html = dashboard_template.read_text(encoding="utf-8").replace(
             "__DASHBOARD_DATA__", json.dumps(dashboard_data, ensure_ascii=False, separators=(",", ":"))
