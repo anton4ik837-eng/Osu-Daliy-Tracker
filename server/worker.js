@@ -20,6 +20,45 @@ function validState(value) {
   return typeof value === "string" && /^[A-Za-z0-9_-]{32,128}$/.test(value);
 }
 
+
+function apiJson(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...JSON_HEADERS,
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "content-type, authorization",
+    },
+  });
+}
+
+function validMode(value) {
+  return ["osu", "taiko", "fruits", "mania"].includes(value) ? value : null;
+}
+
+async function getPublicApiToken(env) {
+  const clientId = typeof env.OSU_CLIENT_ID === "string" ? env.OSU_CLIENT_ID.trim() : "";
+  const clientSecret = typeof env.OSU_CLIENT_SECRET === "string" ? env.OSU_CLIENT_SECRET.trim() : "";
+  if (!clientId || !/^[0-9]+$/.test(clientId) || !clientSecret) {
+    throw new Error("osu_api_not_configured");
+  }
+  const response = await fetch("https://osu.ppy.sh/oauth/token", {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "client_credentials",
+      scope: "public",
+    }),
+  });
+  if (!response.ok) throw new Error("osu_api_token_failed");
+  const tokens = await response.json();
+  if (!tokens.access_token) throw new Error("osu_api_token_invalid");
+  return tokens.access_token;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -28,8 +67,8 @@ export default {
         status: 204,
         headers: {
           "access-control-allow-origin": "*",
-          "access-control-allow-methods": "POST, OPTIONS",
-          "access-control-allow-headers": "content-type",
+          "access-control-allow-methods": "GET, POST, OPTIONS",
+          "access-control-allow-headers": "content-type, authorization",
           "access-control-max-age": "600",
         },
       });
@@ -37,6 +76,43 @@ export default {
 
     if (url.pathname === "/health" && request.method === "GET") {
       return json({ ok: true, service: "osu-daily-tracker-oauth", version: 1 });
+    }
+
+    // Return the authenticated user's own profile using the short-lived OAuth access token.
+    if (url.pathname === "/api/me" && request.method === "GET") {
+      const auth = request.headers.get("authorization") || "";
+      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
+      const mode = validMode(url.searchParams.get("mode") || "osu");
+      if (!mode) return apiJson({ error: "invalid_mode" }, 400);
+      const response = await fetch("https://osu.ppy.sh/api/v2/me/" + mode, {
+        headers: { accept: "application/json", authorization: "Bearer " + match[1] },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return apiJson({ error: payload.error || "osu_profile_request_failed", status: response.status }, response.status === 401 ? 401 : 502);
+      }
+      return apiJson(payload);
+    }
+
+    // Public profile lookup used by the manual username/ID search.
+    const userMatch = url.pathname.match(/^\\/api\\/users\\/([^/]+)$/);
+    if (userMatch && request.method === "GET") {
+      const user = decodeURIComponent(userMatch[1]);
+      const mode = validMode(url.searchParams.get("mode") || "osu");
+      if (!mode) return apiJson({ error: "invalid_mode" }, 400);
+      if (!user || user.length > 80) return apiJson({ error: "invalid_user" }, 400);
+      let token;
+      try { token = await getPublicApiToken(env); }
+      catch (error) { return apiJson({ error: error.message || "osu_api_unavailable" }, 503); }
+      const response = await fetch("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(user) + "/" + mode, {
+        headers: { accept: "application/json", authorization: "Bearer " + token },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return apiJson({ error: payload.error || "osu_profile_not_found", status: response.status }, response.status === 404 ? 404 : 502);
+      }
+      return apiJson(payload);
     }
 
     // Safe configuration diagnostics: never return credential values.

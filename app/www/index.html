@@ -11,7 +11,7 @@
 <body>
 <header class="topbar"><div class="topinner"><div class="logo"><span class="logo-mark">o!</span><span>Daily Tracker</span></div><nav class="topnav"><a class="navlink active" href="#dashboard">Обзор</a><a class="navlink" href="#replay">Replay Lab</a><a class="navlink" href="#about">О проекте</a></nav></div></header>
 <main class="wrap" id="dashboard">
-<section class="hero"><div class="eyebrow">Community performance toolkit · 0.3.0</div><h1>Твоя игра.<br><span>Твой прогресс.</span></h1><p>Подключи аккаунт osu!, смотри статистику и следи за рангом. Дальше добавим историю результатов, ежедневные изменения и анализ реплеев прямо в приложении.</p><div class="hero-actions"><a class="button" href="#account" style="width:auto">Подключить osu! аккаунт <span aria-hidden="true">↗</span></a><a class="button secondary" href="#progressPanel" style="width:auto">Моя статистика ↓</a></div></section>
+<section class="hero"><div class="eyebrow">Community performance toolkit · v0.2.0-prealpha</div><h1>Твоя игра.<br><span>Твой прогресс.</span></h1><p>Подключи аккаунт osu!, смотри статистику и следи за рангом. Дальше добавим историю результатов, ежедневные изменения и анализ реплеев прямо в приложении.</p><div class="hero-actions"><a class="button" href="#account" style="width:auto">Подключить osu! аккаунт <span aria-hidden="true">↗</span></a><a class="button secondary" href="#progressPanel" style="width:auto">Моя статистика ↓</a></div></section>
 <div class="layout">
 <section class="panel" id="account">
 <div class="panel-head"><h2>Аккаунт osu!</h2><span class="pill" id="authBadge">Не подключён</span></div>
@@ -139,9 +139,18 @@ async function redeemHandoff(handoff){
   // Deliberately do not put OAuth tokens into localStorage. Until native secure storage is wired,
   // keep this session in memory only.
   window.__osuOAuthSession={accessToken:tokens.access_token,refreshToken:tokens.refresh_token,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};
+  setAuthStatus('Вход подтверждён. Загружаем твою статистику…');
+  const profileResponse=await fetch(API_BASE+'/api/me?mode=osu',{headers:{Accept:'application/json',Authorization:'Bearer '+tokens.access_token}});
+  const profileBody=await profileResponse.text();let profileData;
+  try{profileData=JSON.parse(profileBody)}catch{throw new Error('Worker вернул не JSON при загрузке профиля (HTTP '+profileResponse.status+').')}
+  if(!profileResponse.ok)throw new Error('Не удалось загрузить статистику (HTTP '+profileResponse.status+'): '+(profileData.error_description||profileData.error||profileData.message||'ошибка osu! API'));
+  if(!profileData||!profileData.id||!profileData.statistics)throw new Error('osu! API не вернул статистику аккаунта.');
+  renderProfile(profileData);
   $('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
-  setAuthStatus('Аккаунт авторизован. Токен хранится только в памяти до закрытия приложения; защищённое сохранение добавим через Android secure storage.','success');
- }catch(e){setAuthStatus('Не удалось завершить вход: '+(e.message||String(e)),'error')}
+  $('osuUser').value=profileData.username||String(profileData.id);
+  setStatus('Авторизованный профиль загружен.','success');
+  setAuthStatus('Аккаунт подключён: '+(profileData.username||'osu!')+'. Статистика загружена автоматически. Токен действует только в памяти до закрытия приложения.','success');
+ }catch(e){setAuthStatus('Не удалось завершить вход или загрузить профиль: '+(e.message||String(e)),'error')}
 }
 async function initializeNativeOAuthBridge(){
  if(!window.NativeApp?.addListener)return;
