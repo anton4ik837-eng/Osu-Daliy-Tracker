@@ -1,0 +1,8 @@
+{
+  "appId": "com.osudailytracker.app",
+  "appName": "osu! Daily Tracker",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
