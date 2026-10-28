@@ -63,14 +63,28 @@ export default {
         return json({ error: "oauth_not_configured" }, 503);
       }
 
-      await env.OAUTH_KV.put("state:" + state, "1", { expirationTtl: 600 });
+      // Keep failures visible as safe JSON instead of an opaque blank/500 browser page.
+      try {
+        await env.OAUTH_KV.put("state:" + state, "1", { expirationTtl: 600 });
+      } catch {
+        return json({ error: "oauth_state_store_failed", stage: "oauth_start" }, 503);
+      }
+
       const authorize = new URL("https://osu.ppy.sh/oauth/authorize");
       authorize.searchParams.set("client_id", clientId);
       authorize.searchParams.set("redirect_uri", redirectUri);
       authorize.searchParams.set("response_type", "code");
       authorize.searchParams.set("scope", "public identify");
       authorize.searchParams.set("state", state);
-      return Response.redirect(authorize.toString(), 302);
+
+      // Explicitly return a no-store redirect to osu!'s consent endpoint.
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: authorize.toString(),
+          "cache-control": "no-store",
+        },
+      });
     }
 
     if (url.pathname === "/oauth/callback" && request.method === "GET") {
