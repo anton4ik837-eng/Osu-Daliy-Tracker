@@ -5,10 +5,15 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "30 17 * * *"
+    # Poll osu! for new plays every five minutes.
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
+
+concurrency:
+  group: osu-tracker
+  cancel-in-progress: false
 
 jobs:
   track:
@@ -22,16 +27,75 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      - name: Check for a new score
+        id: check
+        if: github.event_name == 'schedule'
+        env:
+          OSU_CLIENT_ID: ${{ secrets.OSU_CLIENT_ID }}
+          OSU_CLIENT_SECRET: ${{ secrets.OSU_CLIENT_SECRET }}
+        run: |
+          python - <<'PY'
+          import os, sqlite3, requests
+          from pathlib import Path
+
+          cid = os.getenv("OSU_CLIENT_ID")
+          secret = os.getenv("OSU_CLIENT_SECRET")
+          if not cid or not secret:
+              raise SystemExit("Missing OSU_CLIENT_ID / OSU_CLIENT_SECRET secrets")
+
+          token_response = requests.post(
+              "https://osu.ppy.sh/oauth/token",
+              data={"client_id": int(cid), "client_secret": secret,
+                    "grant_type": "client_credentials", "scope": "public"},
+              timeout=30,
+          )
+          token_response.raise_for_status()
+          session = requests.Session()
+          session.headers["Authorization"] = "Bearer " + token_response.json()["access_token"]
+
+          db_path = Path("data/tracker.sqlite")
+          if not db_path.exists():
+              print("new_score=true", file=open(os.environ["GITHUB_OUTPUT"], "a"))
+              raise SystemExit(0)
+
+          conn = sqlite3.connect(db_path)
+          checks = [
+              ("osu", "scores", "osu"),
+              ("mania", "mania_scores", "mania"),
+          ]
+          new_score = False
+          for table_mode, table, api_mode in checks:
+              known = {row[0] for row in conn.execute(f"SELECT id FROM {table}")}
+              response = session.get(
+                  f"https://osu.ppy.sh/api/v2/users/34437510/scores/recent",
+                  params={"mode": api_mode, "limit": 20, "include_fails": 1, "legacy_only": 0},
+                  timeout=30,
+              )
+              response.raise_for_status()
+              incoming = response.json()
+              unseen = [str(score.get("id")) for score in incoming
+                        if score.get("id") is not None and str(score["id"]) not in known]
+              if unseen:
+                  print(f"Found {len(unseen)} unseen {api_mode} score(s): {', '.join(unseen[:5])}")
+                  new_score = True
+          conn.close()
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"new_score={'true' if new_score else 'false'}\n")
+          print("New score detected." if new_score else "No new scores; skipping dashboard regeneration.")
+          PY
+
       - name: Collect profile and scores
+        if: github.event_name != 'schedule' || steps.check.outputs.new_score == 'true'
         env:
           OSU_CLIENT_ID: ${{ secrets.OSU_CLIENT_ID }}
           OSU_CLIENT_SECRET: ${{ secrets.OSU_CLIENT_SECRET }}
         run: python tracker.py
 
       - name: Save history to repository
+        if: github.event_name != 'schedule' || steps.check.outputs.new_score == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/tracker.sqlite reports/
-          git diff --cached --quiet || git commit -m "Update daily osu! tracker"
+          git diff --cached --quiet || git commit -m "Update osu! tracker after new score"
           git push
