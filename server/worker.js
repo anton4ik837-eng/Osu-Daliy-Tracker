@@ -114,6 +114,17 @@ export default {
       authorize.searchParams.set("scope", "public identify");
       authorize.searchParams.set("state", state);
 
+      // Diagnostic mode runs the same state-store and URL-building path but returns the intended redirect as JSON.
+      // It never exposes the client secret or tokens.
+      if (url.searchParams.get("debug") === "1") {
+        return json({
+          stage: "oauth_start_ready_to_redirect",
+          state_saved: true,
+          would_return_status: 302,
+          location: authorize.toString(),
+        });
+      }
+
       // Explicitly return a no-store redirect to osu!'s consent endpoint.
       return new Response(null, {
         status: 302,
