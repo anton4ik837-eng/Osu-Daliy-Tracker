@@ -149,7 +149,7 @@ def main():
 """
     Path("reports/latest.md").write_text(report,encoding="utf-8")
 
-    # Build the Miyabi/Frost HTML dashboard from the current snapshot and saved history.
+    # Build the HTML dashboard from the current snapshot and saved history.
     dashboard_template = Path("dashboard_template.html")
     if dashboard_template.exists():
         dashboard_stats = {
