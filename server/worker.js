@@ -81,7 +81,7 @@ export default {
     // Return the authenticated user's own profile using the short-lived OAuth access token.
     if (url.pathname === "/api/me" && request.method === "GET") {
       const auth = request.headers.get("authorization") || "";
-      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      const match = auth.match(/^Bearer\s+(.+)$/i);
       if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
       const mode = validMode(url.searchParams.get("mode") || "osu");
       if (!mode) return apiJson({ error: "invalid_mode" }, 400);
@@ -96,7 +96,7 @@ export default {
     }
 
     // Public profile lookup used by the manual username/ID search.
-    const userMatch = url.pathname.match(/^\\/api\\/users\\/([^/]+)$/);
+    const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)$/);
     if (userMatch && request.method === "GET") {
       const user = decodeURIComponent(userMatch[1]);
       const mode = validMode(url.searchParams.get("mode") || "osu");
