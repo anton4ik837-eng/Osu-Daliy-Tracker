@@ -97,6 +97,9 @@ jobs:
 
       - name: Save history to repository
         if: github.event_name != 'schedule' || steps.check.outputs.new_score == 'true'
+        env:
+          OSU_CLIENT_ID: ${{ secrets.OSU_CLIENT_ID }}
+          OSU_CLIENT_SECRET: ${{ secrets.OSU_CLIENT_SECRET }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
