@@ -105,7 +105,19 @@ jobs:
             echo "No history changes to commit."
           else
             git commit -m "Update osu! tracker after new score"
-            git pull --rebase origin main
+            if ! git pull --rebase origin main; then
+              echo "Generated files conflicted with newer main; regenerating from the latest main."
+              git rebase --abort || true
+              git fetch origin main
+              git reset --hard origin/main
+              python tracker.py
+              git add data/tracker.sqlite reports/
+              if git diff --cached --quiet; then
+                echo "No history changes after regeneration."
+                exit 0
+              fi
+              git commit -m "Update osu! tracker after new score (regenerated)"
+            fi
             git push origin HEAD:main
           fi
 
