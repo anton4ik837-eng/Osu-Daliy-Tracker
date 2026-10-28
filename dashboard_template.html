@@ -49,7 +49,7 @@ const dateFmt = s=>mskTime(s);
 const stats=D.stats||{};
 const metrics=[
  ['PERFORMANCE POINTS',fmt(stats.pp,0),'total PP'],
- ['GLOBAL RANK',stats.global_rank?('#'+fmt(stats.global_rank)):'—','global standing'],
+ ['GLOBAL RANK',stats.global_rank?('🇷🇺 #'+fmt(stats.global_rank)):'—','global standing'],
  ['ACCURACY',stats.accuracy==null?'—':fmt(stats.accuracy,2)+'%','hit accuracy'],
  ['COUNTRY RANK',stats.country_rank?('#'+fmt(stats.country_rank)):'—','national standing'],
  ['PLAY COUNT',fmt(stats.playcount),'total plays'],
