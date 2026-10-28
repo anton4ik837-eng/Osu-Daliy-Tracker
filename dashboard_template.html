@@ -65,7 +65,7 @@ const best=scores[0]||null;
 const daily=scores[1]||null;
 function recCard(tag,s,caption){if(!s)return'<article class="card record"><span class="tag">'+tag+'</span><div class="empty">Пока нет данных для этого блока</div></article>';return '<article class="card record"><span class="tag">'+tag+'</span><h3>'+esc(s.title||'Unknown map')+'</h3><div class="pp">'+fmt(s.pp,0)+' PP</div><small>'+fmt((s.accuracy||0)*100,2)+'% accuracy · '+esc(s.rank||'—')+'</small><div class="metric-sub">Получен: '+ageFmt(s.ended_at)+'</div><small>'+dateFmt(s.ended_at)+'</small><div class="metric-sub">'+caption+'</div></article>'}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-document.getElementById('featured').innerHTML=recCard('01 / ALL-TIME BEST',best,'Абсолютный рекорд')+recCard('02 / TODAY BEST',daily,'Лучший результат за сегодня')+recCard('03 / ARCHIVE','' , ''); 
+document.getElementById('featured').innerHTML=recCard('01 / ALL-TIME BEST',best,'Абсолютный рекорд')+recCard('02 / LAST PLAY DAY BEST',daily,'Лучший результат за последний день игры')+recCard('03 / ARCHIVE','' , ''); 
 // Replace the third featured tile with the newest chronological score.
 const chronological=scores.slice(2);
 const latest=chronological.length?chronological[chronological.length-1]:null;
