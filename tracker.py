@@ -3,6 +3,8 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -14,9 +16,17 @@ Path("data").mkdir(exist_ok=True); Path("reports").mkdir(exist_ok=True)
 def main():
     cid=os.getenv("OSU_CLIENT_ID"); secret=os.getenv("OSU_CLIENT_SECRET")
     if not cid or not secret: raise RuntimeError("Set OSU_CLIENT_ID and OSU_CLIENT_SECRET in GitHub Actions secrets")
-    token=requests.post("https://osu.ppy.sh/oauth/token",data={"client_id":int(cid),"client_secret":secret,"grant_type":"client_credentials","scope":"public"},timeout=30)
-    token.raise_for_status(); headers={"Authorization":"Bearer "+token.json()["access_token"]}
-    s=requests.Session(); s.headers.update(headers)
+    # osu! API can occasionally close a connection without returning an HTTP response.
+    # Retry transient transport errors and rate/server responses instead of failing the scheduled run immediately.
+    retry=Retry(total=5,connect=5,read=5,status=5,backoff_factor=1,
+                status_forcelist=(429,500,502,503,504),
+                allowed_methods=frozenset(("GET","POST")),
+                respect_retry_after_header=True,raise_on_status=False)
+    s=requests.Session()
+    adapter=HTTPAdapter(max_retries=retry)
+    s.mount("https://",adapter); s.mount("http://",adapter)
+    token=s.post("https://osu.ppy.sh/oauth/token",data={"client_id":int(cid),"client_secret":secret,"grant_type":"client_credentials","scope":"public"},timeout=30)
+    token.raise_for_status(); s.headers.update({"Authorization":"Bearer "+token.json()["access_token"]})
     now=datetime.now(timezone.utc).isoformat(timespec="seconds")
     p=s.get(f"{API}/users/{UID}/osu",params={"key":"id"},timeout=30); p.raise_for_status(); user=p.json()
     rank_history_values=((user.get("rank_history") or {}).get("data") or [])
