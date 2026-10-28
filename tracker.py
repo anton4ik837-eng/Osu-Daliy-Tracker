@@ -1,6 +1,6 @@
 import os, json, sqlite3, csv
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import requests
 import matplotlib
@@ -19,10 +19,12 @@ def main():
     s=requests.Session(); s.headers.update(headers)
     now=datetime.now(timezone.utc).isoformat(timespec="seconds")
     p=s.get(f"{API}/users/{UID}/osu",params={"key":"id"},timeout=30); p.raise_for_status(); user=p.json()
+    rank_history_values=((user.get("rank_history") or {}).get("data") or [])
     st=user.get("statistics") or {}
     best=s.get(f"{API}/users/{UID}/scores/best",params={"mode":"osu","limit":100,"legacy_only":0},timeout=30); best.raise_for_status()
     recent=s.get(f"{API}/users/{UID}/scores/recent",params={"mode":"osu","limit":100,"include_fails":1,"legacy_only":0},timeout=30); recent.raise_for_status()
     mania_user_resp=s.get(f"{API}/users/{UID}/mania",params={"key":"id"},timeout=30); mania_user_resp.raise_for_status(); mania_user=mania_user_resp.json()
+    mania_rank_history_values=((mania_user.get("rank_history") or {}).get("data") or [])
     mania_stats=mania_user.get("statistics") or {}
     mania_best_resp=s.get(f"{API}/users/{UID}/scores/best",params={"mode":"mania","limit":100,"legacy_only":0},timeout=30); mania_best_resp.raise_for_status()
     mania_recent_resp=s.get(f"{API}/users/{UID}/scores/recent",params={"mode":"mania","limit":100,"include_fails":1,"legacy_only":0},timeout=30); mania_recent_resp.raise_for_status()
@@ -187,9 +189,23 @@ def main():
             "max_combo": mania_stats.get("maximum_combo"), "level": mania_level_value,
         }
         mania_dashboard_snapshots = [{"ts": r[0], "pp": r[2], "global_rank": r[3], "accuracy": r[5]} for r in mania_rows]
+        def build_rank_history(values):
+            # osu! API rank_history.data is ordered oldest -> newest and contains daily rank values.
+            if not values:
+                return []
+            current_time = datetime.fromisoformat(now.replace("Z", "+00:00"))
+            first_time = current_time - timedelta(days=len(values) - 1)
+            return [
+                {"ts": (first_time + timedelta(days=i)).isoformat(timespec="seconds"),
+                 "global_rank": int(rank) if rank is not None and int(rank) > 0 else None}
+                for i, rank in enumerate(values)
+            ]
+
         dashboard_data = {
             "updated": now, "stats": dashboard_stats, "snapshots": dashboard_snapshots, "scores": dashboard_scores,
+            "rank_history": build_rank_history(rank_history_values),
             "mania_stats": mania_dashboard_stats, "mania_snapshots": mania_dashboard_snapshots,
+            "mania_rank_history": build_rank_history(mania_rank_history_values),
             "mania_scores": mania_dashboard_scores,
         }
         dashboard_html = dashboard_template.read_text(encoding="utf-8").replace(
