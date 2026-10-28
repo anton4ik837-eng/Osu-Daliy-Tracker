@@ -4,13 +4,17 @@
   "private": true,
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
-    "build": "node -e \"console.log('Static app ready')\""
+    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js",
+    "configure:android": "node scripts/configure-android.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
-    "@capacitor/core": "^7.4.3"
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/app": "^7.1.0",
+    "@capacitor/browser": "^7.1.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.4.3"
+    "@capacitor/cli": "^7.4.3",
+    "esbuild": "^0.25.0"
   }
 }

@@ -21,9 +21,15 @@ jobs:
       - name: Install dependencies
         working-directory: app
         run: npm install
+      - name: Build native JavaScript bridge
+        working-directory: app
+        run: npm run build
       - name: Add Android platform
         working-directory: app
         run: npx cap add android
+      - name: Register OAuth deep link
+        working-directory: app
+        run: npm run configure:android
       - name: Sync web assets
         working-directory: app
         run: npx cap sync android
@@ -53,7 +59,7 @@ jobs:
           body: |
             **Статус: PRE-ALPHA — ранняя тестовая сборка.**
 
-            Это первая техническая Android-сборка интерфейса приложения. Многие функции ещё не реализованы: подключение профиля пока открывает публичную страницу osu!, а получение статистики через API ещё не подключено. Replay Lab открывается в веб-версии.
+            Это ранняя тестовая Android-сборка. OAuth открывается во внешнем браузере и возвращается в приложение через osudailytracker://oauth. Часть функций ещё не реализована; Replay Lab открывается в веб-версии.
 
             Возможны ошибки и изменения без сохранения совместимости. APK собран как debug-сборка для тестирования, не является финальным релизом.
           files: osu-daily-tracker-v0.1.0-prealpha.apk

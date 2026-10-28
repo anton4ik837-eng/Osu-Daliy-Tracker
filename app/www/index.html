@@ -39,6 +39,7 @@
 <section class="panel" id="replay" style="margin-top:16px"><div class="panel-head"><h2>Replay Lab</h2><span class="pill">Экспериментальный</span></div><p>Открой отдельный инструмент анализа .osr. Интеграция в единый интерфейс приложения — один из следующих этапов.</p><a class="button secondary" href="https://anton4ik837-eng.github.io/Osu-Daliy-Tracker/replay.html" target="_blank" rel="noopener">Открыть Replay Lab ↗</a></section>
 <div class="foot">OSU! DAILY TRACKER · COMMUNITY APP · НЕОФИЦИАЛЬНОЕ ПРИЛОЖЕНИЕ</div>
 </main>
+<script src="./native-bridge.bundle.js"></script>
 <script>
 const API_BASE='https://osu-daily-tracker-oauth.anton4ik837.workers.dev';
 const STORAGE_KEY='osu-daily-tracker-profile';
@@ -92,13 +93,26 @@ function randomState(){
  if(window.crypto?.getRandomValues)crypto.getRandomValues(bytes);else for(let i=0;i<bytes.length;i++)bytes[i]=Math.floor(Math.random()*256);
  return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
 }
-function startOAuth(){
+async function startOAuth(){
+ const button=$('authorizeButton');
+ button.disabled=true;
  const state=randomState();
  try{sessionStorage.setItem(OAUTH_STATE_KEY,state)}catch{}
  setAuthStatus('Открываем osu! для подтверждения доступа…');
  const url=new URL(API_BASE+'/oauth/start');url.searchParams.set('state',state);
  // OAuth credentials and the osu! client secret stay on the Worker.
- window.location.assign(url.toString());
+ try{
+  if(window.Capacitor?.isNativePlatform?.()){
+   if(!window.NativeBrowser?.open)throw new Error('Нативный браузер не подключён в этой сборке.');
+   await window.NativeBrowser.open({url:url.toString()});
+  }else{
+   window.location.assign(url.toString());
+  }
+ }catch(error){
+  setAuthStatus('Не удалось открыть браузер авторизации: '+(error?.message||String(error)),'error');
+ }finally{
+  button.disabled=false;
+ }
 }
 $('authorizeButton').addEventListener('click',startOAuth);
 $('connectForm').addEventListener('submit',e=>{e.preventDefault();loadProfile($('osuUser').value)});
@@ -129,8 +143,19 @@ async function redeemHandoff(handoff){
   setAuthStatus('Аккаунт авторизован. Токен хранится только в памяти до закрытия приложения; защищённое сохранение добавим через Android secure storage.','success');
  }catch(e){setAuthStatus('Не удалось завершить вход: '+(e.message||String(e)),'error')}
 }
-window.addEventListener('appUrlOpen',event=>handleOAuthReturn(event?.url||''));
-if(window.Capacitor?.Plugins?.App?.addListener){window.Capacitor.Plugins.App.addListener('appUrlOpen',event=>handleOAuthReturn(event?.url||''));}
+async function initializeNativeOAuthBridge(){
+ if(!window.NativeApp?.addListener)return;
+ await window.NativeApp.addListener('appUrlOpen',event=>handleOAuthReturn(event?.url||''));
+ try{
+  const launch=await window.NativeApp.getLaunchUrl();
+  if(launch?.url)handleOAuthReturn(launch.url);
+ }catch(error){
+  setAuthStatus('Не удалось проверить возврат из osu!: '+(error?.message||String(error)),'error');
+ }
+}
+initializeNativeOAuthBridge().catch(error=>{
+ setAuthStatus('Не удалось подключить обработчик OAuth: '+(error?.message||String(error)),'error');
+});
 try{
  const saved=localStorage.getItem(STORAGE_KEY);if(saved){$('osuUser').value=saved;loadProfile(saved)}
 }catch{}
