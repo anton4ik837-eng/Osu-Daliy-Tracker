@@ -91,21 +91,8 @@ function renderCritique(a){
     details.push('Сравнение дорожек основано на среднем signed offset каждой дорожки, а не на предположении о конкретном пальце.');
    }
   }else{
-   // Standard sliders: use key-up transitions only when replay frames are available.
-   const frames=window.replayFrames||[],map=window.currentParsedMap;
-   if(map&&frames.length>2){
-    const sliders=map.objects.filter(o=>o.type==='slider'&&o.endTime>o.time),releases=[];
-    for(let i=1;i<frames.length;i++){const prev=frames[i-1],cur=frames[i],before=prev.keys&0x7CF,after=cur.keys&0x7CF;if(before&&!after&&cur.time>=0)releases.push(cur.time);}
-    const earlyReleases=[];
-    for(const sl of sliders){const startRow=matched.find(r=>r.time===sl.time&&r.type==='slider');if(!startRow)continue;const release=releases.find(t=>t>=startRow.press.time&&t<=sl.endTime+120);if(release!=null&&release<sl.endTime-35)earlyReleases.push({sl,release,early:sl.endTime-release});}
-    if(sliders.length>=3&&earlyReleases.length>=2){
-     const pct=Math.round(earlyReleases.length/Math.max(1,sliders.length)*100);
-     if(pct>=20)negatives.push('Похоже, часть слайдеров отпускается раньше конца: найдено '+earlyReleases.length+' ранних отпусканий среди '+sliders.length+' слайдеров с сопоставленным стартом (около '+pct+'%). В среднем это стоит проверить по таймлайну: ключ мог быть отпущен до endTime карты.');
-     details.push('Примеры раннего отпускания: '+earlyReleases.slice(0,3).map(x=>fmtTime(x.sl.endTime)+' — отпущено примерно за '+Math.round(x.early)+' мс до конца слайдера').join('; ')+'.');
-    }else if(sliders.length>=5&&earlyReleases.length===0)positives.push('В доступных key-state кадрах не найдено явных ранних отпусканий слайдеров. Это не доказывает правильное следование по траектории, но явный ранний release не подтверждён.');
-    else if(sliders.length)details.push('Слайдеры есть ('+sliders.length+'), но кадров недостаточно для надёжного вывода о моменте отпускания — не буду выдавать это за установленную проблему.');
-   }
-  }
+   const sliderCount=a.objects.filter(o=>o.type==='slider').length;
+   if(sliderCount)details.push('В карте есть '+sliderCount+' слайдеров. Точный момент раннего отпускания пока не оценивается: для этого нужно корректно рассчитывать длительность каждого слайдера по timing points и inherited slider velocity; иначе вывод может быть ложным.');
  }
  if(good.length){const s=good[0];details.push('Лучший сегмент '+fmtTime(s.start)+'–'+fmtTime(s.end)+': среднее |offset| '+Math.round(s.avg)+' мс, несопоставленные объекты '+s.rows.filter(r=>r.miss).length+'/'+s.rows.length+'.');}
  if(worst.length){const s=worst[0];details.push('Главный участок для работы — '+fmtTime(s.start)+'–'+fmtTime(s.end)+': среднее |offset| '+Math.round(s.avg)+' мс, несопоставленные объекты '+s.rows.filter(r=>r.miss).length+'/'+s.rows.length+'. Нажми сегмент, чтобы посмотреть его отдельно.');}
