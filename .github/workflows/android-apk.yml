@@ -231,15 +231,26 @@ jobs:
           sleep 20
           adb -e shell pidof com.osudailytracker.app
           adb -e exec-out screencap -p > emulator-results/home-screen.png
-          # Tap Replay Lab in the top navigation, then capture the actual target screen.
+          # Open the Replay Lab card on the dashboard (not the top navigation anchor).
           screen_size=$(adb -e shell wm size | tail -n 1 | awk '{print $3}')
           screen_width=${screen_size%x*}
           screen_height=${screen_size#*x}
-          adb -e shell input tap $((screen_width * 64 / 100)) $((screen_height * 8 / 100))
-          sleep 5
+          adb -e shell input tap $((screen_width * 50 / 100)) $((screen_height * 82 / 100))
+          sleep 7
           adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
+          # Capture Android's accessibility tree so the test can prove the Replay Lab
+          # controls are present, rather than treating a second home-screen capture as success.
+          adb -e shell uiautomator dump /sdcard/replay-lab-window.xml >/dev/null
+          adb -e shell cat /sdcard/replay-lab-window.xml > emulator-results/replay-lab-window.xml
+          if ! grep -Eqi 'Реплей|Скин osu|Играть|skinFile|replayFile' emulator-results/replay-lab-window.xml; then
+            echo "::error::Replay Lab controls were not found in the Android accessibility tree."
+            echo "Accessibility dump:"
+            cat emulator-results/replay-lab-window.xml
+            exit 1
+          fi
           adb -e logcat -d -v threadtime > emulator-results/logcat.txt
           test -s emulator-results/home-screen.png
+          test -s emulator-results/replay-lab-screen.png
           if grep -E 'FATAL EXCEPTION|Fatal signal [0-9]+ \\(SIG' emulator-results/logcat.txt; then
             echo "::error::Fatal Android crash detected; see logcat artifact."
             exit 1
