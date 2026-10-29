@@ -13,10 +13,13 @@ if (!scripts.length) {
 const loaderStart = html.indexOf('async function loadOsuSkin');
 const loaderEnd = html.indexOf("$('skinFile')", loaderStart);
 const skinLoader = loaderStart >= 0 && loaderEnd > loaderStart ? html.slice(loaderStart, loaderEnd) : '';
-const listenerPosition = skinLoader.indexOf('img.onload=()=>finish(resolve)');
+const listenerPosition = skinLoader.indexOf('img.onload=()=>finish(true)');
 const sourcePosition = skinLoader.indexOf('img.src=url');
 if (!skinLoader || listenerPosition < 0 || sourcePosition < 0 || listenerPosition > sourcePosition) {
   throw new Error('Skin image loader must register load/error handlers before assigning img.src');
+}
+if (!skinLoader.includes('await Promise.all(pending)')) {
+  throw new Error('Skin image loader must decode texture images concurrently');
 }
 if (!skinLoader.includes('В архиве не найдены файлы mania-*')) {
   throw new Error('Skin loader must explain when an archive has no osu!mania textures');
