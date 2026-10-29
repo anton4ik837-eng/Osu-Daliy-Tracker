@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-beta-build-v1711
+  group: android-beta-build-v1712
   cancel-in-progress: true
 jobs:
   build:
@@ -66,23 +66,23 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.11.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.12.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.7.11
-          path: osu-daily-tracker-v1.7.11.apk
+          name: osu-daily-tracker-v1.7.12
+          path: osu-daily-tracker-v1.7.12.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.7.11
+          tag_name: v1.7.12
           target_commitish: ${{ github.sha }}
-          name: osu! Daily Tracker 1.7.11
+          name: osu! Daily Tracker 1.7.12
           prerelease: true
           make_latest: false
           body: |
-            **Версия 1.7.11 (тестовая beta).**
+            **Версия 1.7.12 (тестовая beta).**
 
             Добавлен переключатель списка результатов: последние игры или лучшие по PP. Для обоих списков поддерживается постраничная загрузка, а скачивание реплея проверяется по ID результата и владельцу аккаунта.
 
@@ -90,7 +90,7 @@ jobs:
 
             Исправлен расчёт длительности слайдеров: выбираются последние применимые timing points и inherited SV по времени, а не по порядку строк. Путь слайдера аппроксимируется по кривой и обрезается до pixelLength; индикатор движения учитывает повторения и обратный ход.
 
-            В osu!standard исправлено масштабирование игрового поля до реальных 512×384, добавлен след курсора по записанным позициям реплея. Сохранены выбор музыки по AudioFilename, список последних/лучших результатов и остальные исправления 1.7.10. Android versionName/versionCode: 1.7.11 / 10711.
+            Исправлено сохранение в Replay Lab: один и тот же реплей обновляет существующую запись, а не создаёт дубликат. При загрузке карты после сохранения без карты запись автоматически дополняется выбранной сложностью (.osu), её метаданными, исходным архивом .osz и аудио. Повторное открытие восстанавливает точную выбранную сложность и музыку; старые записи с .osz остаются совместимыми. Включены исправления траектории/длительности слайдеров и курсора standard из 1.7.11. Android versionName/versionCode: 1.7.12 / 10712.
 
             Проверить на устройстве: запуск и паузу просмотра, переход по шкале времени, воспроизведение музыки без ускорения и самопроизвольного перезапуска.
-          files: osu-daily-tracker-v1.7.11.apk
+          files: osu-daily-tracker-v1.7.12.apk
