@@ -5,6 +5,7 @@ on:
     branches: [app-foundation, alpha-1.0.0-work]
     paths:
       - 'app/**'
+      - 'test-fixtures/**'
       - '.github/workflows/android-apk.yml'
 permissions:
   contents: write
@@ -28,6 +29,9 @@ jobs:
       - name: Validate Replay Lab JavaScript syntax
         working-directory: app
         run: npm run test:replay-inline
+      - name: Validate supplied replay, exact beatmap and nested mania skin fixtures
+        working-directory: .
+        run: node app/scripts/check-replay-fixtures.mjs
       - name: Build native JavaScript bridge
         working-directory: app
         run: npm run build
