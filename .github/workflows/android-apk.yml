@@ -66,18 +66,18 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.4.3-beta.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.5.0-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.4.3-beta
-          path: osu-daily-tracker-v1.4.3-beta.apk
+          name: osu-daily-tracker-v1.5.0-beta
+          path: osu-daily-tracker-v1.5.0-beta.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.3-beta
-          name: osu! Daily Tracker 1.4.3 Beta
+          tag_name: v1.5.0-beta
+          name: osu! Daily Tracker 1.5.0 Beta
           prerelease: true
           make_latest: false
           body: |
@@ -86,4 +86,4 @@ jobs:
             Исправлена адаптация интерфейса к разным размерам Android-экранов: учтены динамическая высота окна, безопасные отступы и ширина контента. Также сохранены исправления проверки версии и краёв osu!standard в Replay Lab.
 
             Возможны ошибки и изменения без сохранения совместимости. APK собран как debug-сборка для тестирования, не является финальным релизом. Это бета: проверьте повторный запуск, истечение токена и звук на своём устройстве.
-          files: osu-daily-tracker-v1.4.3-beta.apk
+          files: osu-daily-tracker-v1.5.0-beta.apk
