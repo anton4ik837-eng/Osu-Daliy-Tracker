@@ -166,17 +166,18 @@ let accountScores=[];
 async function autoLoadBeatmapFromReplay(){
  const checksum=String(parsedReplay?.beatmapMd5||'').trim().toLowerCase();
  if(!/^[a-f0-9]{32}$/.test(checksum))throw new Error('В реплее нет корректного MD5 карты.');
- const session=accountReplaySession();
- if(!session){setStatus('Реплей прочитан. Для автозагрузки карты подключи osu! аккаунт или выбери .osu/.osz вручную.');return false;}
- setStatus('Ищу точную сложность по MD5 реплея и загружаю карту…');
- const response=await accountReplayFetch('/api/me/beatmap-by-checksum?checksum='+encodeURIComponent(checksum),session,'text/plain');
- if(!response.ok){const detail=await response.text().catch(()=> '');throw new Error('Не удалось автоматически загрузить карту (HTTP '+response.status+'). '+detail.slice(0,180));}
- const text=await response.text();
- if(!text.includes('[HitObjects]'))throw new Error('Сервер вернул файл, который не похож на .osu.');
- const file=new File([text],'auto-'+checksum+'.osu',{type:'text/plain'});
+ setStatus('Ищу точную сложность по MD5 реплея и загружаю карту вместе с музыкой…');
+ const response=await fetch(REPLAY_API_BASE+'/api/me/beatmapset-by-checksum?checksum='+encodeURIComponent(checksum),{headers:{Accept:'application/octet-stream'}});
+ if(!response.ok){const detail=await response.text().catch(()=> '');throw new Error('Не удалось автоматически загрузить карту и музыку (HTTP '+response.status+'). '+detail.slice(0,180));}
+ const bytes=await response.arrayBuffer();
+ if(bytes.byteLength<4)throw new Error('Сервер вернул пустой архив карты.');
+ const signature=new Uint8Array(bytes,0,4);
+ if(signature[0]!==0x50||signature[1]!==0x4b)throw new Error('Сервер вернул не .osz архив. Проверь журнал диагностики.');
+ const file=new File([bytes],'auto-'+checksum+'.osz',{type:'application/octet-stream'});
  $('mapFile')._savedFile=file;
- await loadMap(file);
- setStatus('Карта найдена по MD5 реплея и загружена автоматически.');
+ await loadMapOrSet(file);
+ if(!audioElement)throw new Error('Карта загружена, но в архиве не найден аудиофайл.');
+ setStatus('Карта и музыка автоматически загружены по MD5 реплея.');
  return true;
 }
 function accountScoreLabel(score){const b=score.beatmap||{},s=score.beatmapset||{};return (s.artist||'Unknown artist')+' — '+(s.title||b.version||'Unknown map')+(b.version?' ['+b.version+']':'')}
