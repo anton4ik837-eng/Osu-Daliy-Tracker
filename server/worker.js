@@ -88,9 +88,9 @@ export default {
       return json({ ok: true, service: "osu-daily-tracker-oauth", version: 2, deploy_marker: "replay-cors-fix-2026-10-29" });
     }
 
-    // Resolve a public beatmap checksum without requiring the user's OAuth session.
-    // Beatmap lookup is public; only account-owned data endpoints require user bearer tokens.
-    if (url.pathname === "/api/me/beatmap-by-checksum" && request.method === "GET") {
+    // Download the complete public beatmapset archive by the replay checksum.
+    // The .osz includes both the exact .osu difficulty and its audio file.
+    if (url.pathname === "/api/me/beatmapset-by-checksum" && request.method === "GET") {
       const checksum = String(url.searchParams.get("checksum") || "").trim().toLowerCase();
       if (!/^[a-f0-9]{32}$/.test(checksum)) return apiJson({ error: "invalid_beatmap_checksum" }, 400);
       let token;
@@ -99,12 +99,29 @@ export default {
       const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + token };
       const lookup = await fetch("https://osu.ppy.sh/api/v2/beatmaps/lookup?checksum=" + encodeURIComponent(checksum), { headers });
       const beatmap = await lookup.json().catch(() => ({}));
-      if (!lookup.ok || !beatmap.id) return apiJson({ error: "beatmap_lookup_failed", upstream_status: lookup.status }, lookup.status === 404 ? 404 : 502);
-      const file = await fetch("https://osu.ppy.sh/osu/" + encodeURIComponent(beatmap.id), { headers: { accept: "text/plain" } });
-      if (!file.ok) return apiJson({ error: "beatmap_file_download_failed", upstream_status: file.status, beatmap_id: beatmap.id }, 502);
-      const body = await file.text();
-      if (!body.includes("[HitObjects]")) return apiJson({ error: "invalid_beatmap_file", beatmap_id: beatmap.id }, 502);
-      return new Response(body, { status: 200, headers: { "content-type": "text/plain; charset=utf-8", "access-control-allow-origin": "*", "cache-control": "public, max-age=3600", "x-content-type-options": "nosniff" } });
+      if (!lookup.ok || !beatmap.id || !beatmap.beatmapset_id) {
+        return apiJson({ error: "beatmap_lookup_failed", upstream_status: lookup.status }, lookup.status === 404 ? 404 : 502);
+      }
+      const archive = await fetch("https://osu.ppy.sh/beatmapsets/" + encodeURIComponent(beatmap.beatmapset_id) + "/download", {
+        headers: { authorization: "Bearer " + token, accept: "application/octet-stream" },
+        redirect: "follow"
+      });
+      if (!archive.ok) {
+        return apiJson({ error: "beatmapset_download_failed", upstream_status: archive.status, beatmapset_id: beatmap.beatmapset_id }, archive.status === 404 ? 404 : 502);
+      }
+      const bytes = await archive.arrayBuffer();
+      if (bytes.byteLength < 4) return apiJson({ error: "empty_beatmapset_archive", beatmapset_id: beatmap.beatmapset_id }, 502);
+      const signature = new Uint8Array(bytes.slice(0, 4));
+      if (signature[0] !== 0x50 || signature[1] !== 0x4b) {
+        return apiJson({ error: "unexpected_beatmapset_response", upstream_content_type: archive.headers.get("content-type") || "", beatmapset_id: beatmap.beatmapset_id }, 502);
+      }
+      return new Response(bytes, { status: 200, headers: {
+        "content-type": "application/octet-stream",
+        "content-disposition": 'attachment; filename="beatmapset-' + beatmap.beatmapset_id + '.osz"',
+        "access-control-allow-origin": "*",
+        "cache-control": "public, max-age=3600",
+        "x-content-type-options": "nosniff"
+      }});
     }
 
     // Recent scores for the authenticated osu! account.
