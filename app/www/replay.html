@@ -97,7 +97,17 @@ async function loadOsuSkin(file){
   }));
  }
  await Promise.all(pending);
- loadedNames.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+ // Legacy osu!mania skins may store lane textures in Orbs/ instead of mania-* names.
+  // Map decoded Orbs assets to the aliases consumed by the Mania renderer.
+  for(let lane=1;lane<=10;lane++){
+   const n=String(lane),orbLane=lane<=2?String(lane):'1';
+   if(!images['mania-note'+n]&&images['note'+orbLane])images['mania-note'+n]=images['note'+orbLane];
+   if(!images['mania-note'+n+'H']&&images['noteHT'+orbLane])images['mania-note'+n+'H']=images['noteHT'+orbLane];
+   if(!images['mania-note'+n+'L']&&images['noteL'+orbLane])images['mania-note'+n+'L']=images['noteL'+orbLane];
+   if(!images['mania-key'+n]&&images['key'+orbLane])images['mania-key'+n]=images['key'+orbLane];
+   if(!images['mania-key'+n+'D']&&images['key'+orbLane+'D'])images['mania-key'+n+'D']=images['key'+orbLane+'D'];
+  }
+  loadedNames.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
  if(!Object.keys(images).length){for(const url of urls)URL.revokeObjectURL(url);status.textContent='В архиве не удалось прочитать изображения. Проверь, что это корректный .osk/ZIP с текстурами.';return}
  for(const url of activeSkin.urls||[])URL.revokeObjectURL(url);
  const maniaSections=[];
