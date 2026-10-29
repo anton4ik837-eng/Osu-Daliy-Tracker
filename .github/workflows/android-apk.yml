@@ -197,6 +197,13 @@ jobs:
           sleep 20
           adb -e shell pidof com.osudailytracker.app
           adb -e exec-out screencap -p > emulator-results/home-screen.png
+          # Tap Replay Lab in the top navigation, then capture the actual target screen.
+          screen_size=$(adb -e shell wm size | tail -n 1 | awk '{print $3}')
+          screen_width=${screen_size%x*}
+          screen_height=${screen_size#*x}
+          adb -e shell input tap $((screen_width * 64 / 100)) $((screen_height * 8 / 100))
+          sleep 5
+          adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
           adb -e logcat -d -v threadtime > emulator-results/logcat.txt
           test -s emulator-results/home-screen.png
           if grep -E 'FATAL EXCEPTION|Fatal signal [0-9]+ \\(SIG' emulator-results/logcat.txt; then
