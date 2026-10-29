@@ -42,24 +42,24 @@ jobs:
         working-directory: app/android
         run: ./gradlew assembleDebug
       - name: Rename APK for pre-alpha release
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v0.4.0-prealpha.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.0.0-alpha.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v0.4.0-prealpha
-          path: osu-daily-tracker-v0.4.0-prealpha.apk
+          name: osu-daily-tracker-v1.0.0-alpha
+          path: osu-daily-tracker-v1.0.0-alpha.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.4.0-prealpha
-          name: osu! Daily Tracker v0.4.0-pre-alpha
+          tag_name: v1.0.0-alpha
+          name: osu! Daily Tracker v1.0.0-alpha
           prerelease: true
           make_latest: false
           body: |
-            **Статус: PRE-ALPHA — ранняя тестовая сборка.**
+            **Статус: ALPHA — тестовая сборка.**
 
-            Добавлены переключение STD/MANIA, графики без лишних подписей, настройки цветов всей палитры, отключение авторизации и ссылка на GitHub. Цветовая палитра сохраняется локально; публичный поиск профиля доступен без входа.
+            Встроенный Replay Lab, вкладка настроек, палитра цветов, иконка приложения и проверка обновлений. Установка обновлений зависит от совместимости подписи APK. Анализатор экспериментальный; точность тайминга зависит от карты и паттернов.
 
             Возможны ошибки и изменения без сохранения совместимости. APK собран как debug-сборка для тестирования, не является финальным релизом.
-          files: osu-daily-tracker-v0.4.0-prealpha.apk
+          files: osu-daily-tracker-v1.0.0-alpha.apk
