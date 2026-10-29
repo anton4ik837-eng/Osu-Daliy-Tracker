@@ -54,27 +54,28 @@ async function loadOsuSkin(file){
  const images=Object.create(null),urls=[];
  const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp)$/i.test(path)&&bytes?.length);
  const loadedNames=[];
+ // Decode all unique texture basenames concurrently: real skins may contain
+ // hundreds of files, so serial decoding makes import needlessly slow.
+ const pending=[];
+ const seenNames=new Set();
  for(const [path,bytes] of imageFiles){
   const basename=path.split('/').pop().replace(/\.(png|jpe?g|webp)$/i,'').toLowerCase();
-  if(images[basename])continue;
+  if(seenNames.has(basename))continue;
+  seenNames.add(basename);
   const type=/\.jpe?g$/i.test(path)?'image/jpeg':(/\.webp$/i.test(path)?'image/webp':'image/png');
   const url=URL.createObjectURL(new Blob([bytes],{type}));urls.push(url);
-  const img=new Image();
-  // Register listeners before assigning src. On Android WebView, tiny/cached
-  // Blob images can finish decoding before a handler assigned after src runs.
-  try{
-   await new Promise((resolve,reject)=>{
-    let settled=false;
-    const finish=(fn,value)=>{if(settled)return;settled=true;clearTimeout(timeout);img.onload=null;img.onerror=null;fn(value)};
-    const timeout=setTimeout(()=>finish(reject,new Error('Image decode timeout: '+basename)),10000);
-    img.onload=()=>finish(resolve);
-    img.onerror=()=>finish(reject,new Error('Image decode failed: '+basename));
-    img.src=url;
-   });
-  }catch(error){diagLog('skin.image_decode_failed',{file:file.name,image:basename,message:String(error?.message||error)});continue}
-  if(!img.naturalWidth||!img.naturalHeight){diagLog('skin.image_empty',{file:file.name,image:basename});continue}
-  images[basename]=img;loadedNames.push(basename);
+  pending.push(new Promise(resolve=>{
+   const img=new Image();let settled=false;
+   const finish=ok=>{if(settled)return;settled=true;clearTimeout(timeout);img.onload=null;img.onerror=null;
+    if(ok&&img.naturalWidth&&img.naturalHeight){images[basename]=img;loadedNames.push(basename);resolve(true);}
+    else{diagLog('skin.image_decode_failed',{file:file.name,image:basename});resolve(false);}
+   };
+   const timeout=setTimeout(()=>finish(false),10000);
+   img.onload=()=>finish(true);img.onerror=()=>finish(false);img.src=url;
+  }));
  }
+ await Promise.all(pending);
+ loadedNames.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
  if(!Object.keys(images).length){for(const url of urls)URL.revokeObjectURL(url);status.textContent='В архиве не удалось прочитать изображения. Проверь, что это корректный .osk/ZIP с текстурами.';return}
  for(const url of activeSkin.urls||[])URL.revokeObjectURL(url);
  const maniaSections=[];
