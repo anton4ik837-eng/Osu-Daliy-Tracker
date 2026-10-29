@@ -80,7 +80,7 @@ console.log('Exact beatmap match OK: ' + matchingMaps[0].name + ', keys=' + (key
 const skinPath = 'test-fixtures/skins/百鬼あやめ.osk.zip';
 const outerSkin = unzip(readFileSync(new URL('../../' + skinPath, import.meta.url)));
 const nestedSkin = [...outerSkin].filter(([name]) => name.toLowerCase().endsWith('.osk'));
-if (!nestedSkin.length) { console.log('Skin ZIP entries: ' + [...outerSkin.keys()].slice(0, 80).join(' | ')); throw new Error('Skin ZIP has no nested .osk; checking whether the ZIP itself is a direct .osk payload'); }
+if (!nestedSkin.length) console.log('Skin archive layout: direct ZIP payload (no nested .osk file)');
 let maniaTextures = [...outerSkin.keys()].filter(name => /(^|\/)mania-(note|key)\d+.*\.(png|jpe?g|webp)$/i.test(name));
 let skinIni = [...outerSkin.keys()].some(name => name.split('/').pop().toLowerCase() === 'skin.ini');
 for (const [archiveName, archiveBytes] of nestedSkin) {
