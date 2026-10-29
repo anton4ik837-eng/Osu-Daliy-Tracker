@@ -103,8 +103,8 @@ jobs:
       - name: Install emulator and system image
         run: |
           set -euxo pipefail
-          sdkmanager --install "platform-tools" "emulator" "system-images;android-34;google_apis;x86_64"
           yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "platform-tools" "emulator" "system-images;android-34;google_apis;x86_64"
           echo "ANDROID_HOME=$ANDROID_HOME"
           adb version
           emulator -version
