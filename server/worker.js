@@ -104,6 +104,9 @@ export default {
       const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(me.id) + "/scores/recent");
       scoresUrl.searchParams.set("mode", mode);
       scoresUrl.searchParams.set("limit", String(limit));
+      const offsetRaw = Number.parseInt(url.searchParams.get("offset") || "0", 10);
+      const offset = Number.isFinite(offsetRaw) ? Math.min(1000, Math.max(0, offsetRaw)) : 0;
+      if (offset > 0) scoresUrl.searchParams.set("offset", String(offset));
       scoresUrl.searchParams.set("include_fails", "1");
       const response = await fetch(scoresUrl, { headers });
       const payload = await response.json().catch(() => null);
