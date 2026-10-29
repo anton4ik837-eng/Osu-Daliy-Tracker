@@ -86,7 +86,7 @@ async function checkForUpdates(quiet=false){
   const response=await fetch(RELEASES_API,{headers:{Accept:'application/vnd.github+json'}});
   if(!response.ok)throw Error('GitHub API ответил HTTP '+response.status+'.');
   const releases=await response.json();
-  const candidates=releases.filter(r=>!r.draft&&r.assets?.some(a=>a.name.endsWith('.apk'))&&/^v?\d+\.\d+\.\d+-(alpha|prealpha)/i.test(r.tag_name));
+  const candidates=releases.filter(r=>!r.draft&&r.assets?.some(a=>a.name.endsWith('.apk'))&&/^v?\d+\.\d+\.\d+-(alpha|prealpha|beta)/i.test(r.tag_name));
   candidates.sort((a,b)=>compareVersions(b.tag_name,a.tag_name));
   const latest=candidates[0];if(!latest)throw Error('Не найден релиз с APK. Проверим позже.');
   const latestVersion=latest.tag_name.replace(/^v/i,'');
