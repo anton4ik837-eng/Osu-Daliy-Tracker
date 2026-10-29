@@ -107,7 +107,9 @@ jobs:
             Test build for Replay Lab osu!mania skin archive loading.
             - Supports wrapper ZIP archives containing a nested .osk.
             - Prefers the nested .osk over unrelated PNG files in the wrapper ZIP.
-            - Built and syntax-checked by GitHub Actions; please verify skin rendering on device.
+            - Replay header is checked against the exact .osu difficulty inside the supplied .osz.
+            - Nested .osk archive and osu!mania note/key textures are checked before APK packaging.
+            - Android emulator smoke test is run; actual Canvas texture rendering still needs device-level verification.
           files: dist/osu-daily-tracker-v1.9.4.apk
 
 
