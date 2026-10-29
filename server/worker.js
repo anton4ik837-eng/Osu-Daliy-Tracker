@@ -85,7 +85,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 1 });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 2, deploy_marker: "replay-cors-fix-2026-10-29" });
     }
 
     // Recent scores for the authenticated osu! account.
