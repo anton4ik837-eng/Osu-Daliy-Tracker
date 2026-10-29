@@ -147,8 +147,8 @@ export default {
       const ownedScore = Array.isArray(scores) ? scores.find(score => String(score.id) === scoreId) : null;
       if (!ownedScore) return apiJson({ error: "score_not_in_recent_list" }, 404);
       if (!ownedScore.has_replay) return apiJson({ error: "replay_unavailable" }, 404);
-      const download = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", { headers: { authorization: "Bearer " + match[1] } });
-      if (!download.ok) return apiJson({ error: download.status === 404 ? "replay_unavailable" : "osu_replay_download_failed", status: download.status }, download.status === 401 ? 401 : download.status === 404 ? 404 : 502);
+      const download = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", { headers: { accept: "application/octet-stream", "x-api-version": "20220705", authorization: "Bearer " + match[1] } });
+      if (!download.ok) return apiJson({ error: "osu_replay_download_failed", stage: "upstream_replay_download", upstream_status: download.status, score_id: scoreId, mode, recent_score_has_replay: ownedScore.has_replay === true }, download.status === 401 ? 401 : download.status === 404 ? 404 : 502);
       return new Response(download.body, { status: 200, headers: {
         "access-control-allow-origin": "*", "access-control-allow-methods": "GET, OPTIONS",
         "access-control-allow-headers": "authorization", "cache-control": "no-store",
