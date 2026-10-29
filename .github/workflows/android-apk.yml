@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-beta-build
+  group: android-beta-build-v173
   cancel-in-progress: true
 jobs:
   build:
