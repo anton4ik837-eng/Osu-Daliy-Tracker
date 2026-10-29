@@ -78,6 +78,62 @@ export default {
       return json({ ok: true, service: "osu-daily-tracker-oauth", version: 1 });
     }
 
+    // Recent scores for the authenticated osu! account.
+    if (url.pathname === "/api/me/scores/recent" && request.method === "GET") {
+      const auth = request.headers.get("authorization") || "";
+      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
+      const limitRaw = Number.parseInt(url.searchParams.get("limit") || "20", 10);
+      const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 20;
+      const mode = validMode(url.searchParams.get("mode") || "osu");
+      if (!mode) return apiJson({ error: "invalid_mode" }, 400);
+      const headers = { accept: "application/json", authorization: "Bearer " + match[1] };
+      const meResponse = await fetch("https://osu.ppy.sh/api/v2/me/" + mode, { headers });
+      const me = await meResponse.json().catch(() => ({}));
+      if (!meResponse.ok || !me.id) return apiJson({ error: me.error || "osu_profile_request_failed", status: meResponse.status }, meResponse.status === 401 ? 401 : 502);
+      const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(me.id) + "/scores/recent");
+      scoresUrl.searchParams.set("mode", mode);
+      scoresUrl.searchParams.set("limit", String(limit));
+      scoresUrl.searchParams.set("include_fails", "1");
+      const response = await fetch(scoresUrl, { headers });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return apiJson({ error: payload.error || "osu_recent_scores_failed", status: response.status }, response.status === 401 ? 401 : 502);
+      return apiJson({ user: { id: me.id, username: me.username }, scores: Array.isArray(payload) ? payload : [] });
+    }
+
+    // Only permit downloading a score that belongs to this user's recent score list.
+    if (url.pathname.startsWith("/api/me/scores/") && url.pathname.endsWith("/download") && request.method === "GET") {
+      const auth = request.headers.get("authorization") || "";
+      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
+      const scoreId = url.pathname.match(/^\\/api\\/me\\/scores\\/([0-9]+)\\/download$/)?.[1];
+      if (!scoreId) return apiJson({ error: "invalid_score_id" }, 400);
+      const mode = validMode(url.searchParams.get("mode") || "osu");
+      if (!mode) return apiJson({ error: "invalid_mode" }, 400);
+      const headers = { accept: "application/json", authorization: "Bearer " + match[1] };
+      const meResponse = await fetch("https://osu.ppy.sh/api/v2/me/" + mode, { headers });
+      const me = await meResponse.json().catch(() => ({}));
+      if (!meResponse.ok || !me.id) return apiJson({ error: me.error || "osu_profile_request_failed", status: meResponse.status }, meResponse.status === 401 ? 401 : 502);
+      const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(me.id) + "/scores/recent");
+      scoresUrl.searchParams.set("mode", mode);
+      scoresUrl.searchParams.set("limit", "50");
+      scoresUrl.searchParams.set("include_fails", "1");
+      const scoresResponse = await fetch(scoresUrl, { headers });
+      const scores = await scoresResponse.json().catch(() => []);
+      const ownedScore = Array.isArray(scores) ? scores.find(score => String(score.id) === scoreId) : null;
+      if (!ownedScore) return apiJson({ error: "score_not_in_recent_list" }, 404);
+      if (!ownedScore.has_replay) return apiJson({ error: "replay_unavailable" }, 404);
+      const download = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", { headers: { authorization: "Bearer " + match[1] } });
+      if (!download.ok) return apiJson({ error: download.status === 404 ? "replay_unavailable" : "osu_replay_download_failed", status: download.status }, download.status === 401 ? 401 : download.status === 404 ? 404 : 502);
+      return new Response(download.body, { status: 200, headers: {
+        "access-control-allow-origin": "*", "access-control-allow-methods": "GET, OPTIONS",
+        "access-control-allow-headers": "authorization", "cache-control": "no-store",
+        "content-type": "application/octet-stream",
+        "content-disposition": 'attachment; filename="osu-score-' + scoreId + '.osr"',
+        "x-content-type-options": "nosniff"
+      }});
+    }
+
     // Return the authenticated user's own profile using the short-lived OAuth access token.
     if (url.pathname === "/api/me" && request.method === "GET") {
       const auth = request.headers.get("authorization") || "";
