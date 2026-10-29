@@ -259,6 +259,23 @@ export default {
       return safeAppRedirect(env, { handoff });
     }
 
+    if (url.pathname === "/oauth/refresh" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      const refreshToken = body && body.refresh_token;
+      if (typeof refreshToken !== "string" || refreshToken.length < 20 || refreshToken.length > 4096) return apiJson({ error: "invalid_refresh_token" }, 400);
+      const clientId = typeof env.OSU_CLIENT_ID === "string" ? env.OSU_CLIENT_ID.trim() : "";
+      const clientSecret = typeof env.OSU_CLIENT_SECRET === "string" ? env.OSU_CLIENT_SECRET.trim() : "";
+      if (!clientId || !/^[0-9]+$/.test(clientId) || !clientSecret) return apiJson({ error: "oauth_not_configured" }, 503);
+      const response = await fetch("https://osu.ppy.sh/oauth/token", {
+        method: "POST", headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "refresh_token", refresh_token: refreshToken }),
+      });
+      const tokens = await response.json().catch(() => ({}));
+      if (!response.ok || !tokens.access_token || !tokens.refresh_token) return apiJson({ error: "refresh_failed", status: response.status }, response.status === 400 || response.status === 401 ? 401 : 502);
+      return apiJson(tokens);
+    }
+
     if (url.pathname === "/oauth/exchange" && request.method === "POST") {
       let body;
       try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
