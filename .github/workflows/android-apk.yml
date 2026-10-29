@@ -136,6 +136,15 @@ jobs:
           test -f "$ANDROID_AVD_HOME/ci-smoke.ini"
           timeout 15s emulator -list-avds | tee emulator-results/available-avds.txt
           grep -Fxq "ci-smoke" emulator-results/available-avds.txt
+          # Hosted Ubuntu runners may expose /dev/kvm without granting the runner user access.
+          # x86_64 Android images cannot boot without KVM acceleration on current Emulator builds.
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            ls -l /dev/kvm
+          else
+            echo "::error::/dev/kvm is missing; x86_64 Android emulator requires KVM on this runner."
+            exit 1
+          fi
           nohup emulator -avd ci-smoke -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -wipe-data > emulator-results/emulator.log 2>&1 &
           echo $! > emulator-results/emulator.pid
 
