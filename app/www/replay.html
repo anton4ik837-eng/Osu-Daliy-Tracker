@@ -129,7 +129,28 @@ $('saveReplayButton').addEventListener('click',async()=>{const replay=$('replayF
 
 const REPLAY_API_BASE='https://osu-daily-tracker-oauth.anton4ik837.workers.dev';
 function accountReplaySession(){try{const raw=localStorage.getItem('osu-daily-tracker-oauth-session');if(!raw)return null;const s=JSON.parse(raw);return s&&s.accessToken&&s.refreshToken?s:null}catch{return null}}
-async function accountReplayFetch(path,session,accept='application/json'){let active=session;if(!active||!active.accessToken)throw new Error('Сначала подключи osu! аккаунт на главной странице.');if(!active.expiresAt||active.expiresAt<Date.now()+15000){const rr=await fetch(REPLAY_API_BASE+'/oauth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:active.refreshToken})});const tokens=await rr.json().catch(()=>({}));if(!rr.ok||!tokens.access_token||!tokens.refresh_token)throw new Error('OAuth-сессия истекла. Подключи аккаунт заново.');active={accessToken:tokens.access_token,refreshToken:tokens.refresh_token,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};localStorage.setItem('osu-daily-tracker-oauth-session',JSON.stringify(active))}let response=await fetch(REPLAY_API_BASE+path,{headers:{Authorization:'Bearer '+active.accessToken,Accept:accept}});if(response.status===401){const rr=await fetch(REPLAY_API_BASE+'/oauth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:active.refreshToken})});const tokens=await rr.json().catch(()=>({}));if(rr.ok&&tokens.access_token&&tokens.refresh_token){active={accessToken:tokens.access_token,refreshToken:tokens.refresh_token,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};localStorage.setItem('osu-daily-tracker-oauth-session',JSON.stringify(active));response=await fetch(REPLAY_API_BASE+path,{headers:{Authorization:'Bearer '+active.accessToken,Accept:accept}})}}return response}
+async function accountReplayFetch(path,session,accept='application/json'){
+ let active=session;
+ if(!active||!active.accessToken)throw new Error('Сначала подключи osu! аккаунт на главной странице.');
+ async function safeFetch(url,options,stage){
+  try{return await fetch(url,options)}
+  catch(error){const detail=error&&error.message?': '+error.message:'';throw new Error('Сетевой сбой на этапе «'+stage+'» ('+url+'). Это не ответ osu! API — браузер не получил HTTP-ответ. Проверь открытие именно обновлённого приложения и доступ Worker из него'+detail)}
+ }
+ async function refresh(stage){
+  const rr=await safeFetch(REPLAY_API_BASE+'/oauth/refresh',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({refresh_token:active.refreshToken})},stage);
+  const tokens=await rr.json().catch(()=>({}));
+  if(!rr.ok||!tokens.access_token||!tokens.refresh_token)throw new Error('Обновление OAuth не прошло (HTTP '+rr.status+', '+(tokens.error||'нет токенов')+'). Переподключи osu! аккаунт на главной странице.');
+  active={accessToken:tokens.access_token,refreshToken:tokens.refresh_token,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};
+  localStorage.setItem('osu-daily-tracker-oauth-session',JSON.stringify(active));
+ }
+ if(!active.expiresAt||active.expiresAt<Date.now()+15000)await refresh('обновление OAuth-токена');
+ let response=await safeFetch(REPLAY_API_BASE+path,{headers:{Authorization:'Bearer '+active.accessToken,Accept:accept}},'запрос '+path);
+ if(response.status===401){
+  await refresh('повторное обновление OAuth-токена');
+  response=await safeFetch(REPLAY_API_BASE+path,{headers:{Authorization:'Bearer '+active.accessToken,Accept:accept}},'повтор запроса '+path);
+ }
+ return response
+}
 let accountScores=[];
 function accountScoreLabel(score){const b=score.beatmap||{},s=score.beatmapset||{};return (s.artist||'Unknown artist')+' — '+(s.title||b.version||'Unknown map')+(b.version?' ['+b.version+']':'')}
 function renderAccountScores(){const host=$('accountReplayList');host.replaceChildren();const filter=$('accountReplayFilter').value;const items=accountScores.filter(s=>filter==='all'||s.has_replay);if(!items.length){host.textContent=accountScores.length?'Для выбранного фильтра результатов нет.':'Нажми «Обновить результаты», чтобы загрузить недавние игры.';return}for(const score of items){const row=document.createElement('div');row.style.cssText='display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:12px;background:#101722';const info=document.createElement('div');info.style.cssText='min-width:0;flex:1';const title=document.createElement('strong');title.textContent=accountScoreLabel(score);title.style.overflowWrap='anywhere';const detail=document.createElement('div');detail.className='muted';const mods=Array.isArray(score.mods)&&score.mods.length?score.mods.map(m=>m.acronym).join(', '):'NM';detail.textContent=(score.rank||'—')+' · '+Number(score.pp||0).toFixed(2)+' pp · '+(Number(score.accuracy||0)*100).toFixed(2)+'% · '+mods+' · '+(score.ended_at?new Date(score.ended_at).toLocaleString():'дата неизвестна');info.append(title,detail);const action=document.createElement('button');action.type='button';action.textContent=score.has_replay?'Загрузить и анализировать':'Реплей недоступен';action.disabled=!score.has_replay;action.addEventListener('click',()=>downloadAccountReplay(score,action));row.append(info,action);host.append(row)}}
