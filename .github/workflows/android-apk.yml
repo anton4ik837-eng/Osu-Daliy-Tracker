@@ -95,6 +95,8 @@ jobs:
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
           echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
+          # GITHUB_PATH only affects later steps; export paths for this shell too.
+          export PATH="$SDK_ROOT/platform-tools:$SDK_ROOT/emulator:$PATH"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
           # sdkmanager exits after accepting licenses, which closes the pipe;
