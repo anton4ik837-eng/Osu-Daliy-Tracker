@@ -141,9 +141,10 @@ export default {
       const meResponse = await fetch("https://osu.ppy.sh/api/v2/me/" + mode, { headers });
       const me = await meResponse.json().catch(() => ({}));
       if (!meResponse.ok || !me.id) return apiJson({ error: me.error || "osu_profile_request_failed", status: meResponse.status }, meResponse.status === 401 ? 401 : 502);
+      // osu! API v2 single-score lookup is /api/v2/scores/{score_id}; the ruleset-qualified
+      // route is not valid for this lookup and returns 404 even for real scores.
       // Look up the exact score by ID instead of searching only the latest 50 plays.
-      // This also allows replays from older pages of the account score list.
-      const scoreResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId), { headers });
+      const scoreResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId), { headers });
       const ownedScore = await scoreResponse.json().catch(() => ({}));
       if (!scoreResponse.ok || !ownedScore || String(ownedScore.user_id ?? ownedScore.user?.id ?? "") !== String(me.id)) {
         return apiJson({ error: "score_not_found_or_not_owned", stage: "score_lookup", upstream_status: scoreResponse.status }, scoreResponse.status === 401 ? 401 : 404);
