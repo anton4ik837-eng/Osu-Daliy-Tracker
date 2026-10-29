@@ -9,34 +9,31 @@ try {
   process.exit(1);
 }
 
-if (/android:scheme="osudailytracker"/.test(xml)) {
-  console.log('OAuth deep-link intent filter already exists.');
-  process.exit(0);
-}
+if (!/android:scheme="osudailytracker"/.test(xml)) {
+  const activityStart = xml.search(/<activity\b[^>]*android:name="[^"]*MainActivity"[^>]*>/);
+  if (activityStart < 0) {
+    console.error('Could not locate the generated MainActivity in AndroidManifest.xml.');
+    process.exit(1);
+  }
+  const activityEnd = xml.indexOf('</activity>', activityStart);
+  if (activityEnd < 0) {
+    console.error('MainActivity closing tag not found in AndroidManifest.xml.');
+    process.exit(1);
+  }
 
-const activityStart = xml.search(/<activity\b[^>]*android:name="[^"]*MainActivity"[^>]*>/);
-if (activityStart < 0) {
-  console.error('Could not locate the generated MainActivity in AndroidManifest.xml.');
-  process.exit(1);
-}
-const activityEnd = xml.indexOf('</activity>', activityStart);
-if (activityEnd < 0) {
-  console.error('MainActivity closing tag not found in AndroidManifest.xml.');
-  process.exit(1);
-}
+  const intentFilter = [
+    '            <intent-filter>',
+    '                <action android:name="android.intent.action.VIEW" />',
+    '                <category android:name="android.intent.category.DEFAULT" />',
+    '                <category android:name="android.intent.category.BROWSABLE" />',
+    '                <data android:scheme="osudailytracker" android:host="oauth" />',
+    '            </intent-filter>'
+  ].join('\n');
+  xml = xml.slice(0, activityEnd) + intentFilter + '\n        ' + xml.slice(activityEnd);
+  await writeFile(manifestPath, xml, 'utf8');
+  console.log('Registered osudailytracker://oauth deep link on MainActivity.');
 
-const intentFilter = [
-  '            <intent-filter>',
-  '                <action android:name="android.intent.action.VIEW" />',
-  '                <category android:name="android.intent.category.DEFAULT" />',
-  '                <category android:name="android.intent.category.BROWSABLE" />',
-  '                <data android:scheme="osudailytracker" android:host="oauth" />',
-  '            </intent-filter>'
-].join('\n');
-xml = xml.slice(0, activityEnd) + intentFilter + '\n        ' + xml.slice(activityEnd);
-await writeFile(manifestPath, xml, 'utf8');
-console.log('Registered osudailytracker://oauth deep link on MainActivity.');
-
+}
 const res='android/app/src/main/res';
 await mkdir(res+'/drawable',{recursive:true});
 await mkdir(res+'/mipmap-anydpi',{recursive:true});
@@ -64,3 +61,24 @@ await writeFile(res+'/values/ic_launcher_background.xml',`<?xml version="1.0" en
 await writeFile(res+'/mipmap-anydpi-v26/ic_launcher.xml',`<?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_launcher_foreground"/></adaptive-icon>`,'utf8');
 console.log('Generated custom launcher icon resources.');
+
+const gradlePath='android/app/build.gradle';
+let gradle=await readFile(gradlePath,'utf8');
+gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 10000');
+gradle=gradle.replace(/versionName\s+"[^"]*"/, 'versionName "1.0.0-alpha"');
+const signingEnv=['ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD'];
+if(!signingEnv.every(key=>process.env[key])) {
+  console.error('Stable APK signing is not configured. Add the four ANDROID_* GitHub Actions secrets before building Alpha.');
+  process.exit(1);
+}
+const keystorePath='android/app/alpha-signing.keystore';
+await writeFile(keystorePath,Buffer.from(process.env.ANDROID_KEYSTORE_BASE64,'base64'));
+if(!gradle.includes('signingConfigs {')) {
+  gradle=gradle.replace('android {','android {\n    signingConfigs { stable { storeFile file("alpha-signing.keystore"); storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD"); keyAlias System.getenv("ANDROID_KEY_ALIAS"); keyPassword System.getenv("ANDROID_KEY_PASSWORD") } }');
+}
+if(!gradle.includes('signingConfig signingConfigs.stable')) {
+  gradle=gradle.replace('buildTypes {','buildTypes {\n        debug { signingConfig signingConfigs.stable }');
+}
+if(!gradle.includes('signingConfig signingConfigs.stable')) throw Error('Could not configure stable APK signing in generated Gradle file.');
+await writeFile(gradlePath,gradle,'utf8');
+console.log('Set Alpha version code/name and configured persistent APK signing.');
