@@ -106,7 +106,8 @@ jobs:
           CMDLINE_TOOLS_BIN="$(dirname "$SDKMANAGER")"
           echo "$CMDLINE_TOOLS_BIN" >> "$GITHUB_PATH"
           export PATH="$CMDLINE_TOOLS_BIN:$PATH"
-          avdmanager --help >/dev/null
+          # Use a real read-only command as the smoke check; --help may exit 1 on some SDK tools builds.
+          avdmanager list avd >/dev/null
           # sdkmanager exits after accepting licenses, which closes the pipe;
           # with pipefail enabled, `yes` can exit 141 and falsely fail the step.
           set +e
