@@ -102,6 +102,11 @@ jobs:
           export PATH="$SDK_ROOT/platform-tools:$SDK_ROOT/emulator:$PATH"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
+          # avdmanager lives beside sdkmanager under cmdline-tools/<version>/bin.
+          CMDLINE_TOOLS_BIN="$(dirname "$SDKMANAGER")"
+          echo "$CMDLINE_TOOLS_BIN" >> "$GITHUB_PATH"
+          export PATH="$CMDLINE_TOOLS_BIN:$PATH"
+          avdmanager --help >/dev/null
           # sdkmanager exits after accepting licenses, which closes the pipe;
           # with pipefail enabled, `yes` can exit 141 and falsely fail the step.
           set +e
