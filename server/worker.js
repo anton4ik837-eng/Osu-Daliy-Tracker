@@ -5,7 +5,17 @@ const JSON_HEADERS = {
 };
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
+  // Add CORS to every JSON response, including 404s and OAuth diagnostics.
+  // Without this, WebViews often turn a useful HTTP error into opaque "Failed to fetch".
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...JSON_HEADERS,
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "content-type, authorization",
+    },
+  });
 }
 
 function safeAppRedirect(env, params) {
