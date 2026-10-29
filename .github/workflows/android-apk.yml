@@ -127,8 +127,15 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p emulator-results
-          timeout 45s bash -c 'echo no | avdmanager create avd --force --name ci-smoke --package "system-images;android-34;google_apis;x86_64" --device "pixel_2"'
-          timeout 15s emulator -list-avds
+          # Keep AVD creation and emulator lookup on the same explicit directory.
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          AVD_PATH="$ANDROID_AVD_HOME/ci-smoke.avd"
+          timeout 45s avdmanager create avd --force --name ci-smoke --package "system-images;android-34;google_apis;x86_64" --device "pixel_2" --path "$AVD_PATH" <<< "no"
+          test -f "$ANDROID_AVD_HOME/ci-smoke.ini"
+          timeout 15s emulator -list-avds | tee emulator-results/available-avds.txt
+          grep -Fxq "ci-smoke" emulator-results/available-avds.txt
           nohup emulator -avd ci-smoke -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -wipe-data > emulator-results/emulator.log 2>&1 &
           echo $! > emulator-results/emulator.pid
 
