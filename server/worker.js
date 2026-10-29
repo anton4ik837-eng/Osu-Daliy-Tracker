@@ -141,15 +141,14 @@ export default {
       const meResponse = await fetch("https://osu.ppy.sh/api/v2/me/" + mode, { headers });
       const me = await meResponse.json().catch(() => ({}));
       if (!meResponse.ok || !me.id) return apiJson({ error: me.error || "osu_profile_request_failed", status: meResponse.status }, meResponse.status === 401 ? 401 : 502);
-      const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(me.id) + "/scores/recent");
-      scoresUrl.searchParams.set("mode", mode);
-      scoresUrl.searchParams.set("limit", "50");
-      scoresUrl.searchParams.set("include_fails", "1");
-      const scoresResponse = await fetch(scoresUrl, { headers });
-      const scores = await scoresResponse.json().catch(() => []);
-      const ownedScore = Array.isArray(scores) ? scores.find(score => String(score.id) === scoreId) : null;
-      if (!ownedScore) return apiJson({ error: "score_not_in_recent_list" }, 404);
-      if (!ownedScore.has_replay) return apiJson({ error: "replay_unavailable" }, 404);
+      // Look up the exact score by ID instead of searching only the latest 50 plays.
+      // This also allows replays from older pages of the account score list.
+      const scoreResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId), { headers });
+      const ownedScore = await scoreResponse.json().catch(() => ({}));
+      if (!scoreResponse.ok || !ownedScore || String(ownedScore.user_id ?? ownedScore.user?.id ?? "") !== String(me.id)) {
+        return apiJson({ error: "score_not_found_or_not_owned", stage: "score_lookup", upstream_status: scoreResponse.status }, scoreResponse.status === 401 ? 401 : 404);
+      }
+      if (ownedScore.has_replay !== true) return apiJson({ error: "replay_unavailable", stage: "score_lookup", recent_score_has_replay: ownedScore.has_replay ?? null }, 404);
       // Try the documented score replay endpoint first, then the ruleset-qualified variant for compatibility.
       const replayHeaders = {
         accept: "application/octet-stream",
