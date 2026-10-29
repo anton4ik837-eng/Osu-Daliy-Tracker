@@ -42,7 +42,7 @@ function skinImage(...names){
 }
 let skinDrawStats={stretch:0,center:0,misses:0,lastMissing:[]};
 function drawSkinStretch(ctx,names,x,y,w,h,alpha=1){const candidates=Array.isArray(names)?names:[names],img=skinImage(...candidates);if(!img||!img.complete||!img.naturalWidth){skinDrawStats.misses++;if(skinDrawStats.lastMissing.length<30)skinDrawStats.lastMissing.push(candidates);return false}ctx.save();ctx.globalAlpha*=alpha;ctx.drawImage(img,x,y,w,h);ctx.restore();skinDrawStats.stretch++;return true}
-function drawSkinImage(ctx,names,x,y,w,h,alpha=1){const candidates=Array.isArray(names)?names:[names],img=skinImage(...candidates);if(!img||!img.complete||!img.naturalWidth){skinDrawStats.misses++;if(skinDrawStats.lastMissing.length<30)skinDrawStats.lastMissing.push(candidates);return false}ctx.save();ctx.globalAlpha*=alpha;ctx.drawImage(img,x-w/2,y-h/2,w,h);ctx.restore();skinDrawStats.center++;return true}
+function drawSkinImage(ctx,names,x,y,w,h,alpha=1){const candidates=Array.isArray(names)?names:[names],img=skinImage(...candidates);if(!img||!img.complete||!img.naturalWidth||!img.naturalHeight){skinDrawStats.misses++;if(skinDrawStats.lastMissing.length<30)skinDrawStats.lastMissing.push(candidates);return false}const scale=Math.min(w/img.naturalWidth,h/img.naturalHeight),drawW=img.naturalWidth*scale,drawH=img.naturalHeight*scale;ctx.save();ctx.globalAlpha*=alpha;ctx.drawImage(img,x-drawW/2,y-drawH/2,drawW,drawH);ctx.restore();skinDrawStats.center++;return true}
 function skinHas(...names){return !!skinImage(...names)}
 function maniaSkinSettings(){const sections=activeSkin.maniaSections||[];const keys=Number(playMap?.keys)||0;return sections.find(section=>Number(section.keys)===keys)||sections[0]||{};}
 async function loadOsuSkin(file){
@@ -97,15 +97,16 @@ async function loadOsuSkin(file){
   }));
  }
  await Promise.all(pending);
- // Legacy osu!mania skins may store lane textures in Orbs/ instead of mania-* names.
-  // Map decoded Orbs assets to the aliases consumed by the Mania renderer.
+ // Legacy osu!mania skins use Orbs/note*.png, while newer skins use mania-note*.png.
+  // Preserve lane-specific assets when present and fall back to the shared legacy lane.
   for(let lane=1;lane<=10;lane++){
-   const n=String(lane),orbLane=lane<=2?String(lane):'1';
-   if(!images['mania-note'+n]&&images['note'+orbLane])images['mania-note'+n]=images['note'+orbLane];
-   if(!images['mania-note'+n+'H']&&images['noteHT'+orbLane])images['mania-note'+n+'H']=images['noteHT'+orbLane];
-   if(!images['mania-note'+n+'L']&&images['noteL'+orbLane])images['mania-note'+n+'L']=images['noteL'+orbLane];
-   if(!images['mania-key'+n]&&images['key'+orbLane])images['mania-key'+n]=images['key'+orbLane];
-   if(!images['mania-key'+n+'D']&&images['key'+orbLane+'D'])images['mania-key'+n+'D']=images['key'+orbLane+'D'];
+   const n=String(lane),orbLane=lane<=2?n:'1';
+   const alias=(target,...sources)=>{if(images[target])return;for(const source of sources){if(images[source]){images[target]=images[source];return;}}};
+   alias('mania-note'+n,'note'+orbLane,'note1');
+   alias('mania-note'+n+'H','noteHT'+orbLane,'noteH'+orbLane,'noteHT1','noteH1','note'+orbLane);
+   alias('mania-note'+n+'L','noteL'+orbLane,'noteL1','note'+orbLane);
+   alias('mania-key'+n,'key'+orbLane,'key1');
+   alias('mania-key'+n+'D','key'+orbLane+'D','key1D','key'+orbLane);
   }
   loadedNames.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
  if(!Object.keys(images).length){for(const url of urls)URL.revokeObjectURL(url);status.textContent='В архиве не удалось прочитать изображения. Проверь, что это корректный .osk/ZIP с текстурами.';return}
