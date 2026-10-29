@@ -5,7 +5,6 @@ on:
     branches: [app-foundation, alpha-1.0.0-work]
     paths:
       - 'app/**'
-      - 'replay.html'
       - '.github/workflows/android-apk.yml'
 permissions:
   contents: write
@@ -23,8 +22,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Include Replay Lab in the APK
-        run: cp replay.html app/www/replay.html
       - name: Install dependencies
         working-directory: app
         run: npm install
@@ -69,27 +66,27 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.2.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.3.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.7.2
-          path: osu-daily-tracker-v1.7.2.apk
+          name: osu-daily-tracker-v1.7.3
+          path: osu-daily-tracker-v1.7.3.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.7.2
+          tag_name: v1.7.3
           target_commitish: ${{ github.sha }}
-          name: osu! Daily Tracker 1.7.2
+          name: osu! Daily Tracker 1.7.3
           prerelease: true
           make_latest: false
           body: |
-            **Версия 1.7.2 (тестовая beta).**
+            **Версия 1.7.3 (тестовая beta).**
 
-            Исправлена логика синхронизации просмотра с музыкой: проигрыватель больше не запускает заново остановившееся или завершившееся аудио на каждом кадре. Скорость аудио принудительно установлена в 1×, зацикливание отключено.
+            Исправлена синхронизация просмотра с музыкой; сохранён импорт раннов из профиля osu!.
 
-            Replay Lab теперь включается в APK как локальная страница. Исправлены Android versionName/versionCode: 1.7.2 / 10702.
+            Сохранён полноценный Replay Lab с импортом недавних раннов из подключённого профиля osu!. Исправлена синхронизация музыки: аудиовремя является источником времени просмотра; при паузе аудио просмотр останавливается, а повторный запуск музыки не выполняется автоматически. Скорость 1×, зацикливание выключено. Android versionName/versionCode: 1.7.3 / 10703.
 
             Проверить: запуск и паузу просмотра, переход по шкале времени, воспроизведение музыки без ускорения и самопроизвольного перезапуска.
-          files: osu-daily-tracker-v1.7.2.apk
+          files: osu-daily-tracker-v1.7.3.apk
