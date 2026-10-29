@@ -57,7 +57,7 @@ jobs:
       - name: Build APK with persistent signature
         working-directory: app/android
         run: ./gradlew assembleDebug
-      - name: Rename APK for pre-alpha release
+      - name: Name Alpha APK
         run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.0.0-alpha.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
