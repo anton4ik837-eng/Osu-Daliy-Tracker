@@ -101,14 +101,18 @@ jobs:
       - name: Install and launch app in Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          emulator-boot-timeout: 600
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -wipe-data
+          force-avd-creation: true
           disable-animations: true
           script: |
             set -euxo pipefail
+            timeout 60s adb wait-for-device
+            adb shell getprop sys.boot_completed
             adb install -r dist/osu-daily-tracker-v1.9.4.apk
             adb logcat -c
             adb shell monkey -p com.osudailytracker.app 1
