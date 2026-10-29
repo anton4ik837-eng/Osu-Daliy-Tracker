@@ -65,6 +65,7 @@ async function loadOsuSkin(file){
  }
  if(!Object.keys(images).length){for(const url of urls)URL.revokeObjectURL(url);status.textContent='В архиве не удалось прочитать изображения. Проверь, что это корректный .osk/ZIP с текстурами.';return}
  for(const url of activeSkin.urls||[])URL.revokeObjectURL(url);
+ skinUseStats.requested=Object.create(null);skinUseStats.used=Object.create(null);skinUseStats.missing=Object.create(null);delete status.dataset.skinBase;
  activeSkin={name:file.name,images,urls};
  const relevant=loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|mania-|cursor)/i.test(n));
  const aliases=relevant.filter(n=>/^(hitcircle|approachcircle|sliderb|mania-note|mania-key)/i.test(n));
