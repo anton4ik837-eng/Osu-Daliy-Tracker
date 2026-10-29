@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-beta-build-v1840
+  group: android-beta-build-v1900
   cancel-in-progress: true
 jobs:
   build:
@@ -66,22 +66,22 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.8.4.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.0.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.8.4
-          path: osu-daily-tracker-v1.8.4.apk
+          name: osu-daily-tracker-v1.9.0
+          path: osu-daily-tracker-v1.9.0.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.8.4
+          tag_name: v1.9.0
           target_commitish: ${{ github.sha }}
-          name: osu! Daily Tracker 1.8.4
+          name: osu! Daily Tracker 1.9.0
           prerelease: true
           make_latest: false
           body: |
-            Исправлено применение текстур osu!mania: приоритет корректных текстур дорожки и состояний нот.
-          files: osu-daily-tracker-v1.8.4.apk
+            Упрощён интерфейс; длинные списки прокручиваются внутри панелей.
+          files: osu-daily-tracker-v1.9.0.apk
 
