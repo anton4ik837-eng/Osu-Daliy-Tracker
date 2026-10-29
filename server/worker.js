@@ -102,18 +102,42 @@ export default {
       if (!lookup.ok || !beatmap.id || !beatmap.beatmapset_id) {
         return apiJson({ error: "beatmap_lookup_failed", upstream_status: lookup.status }, lookup.status === 404 ? 404 : 502);
       }
-      const archive = await fetch("https://osu.ppy.sh/beatmapsets/" + encodeURIComponent(beatmap.beatmapset_id) + "/download", {
-        headers: { authorization: "Bearer " + token, accept: "application/octet-stream" },
-        redirect: "follow"
-      });
-      if (!archive.ok) {
-        return apiJson({ error: "beatmapset_download_failed", upstream_status: archive.status, beatmapset_id: beatmap.beatmapset_id }, archive.status === 404 ? 404 : 502);
+      // osu.ppy.sh may return an HTML challenge to server-side Workers instead of the .osz.
+      // Try the official endpoint first, then public osu! beatmap mirrors.
+      const candidates = [
+        { url: "https://osu.ppy.sh/beatmapsets/" + encodeURIComponent(beatmap.beatmapset_id) + "/download", headers: { authorization: "Bearer " + token, accept: "application/octet-stream", "user-agent": "Mozilla/5.0 (compatible; OsuDailyTracker/1.0)" } },
+        { url: "https://catboy.best/d/" + encodeURIComponent(beatmap.beatmapset_id), headers: { accept: "application/octet-stream", "user-agent": "Mozilla/5.0 (compatible; OsuDailyTracker/1.0)" } },
+        { url: "https://beatconnect.io/b/" + encodeURIComponent(beatmap.beatmapset_id), headers: { accept: "application/octet-stream", "user-agent": "Mozilla/5.0 (compatible; OsuDailyTracker/1.0)" } }
+      ];
+      let archive = null;
+      let bytes = null;
+      const attempts = [];
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(candidate.url, { headers: candidate.headers, redirect: "follow" });
+          const type = response.headers.get("content-type") || "";
+          if (!response.ok) {
+            attempts.push({ host: new URL(candidate.url).host, status: response.status, content_type: type });
+            continue;
+          }
+          const body = await response.arrayBuffer();
+          const signature = new Uint8Array(body.slice(0, 4));
+          if (body.byteLength >= 4 && signature[0] === 0x50 && signature[1] === 0x4b) {
+            archive = response;
+            bytes = body;
+            break;
+          }
+          attempts.push({ host: new URL(candidate.url).host, status: response.status, content_type: type, invalid_zip: true });
+        } catch (error) {
+          attempts.push({ host: new URL(candidate.url).host, error: String(error?.message || error) });
+        }
       }
-      const bytes = await archive.arrayBuffer();
-      if (bytes.byteLength < 4) return apiJson({ error: "empty_beatmapset_archive", beatmapset_id: beatmap.beatmapset_id }, 502);
-      const signature = new Uint8Array(bytes.slice(0, 4));
-      if (signature[0] !== 0x50 || signature[1] !== 0x4b) {
-        return apiJson({ error: "unexpected_beatmapset_response", upstream_content_type: archive.headers.get("content-type") || "", beatmapset_id: beatmap.beatmapset_id }, 502);
+      if (!bytes) {
+        return apiJson({
+          error: "beatmapset_download_failed",
+          beatmapset_id: beatmap.beatmapset_id,
+          attempts
+        }, 502);
       }
       return new Response(bytes, { status: 200, headers: {
         "content-type": "application/octet-stream",
