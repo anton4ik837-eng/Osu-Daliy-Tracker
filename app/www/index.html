@@ -287,9 +287,10 @@ async function redeemHandoff(handoff){
   const response=await fetch(API_BASE+'/oauth/exchange',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({handoff})});
   const tokens=await response.json();
   if(!response.ok||!tokens.access_token)throw new Error(tokens.error||'Не удалось обменять временный код.');
-  // Deliberately do not put OAuth tokens into localStorage. Until native secure storage is wired,
-  // keep this session in memory only.
+  // Keep the short-lived session in sessionStorage so it survives navigation to replay.html
+  // and back, without writing OAuth tokens to persistent localStorage.
   window.__osuOAuthSession={accessToken:tokens.access_token,refreshToken:tokens.refresh_token,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};
+  try{sessionStorage.setItem('osu-daily-tracker-oauth-session',JSON.stringify(window.__osuOAuthSession))}catch{}
   setAuthStatus('Вход подтверждён. Загружаем твою статистику…');
   const profileResponse=await fetch(API_BASE+'/api/me?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json',Authorization:'Bearer '+tokens.access_token}});
   const profileBody=await profileResponse.text();let profileData;
@@ -313,9 +314,22 @@ async function initializeNativeOAuthBridge(){
   setAuthStatus('Не удалось проверить возврат из osu!: '+(error?.message||String(error)),'error');
  }
 }
+async function restoreOAuthSession(){
+ try{
+  const raw=sessionStorage.getItem('osu-daily-tracker-oauth-session');if(!raw)return;
+  const session=JSON.parse(raw);if(!session?.accessToken||!Number.isFinite(session.expiresAt)||session.expiresAt<=Date.now()+5000){sessionStorage.removeItem('osu-daily-tracker-oauth-session');return}
+  window.__osuOAuthSession=session;
+  const response=await fetch(API_BASE+'/api/me?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json',Authorization:'Bearer '+session.accessToken}});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||'osu! API error');
+  if(!data?.id||!data?.statistics)throw new Error('Профиль не вернулся');
+  renderProfile(data);$('osuUser').value=data.username||String(data.id);$('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
+  setStatus('Авторизованный профиль восстановлен.','success');setAuthStatus('Аккаунт подключён: '+(data.username||'osu!')+'. Сессия восстановлена после перехода между разделами.','success');
+ }catch(error){setAuthStatus('Сессия сохранена, но не удалось восстановить профиль: '+(error?.message||String(error)),'error')}
+}
 initThemeSettings();
 initSettingsOverlay();
 checkForUpdates(true);
+restoreOAuthSession();
 initializeNativeOAuthBridge().catch(error=>{
  setAuthStatus('Не удалось подключить обработчик OAuth: '+(error?.message||String(error)),'error');
 });
