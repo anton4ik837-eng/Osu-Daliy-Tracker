@@ -24,7 +24,7 @@ const $=id=>document.getElementById(id);
 let activeSkin={name:'Встроенный вид',images:Object.create(null),urls:[],maniaSections:[]};
 function skinImage(...names){
  const normalize=name=>String(name).replace(/\\/g,'/').split('/').pop().toLowerCase().replace(/\.(png|jpe?g|webp)$/,'');
- const lookup=key=>activeSkin.images[key]||activeSkin.images[key+'@2x']||(key.endsWith('@2x')?activeSkin.images[key.slice(0,-3)]:null)||null;
+ const lookup=key=>activeSkin.images[key+'@2x']||activeSkin.images[key]||(key.endsWith('@2x')?activeSkin.images[key.slice(0,-3)]:null)||null;
  // Try every explicit alias first. Do not let a fuzzy lane match steal a better
  // same-lane fallback (for example note2H should prefer note2 over note1H).
  for(const name of names){const img=lookup(normalize(name));if(img)return img;}
@@ -75,25 +75,26 @@ async function loadOsuSkin(file){
   }
  }catch(e){status.textContent='Файл не похож на корректный .osk/ZIP: '+(e?.message||String(e));return}
  const images=Object.create(null),urls=[];
- const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp)$/i.test(path)&&bytes?.length);
- const loadedNames=[];
- // Decode all unique texture basenames concurrently: real skins may contain
- // hundreds of files, so serial decoding makes import needlessly slow.
- const pending=[];
- const seenNames=new Set();
+ const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')/&&/\.(png|jpe?g|webp)$/i.test(path)&&bytes?.length);
+ const loadedNames=[],pending=[];
+ // Keep both normal and @2x variants. Prefer root-level canonical textures
+ // over preview/subfolder duplicates, but never discard the high-DPI asset.
+ const candidates=new Map();
  for(const [path,bytes] of imageFiles){
-  const basename=path.split('/').pop().replace(/\.(png|jpe?g|webp)$/i,'').toLowerCase();
-  if(seenNames.has(basename))continue;
-  seenNames.add(basename);
-  const type=/\.jpe?g$/i.test(path)?'image/jpeg':(/\.webp$/i.test(path)?'image/webp':'image/png');
+  const clean=path.replace(/\\/g,'/'),basename=clean.split('/').pop().replace(/\.(png|jpe?g|webp)$/i,'').toLowerCase();
+  const key=basename,rank=(clean.split('/').length===1?100:0)+(basename.endsWith('@2x')?10:0);
+  const prev=candidates.get(key);if(!prev||rank>prev.rank)candidates.set(key,{path:clean,bytes,rank});
+ }
+ for(const [basename,item] of candidates){
+  const {path,bytes}=item,type=/\.jpe?g$/i.test(path)?'image/jpeg':(/\.webp$/i.test(path)?'image/webp':'image/png');
   const url=URL.createObjectURL(new Blob([bytes],{type}));urls.push(url);
   pending.push(new Promise(resolve=>{
    const img=new Image();let settled=false;
    const finish=ok=>{if(settled)return;settled=true;clearTimeout(timeout);img.onload=null;img.onerror=null;
     if(ok&&img.naturalWidth&&img.naturalHeight){images[basename]=img;loadedNames.push(basename);resolve(true);}
-    else{diagLog('skin.image_decode_failed',{file:file.name,image:basename});resolve(false);}
+    else{diagLog('skin.image_decode_failed',{file:file.name,image:basename,path});resolve(false);}
    };
-   const timeout=setTimeout(()=>finish(false),10000);
+   const timeout=setTimeout(()=>finish(false),15000);
    img.onload=()=>finish(true);img.onerror=()=>finish(false);img.src=url;
   }));
  }
@@ -113,15 +114,15 @@ async function loadOsuSkin(file){
  if(!Object.keys(images).length){for(const url of urls)URL.revokeObjectURL(url);status.textContent='В архиве не удалось прочитать изображения. Проверь, что это корректный .osk/ZIP с текстурами.';return}
  for(const url of activeSkin.urls||[])URL.revokeObjectURL(url);
  const maniaSections=[];
- const skinIni=Object.entries(entries).find(([path])=>path.split('/').pop().toLowerCase()==='skin.ini');
+ const skinIni=Object.entries(entries).filter(([path])=>path.split('/').pop().toLowerCase()==='skin.ini').sort((a,b)=>a[0].split('/').length-b[0].split('/').length)[0];
  if(skinIni){
-  const lines=new TextDecoder('utf-8').decode(skinIni[1]).split(/\r?\n/);
+  const lines=new TextDecoder('utf-8').decode(skinIni[1]).replace(/^\uFEFF/,'').split(/\r?\n/);
   let section=null;
   const pushSection=()=>{if(section)maniaSections.push(section);};
   for(const raw of lines){
-   const line=raw.replace(/\/\/.*$/,'').trim();if(!line)continue;
+   const line=raw.replace(/;.*$/,'').replace(/\/\/.*$/,'').trim();if(!line)continue;
    const header=line.match(/^\[([^\]]+)\]$/);
-   if(header){pushSection();section=header[1].toLowerCase()==='mania'?{}:null;continue;}
+   if(header){pushSection();section=header[1].trim().toLowerCase()==='mania'?{}:null;continue;}
    if(!section)continue;
    const pair=line.match(/^([^:]+):\s*(.*?)\s*$/);
    if(pair)section[pair[1].trim().toLowerCase()]=pair[2].trim();
