@@ -2,7 +2,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [app-foundation]
+    branches: [app-foundation, alpha-1.0.0-work]
     paths:
       - 'app/**'
       - '.github/workflows/android-apk.yml'
