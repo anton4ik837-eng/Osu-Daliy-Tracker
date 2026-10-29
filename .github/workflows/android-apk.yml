@@ -91,6 +91,9 @@ jobs:
       - name: Install emulator and system image
         run: |
           set -euxo pipefail
+          # Android Emulator QEMU requires PulseAudio runtime libraries on Ubuntu.
+          sudo apt-get update
+          sudo apt-get install -y libpulse0
           SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
