@@ -106,9 +106,23 @@ export default {
       scoresUrl.searchParams.set("limit", String(limit));
       scoresUrl.searchParams.set("include_fails", "1");
       const response = await fetch(scoresUrl, { headers });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) return apiJson({ error: payload.error || "osu_recent_scores_failed", status: response.status }, response.status === 401 ? 401 : 502);
-      return apiJson({ user: { id: me.id, username: me.username }, scores: Array.isArray(payload) ? payload : [] });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) return apiJson({ error: (payload && payload.error) || "osu_recent_scores_failed", stage: "recent_scores", upstream_status: response.status }, response.status === 401 ? 401 : 502);
+      if (!Array.isArray(payload)) {
+        return apiJson({
+          error: "osu_recent_scores_unexpected_response",
+          stage: "recent_scores",
+          upstream_status: response.status,
+          response_type: payload === null ? "invalid_json" : typeof payload,
+          response_keys: payload && typeof payload === "object" ? Object.keys(payload).slice(0, 10) : [],
+          user: { id: me.id, username: me.username }
+        }, 502);
+      }
+      return apiJson({
+        user: { id: me.id, username: me.username },
+        scores: payload,
+        diagnostics: { endpoint: "/api/v2/users/{id}/scores/recent", mode, limit, include_fails: 1, upstream_status: response.status, returned_count: payload.length }
+      });
     }
 
     // Only permit downloading a score that belongs to this user's recent score list.
