@@ -148,8 +148,8 @@ export default {
       }});
     }
 
-    // Recent scores for the authenticated osu! account.
-    if (url.pathname === "/api/me/scores/recent" && request.method === "GET") {
+    // Recent or best scores for the authenticated osu! account.
+    if ((url.pathname === "/api/me/scores" || url.pathname === "/api/me/scores/recent") && request.method === "GET") {
       const auth = request.headers.get("authorization") || "";
       const match = auth.match(/^Bearer\s+(.+)$/i);
       if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
@@ -157,24 +157,26 @@ export default {
       const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 20;
       const mode = validMode(url.searchParams.get("mode") || "osu");
       if (!mode) return apiJson({ error: "invalid_mode" }, 400);
+      const scoreType = url.searchParams.get("type") || "recent";
+      if (scoreType !== "recent" && scoreType !== "best") return apiJson({ error: "invalid_score_type" }, 400);
       const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + match[1] };
       const meResponse = await fetch("https://osu.ppy.sh/api/v2/me/" + mode, { headers });
       const me = await meResponse.json().catch(() => ({}));
       if (!meResponse.ok || !me.id) return apiJson({ error: me.error || "osu_profile_request_failed", status: meResponse.status }, meResponse.status === 401 ? 401 : 502);
-      const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(me.id) + "/scores/recent");
+      const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(me.id) + "/scores/" + scoreType);
       scoresUrl.searchParams.set("mode", mode);
       scoresUrl.searchParams.set("limit", String(limit));
       const offsetRaw = Number.parseInt(url.searchParams.get("offset") || "0", 10);
       const offset = Number.isFinite(offsetRaw) ? Math.min(1000, Math.max(0, offsetRaw)) : 0;
       if (offset > 0) scoresUrl.searchParams.set("offset", String(offset));
-      scoresUrl.searchParams.set("include_fails", "1");
+      if (scoreType === "recent") scoresUrl.searchParams.set("include_fails", "1");
       const response = await fetch(scoresUrl, { headers });
       const payload = await response.json().catch(() => null);
-      if (!response.ok) return apiJson({ error: (payload && payload.error) || "osu_recent_scores_failed", stage: "recent_scores", upstream_status: response.status }, response.status === 401 ? 401 : 502);
+      if (!response.ok) return apiJson({ error: (payload && payload.error) || "osu_scores_failed", stage: scoreType + "_scores", upstream_status: response.status }, response.status === 401 ? 401 : 502);
       if (!Array.isArray(payload)) {
         return apiJson({
           error: "osu_recent_scores_unexpected_response",
-          stage: "recent_scores",
+          stage: scoreType + "_scores",
           upstream_status: response.status,
           response_type: payload === null ? "invalid_json" : typeof payload,
           response_keys: payload && typeof payload === "object" ? Object.keys(payload).slice(0, 10) : [],
@@ -184,7 +186,7 @@ export default {
       return apiJson({
         user: { id: me.id, username: me.username },
         scores: payload,
-        diagnostics: { endpoint: "/api/v2/users/{id}/scores/recent", mode, limit, include_fails: 1, upstream_status: response.status, returned_count: payload.length }
+        diagnostics: { endpoint: "/api/v2/users/{id}/scores/" + scoreType, type: scoreType, mode, limit, offset, include_fails: scoreType === "recent" ? 1 : null, upstream_status: response.status, returned_count: payload.length }
       });
     }
 
