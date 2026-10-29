@@ -66,24 +66,24 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.0-beta.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.1-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.7.0-beta
-          path: osu-daily-tracker-v1.7.0-beta.apk
+          name: osu-daily-tracker-v1.7.1-beta
+          path: osu-daily-tracker-v1.7.1-beta.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.7.0-beta
-          name: osu! Daily Tracker 1.7.0-beta
+          tag_name: v1.7.1-beta
+          name: osu! Daily Tracker 1.7.1-beta
           prerelease: true
           make_latest: false
           body: |
-            **Версия 1.7.0-beta (тестовая beta).**
+            **Версия 1.7.1-beta (тестовая beta).**
 
             Добавлены отдельный поиск результатов osu!standard и osu!mania в Replay Lab и локальный журнал диагностики: этапы HTTP-запросов, HTTP-статусы, ошибки JavaScript, загрузка и ошибки получения реплея. Журнал можно скачать в JSON или скопировать из раздела «Журнал работы». Записи хранятся локально на устройстве; OAuth-токены и заголовки авторизации не записываются.
 
             Проверить: загрузку недавних результатов для обоих режимов, получение доступных .osr, диагностику ошибок и сохранение/повторное открытие локальных реплеев. Это тестовая beta, не глобальный релиз.
-          files: osu-daily-tracker-v1.7.0-beta.apk
+          files: osu-daily-tracker-v1.7.1-beta.apk
