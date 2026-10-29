@@ -52,7 +52,8 @@ function renderCritique(a){
   negatives.push('Сначала нужно добиться сопоставления нажатий: проверь соответствие реплея и сложности карты.');
  }else{
   positives.push('Разобрано '+matched.length+' из '+n+' объектов ('+Math.round(matched.length/Math.max(1,n)*100)+'% сопоставлено). Выводы ниже формируются только там, где данных достаточно.');
-  if(a.unsupportedObjects>0)details.push('Пропущено '+a.unsupportedObjects+' спиннеров: их нельзя оценивать как одиночное нажатие на старте объекта.');\n  if(a.timing?.ur!=null)details.push('UR '+Math.round(a.timing.ur)+' — стандартное отклонение signed offset, умноженное на 10; показатель зависит от точности сопоставления нот и нажатий.');
+  if(a.unsupportedObjects>0)details.push('Пропущено '+a.unsupportedObjects+' спиннеров: их нельзя оценивать как одиночное нажатие на старте объекта.');
+  if(a.timing?.ur!=null)details.push('UR '+Math.round(a.timing.ur)+' — стандартное отклонение signed offset, умноженное на 10; показатель зависит от точности сопоставления нот и нажатий.');
   if(a.streamStats?.objects>=8)details.push('В плотных сериях найдено '+a.streamStats.objects+' нажатий в '+a.streamStats.runs+' последовательностях с интервалами 75–250 мс. Это эвристика, а не полная классификация всех стримов.');
   if(absPct>=85)positives.push('Сильная базовая точность: '+Math.round(absPct)+'% найденных нажатий лежат в пределах ±50 мс.');
   else if(absPct>=65)positives.push(Math.round(absPct)+'% найденных нажатий лежат в пределах ±50 мс — большинство таймингов достаточно близко к карте.');
