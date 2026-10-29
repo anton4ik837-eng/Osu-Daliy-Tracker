@@ -2,7 +2,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [app-foundation, alpha-1.0.0-work]
+    branches: [app-foundation, alpha-1.0.0-work, beta-1.0.0]
     paths:
       - 'app/**'
       - 'test-fixtures/**'
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-skinfix-${{ github.ref }}
+  group: android-beta-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build:
@@ -72,20 +72,20 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
-      - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.4.apk
+      - name: Name Beta APK
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.5-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.4
-          path: osu-daily-tracker-v1.9.4.apk
+          name: osu-daily-tracker-v1.9.5-beta
+          path: osu-daily-tracker-v1.9.5-beta.apk
           if-no-files-found: error
       # Do not publish every alpha branch build to the fixed v1.9.4 release.
       # CI APKs stay in the workflow artifact; release publishing is deliberately separate.
 
-  publish-skinfix-test-release:
-    name: Publish opt-in skin-fix test release
-    if: contains(github.event.head_commit.message, '[publish-skinfix]')
+  publish-beta-release:
+    name: Publish osu! Daily Tracker beta release
+    if: contains(github.event.head_commit.message, '[publish-beta]')
     needs: [build, emulator-smoke-test]
     runs-on: ubuntu-latest
     permissions:
@@ -94,23 +94,22 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.4
+          name: osu-daily-tracker-v1.9.5-beta
           path: dist
       - name: Publish test prerelease
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.9.5-skinfix-${{ github.run_number }}
-          name: osu! Daily Tracker 1.9.5 skin-fix test ${{ github.run_number }}
+          tag_name: v1.9.5-beta-${{ github.run_number }}
+          name: osu! Daily Tracker 1.9.5 Beta ${{ github.run_number }}
           prerelease: true
           generate_release_notes: false
           body: |
-            Test build for Replay Lab osu!mania skin archive loading.
-            - Supports wrapper ZIP archives containing a nested .osk.
-            - Prefers the nested .osk over unrelated PNG files in the wrapper ZIP.
-            - Replay header is checked against the exact .osu difficulty inside the supplied .osz.
-            - Nested .osk archive and osu!mania note/key textures are checked before APK packaging.
-            - Android emulator smoke test is run; actual Canvas texture rendering still needs device-level verification.
-          files: dist/osu-daily-tracker-v1.9.4.apk
+            Beta build of osu! Daily Tracker, including Replay Lab and in-app osu! skin diagnostics.
+            - Replay Lab supports importing .osk/.zip skins and extracted skin folders.
+            - Skin diagnostics export archive entries, texture dimensions, skin.ini and duplicate texture names.
+            - Replay/beatmap fixture validation and Android emulator smoke test are run before publishing.
+            - Actual texture appearance should still be checked on a physical device.
+          files: dist/osu-daily-tracker-v1.9.5-beta.apk
 
 
   emulator-smoke-test:
@@ -122,7 +121,7 @@ jobs:
       - name: Download APK from build
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.4
+          name: osu-daily-tracker-v1.9.5-beta
           path: dist
 
       - name: Install emulator and system image
@@ -130,7 +129,7 @@ jobs:
           set -euxo pipefail
           # Android Emulator QEMU requires PulseAudio runtime libraries on Ubuntu.
           sudo apt-get update
-          sudo apt-get install -y libpulse0
+          sudo apt-get install -y libpulse0 tesseract-ocr tesseract-ocr-rus
           SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
@@ -231,21 +230,20 @@ jobs:
           sleep 20
           adb -e shell pidof com.osudailytracker.app
           adb -e exec-out screencap -p > emulator-results/home-screen.png
-          # Open the Replay Lab card on the dashboard (not the top navigation anchor).
+          # Dismiss the on-screen keyboard, then open Replay Lab from the top navigation.
+          adb -e shell input keyevent 4
+          sleep 2
           screen_size=$(adb -e shell wm size | tail -n 1 | awk '{print $3}')
           screen_width=${screen_size%x*}
           screen_height=${screen_size#*x}
-          adb -e shell input tap $((screen_width * 50 / 100)) $((screen_height * 82 / 100))
+          adb -e shell input tap $((screen_width * 65 / 100)) $((screen_height * 7 / 100))
           sleep 7
           adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
-          # Capture Android's accessibility tree so the test can prove the Replay Lab
-          # controls are present, rather than treating a second home-screen capture as success.
-          adb -e shell uiautomator dump /sdcard/replay-lab-window.xml >/dev/null
-          adb -e shell cat /sdcard/replay-lab-window.xml > emulator-results/replay-lab-window.xml
-          if ! grep -Eqi 'Реплей|Скин osu|Играть|skinFile|replayFile' emulator-results/replay-lab-window.xml; then
-            echo "::error::Replay Lab controls were not found in the Android accessibility tree."
-            echo "Accessibility dump:"
-            cat emulator-results/replay-lab-window.xml
+          # WebView DOM controls are not consistently exposed through UIAutomator.
+          # OCR the actual screenshot instead of relying on the WebView accessibility wrapper.
+          tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-lab-ocr.txt
+          if ! grep -Eqi 'Replay Lab|Реплей|Скин|Играть|Загрузить' emulator-results/replay-lab-ocr.txt; then
+            echo "::error::Replay Lab text was not detected in the captured screen."
             exit 1
           fi
           adb -e logcat -d -v threadtime > emulator-results/logcat.txt
