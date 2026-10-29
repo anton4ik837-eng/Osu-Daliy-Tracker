@@ -85,3 +85,47 @@ jobs:
             Исправлено масштабирование боковых и нижней stage-текстур osu!mania; учитываются StageLeft/Right/Bottom/Hint из skin.ini.
           files: osu-daily-tracker-v1.9.4.apk
 
+  emulator-smoke-test:
+    name: Android emulator smoke test
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Download APK from build
+        uses: actions/download-artifact@v4
+        with:
+          name: osu-daily-tracker-v1.9.4
+          path: dist
+      - name: Create diagnostics directory
+        run: mkdir -p emulator-results
+      - name: Install and launch app in Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 600
+          disable-animations: true
+          script: |
+            set -euxo pipefail
+            adb install -r dist/osu-daily-tracker-v1.9.4.apk
+            adb logcat -c
+            adb shell monkey -p com.osudailytracker.app 1
+            sleep 20
+            adb shell pidof com.osudailytracker.app
+            adb exec-out screencap -p > emulator-results/home-screen.png
+            adb logcat -d -v threadtime > emulator-results/logcat.txt
+            test -s emulator-results/home-screen.png
+            if grep -E 'FATAL EXCEPTION|Fatal signal [0-9]+ \(SIG' emulator-results/logcat.txt; then
+              echo "Fatal Android crash detected; see logcat artifact."
+              exit 1
+            fi
+      - name: Upload emulator diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-diagnostics-v1.9.4
+          path: emulator-results/
+          if-no-files-found: warn
+          retention-days: 14
