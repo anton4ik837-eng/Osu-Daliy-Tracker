@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 
 const manifestPath = 'android/app/src/main/AndroidManifest.xml';
 let xml;
@@ -37,7 +37,6 @@ xml = xml.slice(0, activityEnd) + intentFilter + '\n        ' + xml.slice(activi
 await writeFile(manifestPath, xml, 'utf8');
 console.log('Registered osudailytracker://oauth deep link on MainActivity.');
 
-import { mkdir, writeFile } from 'node:fs/promises';
 const res='android/app/src/main/res';
 await mkdir(res+'/drawable',{recursive:true});
 await mkdir(res+'/mipmap-anydpi',{recursive:true});
