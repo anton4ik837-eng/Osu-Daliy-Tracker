@@ -75,7 +75,7 @@ async function loadOsuSkin(file){
   }
  }catch(e){status.textContent='Файл не похож на корректный .osk/ZIP: '+(e?.message||String(e));return}
  const images=Object.create(null),urls=[];
- const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')/&&/\.(png|jpe?g|webp)$/i.test(path)&&bytes?.length);
+ const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp)$/i.test(path)&&bytes?.length);
  const loadedNames=[],pending=[];
  // Keep both normal and @2x variants. Prefer root-level canonical textures
  // over preview/subfolder duplicates, but never discard the high-DPI asset.
