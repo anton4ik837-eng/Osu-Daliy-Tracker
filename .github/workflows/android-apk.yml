@@ -79,6 +79,34 @@ jobs:
       # Do not publish every alpha branch build to the fixed v1.9.4 release.
       # CI APKs stay in the workflow artifact; release publishing is deliberately separate.
 
+  publish-skinfix-test-release:
+    name: Publish opt-in skin-fix test release
+    if: contains(github.event.head_commit.message, '[publish-skinfix]')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: osu-daily-tracker-v1.9.4
+          path: dist
+      - name: Publish test prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.9.5-skinfix-${{ github.run_number }}
+          name: osu! Daily Tracker 1.9.5 skin-fix test ${{ github.run_number }}
+          prerelease: true
+          generate_release_notes: false
+          body: |
+            Test build for Replay Lab osu!mania skin archive loading.
+            - Supports wrapper ZIP archives containing a nested .osk.
+            - Prefers the nested .osk over unrelated PNG files in the wrapper ZIP.
+            - Built and syntax-checked by GitHub Actions; please verify skin rendering on device.
+          files: dist/osu-daily-tracker-v1.9.4.apk
+
+
   emulator-smoke-test:
     name: Android emulator smoke test
     needs: build
