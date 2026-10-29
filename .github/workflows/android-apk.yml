@@ -73,17 +73,8 @@ jobs:
           name: osu-daily-tracker-v1.9.4
           path: osu-daily-tracker-v1.9.4.apk
           if-no-files-found: error
-      - name: Publish GitHub pre-release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.9.4
-          target_commitish: ${{ github.sha }}
-          name: osu! Daily Tracker 1.9.4
-          prerelease: true
-          make_latest: false
-          body: |
-            Исправлено масштабирование боковых и нижней stage-текстур osu!mania; учитываются StageLeft/Right/Bottom/Hint из skin.ini.
-          files: osu-daily-tracker-v1.9.4.apk
+      # Do not publish every alpha branch build to the fixed v1.9.4 release.
+      # CI APKs stay in the workflow artifact; release publishing is deliberately separate.
 
   emulator-smoke-test:
     name: Android emulator smoke test
@@ -108,8 +99,15 @@ jobs:
           test -x "$SDKMANAGER"
           # sdkmanager exits after accepting licenses, which closes the pipe;
           # with pipefail enabled, `yes` can exit 141 and falsely fail the step.
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
-          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "platform-tools" "emulator" "system-images;android-34;google_apis;x86_64"
+          set +e
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null
+          license_status=${PIPESTATUS[1]}
+          set -e
+          if [ "$license_status" -ne 0 ]; then
+            echo "::error::sdkmanager --licenses failed with exit code $license_status"
+            exit "$license_status"
+          fi
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install --verbose "platform-tools" "emulator" "system-images;android-34;google_apis;x86_64"
           adb version
           emulator -version
 
@@ -179,8 +177,8 @@ jobs:
         if: failure()
         run: |
           mkdir -p emulator-results
-          adb devices -l > emulator-results/adb-devices.txt 2>&1 || true
-          adb -e logcat -d -v threadtime > emulator-results/logcat-failure.txt 2>&1 || true
+          timeout 15s adb devices -l > emulator-results/adb-devices.txt 2>&1 || true
+          timeout 15s adb -e logcat -d -v threadtime > emulator-results/logcat-failure.txt 2>&1 || true
           tail -n 400 emulator-results/emulator.log > emulator-results/emulator-tail.log 2>&1 || true
 
       - name: Upload emulator diagnostics
