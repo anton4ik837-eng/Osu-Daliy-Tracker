@@ -22,20 +22,19 @@ const $=id=>document.getElementById(id);
 let activeSkin={name:'Встроенный вид',images:Object.create(null),urls:[]};
 function skinImage(...names){
  const normalize=name=>String(name).replace(/\\/g,'/').split('/').pop().toLowerCase().replace(/\.(png|jpe?g|webp)$/,'');
+ const lookup=key=>activeSkin.images[key]||activeSkin.images[key+'@2x']||(key.endsWith('@2x')?activeSkin.images[key.slice(0,-3)]:null)||null;
+ // Try every explicit alias first. Do not let a fuzzy lane match steal a better
+ // same-lane fallback (for example note2H should prefer note2 over note1H).
+ for(const name of names){const img=lookup(normalize(name));if(img)return img;}
  for(const name of names){
-  const key=normalize(name);
-  if(activeSkin.images[key])return activeSkin.images[key];
-  if(activeSkin.images[key+'@2x'])return activeSkin.images[key+'@2x'];
-  if(key.endsWith('@2x')&&activeSkin.images[key.slice(0,-3)])return activeSkin.images[key.slice(0,-3)];
-  if(key.startsWith('mania-note')||key.startsWith('mania-key')){
-   const base=key.replace(/@2x$/,'');
-   const match=base.match(/^(mania-note|mania-key)(\d+)([hld])?$/i);
-   if(match){
-    const family=match[1],state=match[3]||'';
-    const candidate=Object.keys(activeSkin.images).find(v=>new RegExp('^'+family+'\\d+'+state+'(?:@2x)?$','i').test(v));
-    if(candidate&&activeSkin.images[candidate])return activeSkin.images[candidate];
-   }
-  }
+  const key=normalize(name).replace(/@2x$/,'');
+  const match=key.match(/^(mania-note|mania-key)(\d+)([hld])?$/i);
+  if(!match)continue;
+  const family=match[1],lane=match[2],state=match[3]||'';
+  const fallbacks=[];
+  if(state)fallbacks.push(family+lane,family+'1'+state,family+'1');
+  else fallbacks.push(family+'1');
+  for(const fallback of fallbacks){const img=lookup(fallback);if(img)return img;}
  }
  return null
 }
