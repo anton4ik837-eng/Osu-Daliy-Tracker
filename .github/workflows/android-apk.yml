@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-beta-build-v175
+  group: android-beta-build-v176
   cancel-in-progress: true
 jobs:
   build:
@@ -66,27 +66,27 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.5.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.6.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.7.5
-          path: osu-daily-tracker-v1.7.5.apk
+          name: osu-daily-tracker-v1.7.6
+          path: osu-daily-tracker-v1.7.6.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.7.5
+          tag_name: v1.7.6
           target_commitish: ${{ github.sha }}
-          name: osu! Daily Tracker 1.7.5
+          name: osu! Daily Tracker 1.7.6
           prerelease: true
           make_latest: false
           body: |
-            **Версия 1.7.5 (тестовая beta).**
+            **Версия 1.7.6 (тестовая beta).**
 
-            Исправлен выбор музыки в .osz: Replay Lab теперь ищет файл, указанный в AudioFilename выбранной сложности, вместо случайного первого аудиофайла архива. Добавлен журнал диагностики выбранного аудио.
+            Исправлена длительность слайдеров в Replay Lab: учитываются SliderMultiplier, базовый beat length, inherited slider velocity и число повторов. Длинные слайдеры остаются видимыми во время удержания, показывается прогресс по траектории.
 
-            Сохранён полноценный Replay Lab с импортом недавних результатов из подключённого профиля osu!. Музыкальный файл выбирается по AudioFilename в выбранной сложности, а не по первому аудиофайлу в архиве. Диагностика сохраняет ожидаемое имя и фактически выбранный файл. Android versionName/versionCode: 1.7.5 / 10705.
+            Сохранён импорт недавних результатов и выбор музыки по AudioFilename. Длительность слайдеров рассчитывается по параметрам карты, а визуализация не помечает их завершёнными сразу после старта. Android versionName/versionCode: 1.7.6 / 10706. Android versionName/versionCode: 1.7.6 / 10706.
 
             Проверить на устройстве: запуск и паузу просмотра, переход по шкале времени, воспроизведение музыки без ускорения и самопроизвольного перезапуска.
-          files: osu-daily-tracker-v1.7.5.apk
+          files: osu-daily-tracker-v1.7.6.apk
