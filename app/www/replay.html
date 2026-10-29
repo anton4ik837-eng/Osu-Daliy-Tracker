@@ -31,23 +31,25 @@ async function loadOsuSkin(file){
  let entries;
  try{entries=window.fflate.unzipSync(new Uint8Array(await file.arrayBuffer()))}catch(e){status.textContent='Файл не похож на корректный .osk/ZIP: '+(e?.message||String(e));return}
  const images=Object.create(null),urls=[];
- const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g)$/i.test(path)&&bytes?.length);
- const wanted=/^(hitcircle(?:overlay)?|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|sliderstart|sliderend|spinner-(?:background|circle|approachcircle|top|bottom)|mania-(?:note\d*[a-z]?|key\d*[a-z]?|stage-[a-z-]+|hit\d+|stagehint|judgement|warning)|cursor(?:trail|middle|-smoke)?)(@2x)?$/i;
- const selected=imageFiles.filter(([path])=>wanted.test(path.split('/').pop().replace(/\.(png|jpe?g)$/i,'')));
- for(const [path,bytes] of selected){
-  const basename=path.split('/').pop().replace(/\.(png|jpe?g)$/i,'').toLowerCase();
+ const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp)$/i.test(path)&&bytes?.length);
+ const loadedNames=[];
+ for(const [path,bytes] of imageFiles){
+  const basename=path.split('/').pop().replace(/\.(png|jpe?g|webp)$/i,'').toLowerCase();
   if(images[basename])continue;
-  const type=/\.jpe?g$/i.test(path)?'image/jpeg':'image/png';
+  const type=/\.jpe?g$/i.test(path)?'image/jpeg':(/\.webp$/i.test(path)?'image/webp':'image/png');
   const url=URL.createObjectURL(new Blob([bytes],{type}));urls.push(url);
   const img=new Image();img.src=url;
   try{await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject})}catch{continue}
-  images[basename]=img;
+  images[basename]=img;loadedNames.push(basename);
  }
- if(!Object.keys(images).length){for(const url of urls)URL.revokeObjectURL(url);status.textContent='В архиве не найдены поддерживаемые текстуры скина. Проверь, что это именно osu! skin (.osk).';return}
+ if(!Object.keys(images).length){for(const url of urls)URL.revokeObjectURL(url);status.textContent='В архиве не удалось прочитать изображения. Проверь, что это корректный .osk/ZIP с текстурами.';return}
  for(const url of activeSkin.urls||[])URL.revokeObjectURL(url);
  activeSkin={name:file.name,images,urls};
- status.textContent='Скин загружен: '+file.name+' · '+Object.keys(images).length+' текстур. Применяется к STD и mania.';
- if(playMap){drawPlayfield();drawHitbar()}
+ const relevant=loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|mania-|cursor)/i.test(n));
+ const aliases=relevant.filter(n=>/^(hitcircle|approachcircle|sliderb|mania-note|mania-key)/i.test(n));
+ status.textContent='Скин загружен: '+file.name+' · прочитано '+loadedNames.length+' изображений. Текстуры игровых объектов: '+(relevant.slice(0,16).join(', ')||'не распознаны по стандартным именам')+'.';
+ diagLog('skin.loaded',{file:file.name,imageCount:loadedNames.length,relevant:relevant.slice(0,80)});
+ if(playMap){drawPlayfield();drawHitbar();}
 }
 $('skinFile')?.addEventListener('change',async e=>{const file=e.target.files?.[0];if(file)await loadOsuSkin(file);e.target.value=''});
 $('resetSkin')?.addEventListener('click',()=>{for(const url of activeSkin.urls||[])URL.revokeObjectURL(url);activeSkin={name:'Встроенный вид',images:Object.create(null),urls:[]};$('skinStatus').textContent='Используется встроенный вид.';if(playMap)drawPlayfield()});
