@@ -80,8 +80,8 @@ console.log('Exact beatmap match OK: ' + matchingMaps[0].name + ', keys=' + (key
 const skinPath = 'test-fixtures/skins/百鬼あやめ.osk.zip';
 const outerSkin = unzip(readFileSync(new URL('../../' + skinPath, import.meta.url)));
 const nestedSkin = [...outerSkin].filter(([name]) => name.toLowerCase().endsWith('.osk'));
-if (!nestedSkin.length) throw new Error('Wrapper skin ZIP contains no nested .osk archive');
-let maniaTextures = [];
+if (!nestedSkin.length) { console.log('Skin ZIP entries: ' + [...outerSkin.keys()].slice(0, 80).join(' | ')); throw new Error('Skin ZIP has no nested .osk; checking whether the ZIP itself is a direct .osk payload'); }
+let maniaTextures = [...outerSkin.keys()].filter(name => /(^|\\/)mania-(note|key)\\d+.*\\.(png|jpe?g|webp)$/i.test(name));\nlet skinIni = [...outerSkin.keys()].some(name => name.split('/').pop().toLowerCase() === 'skin.ini');
 let skinIni = false;
 for (const [archiveName, archiveBytes] of nestedSkin) {
   const inner = unzip(archiveBytes);
@@ -94,5 +94,5 @@ for (const [archiveName, archiveBytes] of nestedSkin) {
     break;
   }
 }
-if (!maniaTextures.length) throw new Error('Nested .osk has no mania-note/mania-key textures');
+if (!maniaTextures.length) throw new Error('Skin ZIP (direct or nested .osk) has no mania-note/mania-key textures');
 console.log('Mania skin fixture OK: ' + maniaTextures.length + ' mania textures; skin.ini=' + skinIni);
