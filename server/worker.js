@@ -81,7 +81,7 @@ export default {
     // Recent scores for the authenticated osu! account.
     if (url.pathname === "/api/me/scores/recent" && request.method === "GET") {
       const auth = request.headers.get("authorization") || "";
-      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      const match = auth.match(/^Bearer\s+(.+)$/i);
       if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
       const limitRaw = Number.parseInt(url.searchParams.get("limit") || "20", 10);
       const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 20;
@@ -104,9 +104,9 @@ export default {
     // Only permit downloading a score that belongs to this user's recent score list.
     if (url.pathname.startsWith("/api/me/scores/") && url.pathname.endsWith("/download") && request.method === "GET") {
       const auth = request.headers.get("authorization") || "";
-      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      const match = auth.match(/^Bearer\s+(.+)$/i);
       if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
-      const scoreId = url.pathname.match(/^\\/api\\/me\\/scores\\/([0-9]+)\\/download$/)?.[1];
+      const scoreId = url.pathname.match(/^\/api\/me\/scores\/([0-9]+)\/download$/)?.[1];
       if (!scoreId) return apiJson({ error: "invalid_score_id" }, 400);
       const mode = validMode(url.searchParams.get("mode") || "osu");
       if (!mode) return apiJson({ error: "invalid_mode" }, 400);
