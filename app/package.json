@@ -5,6 +5,7 @@
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
     "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js",
+    "test:replay-inline": "node scripts/check-replay-inline.mjs",
     "configure:android": "node scripts/configure-android.mjs"
   },
   "dependencies": {
