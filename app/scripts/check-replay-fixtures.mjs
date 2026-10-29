@@ -81,12 +81,12 @@ const skinPath = 'test-fixtures/skins/百鬼あやめ.osk.zip';
 const outerSkin = unzip(readFileSync(new URL('../../' + skinPath, import.meta.url)));
 const nestedSkin = [...outerSkin].filter(([name]) => name.toLowerCase().endsWith('.osk'));
 if (!nestedSkin.length) console.log('Skin archive layout: direct ZIP payload (no nested .osk file); entries=' + [...outerSkin.keys()].slice(0, 200).join(' | '));
-let maniaTextures = [...outerSkin.keys()].filter(name => /(^|\/)mania-(note|key)\d+.*\.(png|jpe?g|webp)$/i.test(name));
+let maniaTextures = [...outerSkin.keys()].filter(name => /(^|\/)mania-(note|key)\d+.*\.(png|jpe?g|webp)$/i.test(name) || /(^|\/)Orbs\/(note|key)(HT|L|D)?\d+.*\.(png|jpe?g|webp)$/i.test(name));
 let skinIni = [...outerSkin.keys()].some(name => name.split('/').pop().toLowerCase() === 'skin.ini');
 for (const [archiveName, archiveBytes] of nestedSkin) {
   const inner = unzip(archiveBytes);
   const images = [...inner.keys()].filter(name => /\.(png|jpe?g|webp)$/i.test(name));
-  const mania = images.filter(name => /(^|\/)mania-(note|key)\d+/i.test(name));
+  const mania = images.filter(name => /(^|\/)mania-(note|key)\d+/i.test(name) || /(^|\/)Orbs\/(note|key)(HT|L|D)?\d+/i.test(name));
   if (mania.length) {
     maniaTextures = mania;
     skinIni = [...inner.keys()].some(name => name.split('/').pop().toLowerCase() === 'skin.ini');
