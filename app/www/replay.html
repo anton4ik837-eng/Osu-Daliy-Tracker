@@ -32,7 +32,7 @@ async function loadOsuSkin(file){
  try{entries=window.fflate.unzipSync(new Uint8Array(await file.arrayBuffer()))}catch(e){status.textContent='Файл не похож на корректный .osk/ZIP: '+(e?.message||String(e));return}
  const images=Object.create(null),urls=[];
  const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g)$/i.test(path)&&bytes?.length);
- const wanted=/^(hitcircle(?:overlay)?|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|sliderstart|sliderend|spinner-(?:background|circle|approachcircle|top|bottom)|mania-(?:note\d*[a-z]?|key\d*[a-z]?|stage-[a-z-]+|hit\d+|stagehint|judgement|warning)|cursor(?:trail|middle|-smoke)?))(@2x)?$/i;
+ const wanted=/^(hitcircle(?:overlay)?|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|sliderstart|sliderend|spinner-(?:background|circle|approachcircle|top|bottom)|mania-(?:note\d*[a-z]?|key\d*[a-z]?|stage-[a-z-]+|hit\d+|stagehint|judgement|warning)|cursor(?:trail|middle|-smoke)?)(@2x)?$/i;
  const selected=imageFiles.filter(([path])=>wanted.test(path.split('/').pop().replace(/\.(png|jpe?g)$/i,'')));
  for(const [path,bytes] of selected){
   const basename=path.split('/').pop().replace(/\.(png|jpe?g)$/i,'').toLowerCase();
