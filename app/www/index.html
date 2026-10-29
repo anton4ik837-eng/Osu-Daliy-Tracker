@@ -11,7 +11,7 @@
 <body class="native-app">
 <header class="topbar"><div class="topinner"><div class="logo"><img class="logo-mark" src="./icon.svg" alt=""><span>Daily Tracker</span></div><nav class="topnav"><a class="navlink active" href="#dashboard">Обзор</a><a class="navlink" href="#replay">Replay Lab</a><a class="navlink" href="#about">О проекте</a><button id="settingsOpenButton" class="navlink settings-trigger" type="button" aria-label="Открыть настройки" title="Настройки">⚙ Настройки</button></nav></div></header>
 <main class="wrap" id="dashboard">
-<section class="hero"><div class="eyebrow">Community performance toolkit · Alpha 1.1.0</div><h1>Твоя игра.<br><span>Твой прогресс.</span></h1><p>Подключи аккаунт osu!, смотри статистику и следи за рангом. Дальше добавим историю результатов, ежедневные изменения и анализ реплеев прямо в приложении.</p><div class="hero-actions"><a class="button" href="#account" style="width:auto">Подключить osu! аккаунт <span aria-hidden="true">↗</span></a><a class="button secondary" href="#progressPanel" style="width:auto">Моя статистика ↓</a></div></section>
+<section class="hero"><div class="eyebrow">Community performance toolkit · Alpha 1.2.0</div><h1>Твоя игра.<br><span>Твой прогресс.</span></h1><p>Подключи аккаунт osu!, смотри статистику и следи за рангом. Дальше добавим историю результатов, ежедневные изменения и анализ реплеев прямо в приложении.</p><div class="hero-actions"><a class="button" href="#account" style="width:auto">Подключить osu! аккаунт <span aria-hidden="true">↗</span></a><a class="button secondary" href="#progressPanel" style="width:auto">Моя статистика ↓</a></div></section>
 <div class="layout">
 <section class="panel" id="account">
 <div class="panel-head"><h2>Аккаунт osu!</h2><span class="pill" id="authBadge">Не подключён</span></div>
@@ -73,7 +73,7 @@ function applyTheme(theme,save=false){
  });
  if(save){try{localStorage.setItem(THEME_KEY,JSON.stringify(Object.fromEntries(Object.keys(THEME_DEFAULTS).map(k=>[k,root.style.getPropertyValue(k).trim()]))));$('settingsStatus').textContent='Цветовая палитра сохранена.'}catch{$('settingsStatus').textContent='Не удалось сохранить палитру на устройстве.'}}
 }
-const APP_VERSION='1.0.0-alpha';
+const APP_VERSION='1.2.0';
 const RELEASES_API='https://api.github.com/repos/anton4ik837-eng/Osu-Daliy-Tracker/releases?per_page=15';
 function compareVersions(a,b){const parse=s=>String(s).replace(/^v/i,'').split(/[+-]/)[0].split('.').map(x=>parseInt(x,10)||0);const x=parse(a),y=parse(b);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return(x[i]||0)-(y[i]||0)}return 0}
 async function checkForUpdates(quiet=false){
