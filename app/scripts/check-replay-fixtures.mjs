@@ -94,5 +94,5 @@ for (const [archiveName, archiveBytes] of nestedSkin) {
     break;
   }
 }
-if (!maniaTextures.length) { console.log('Skin ZIP image candidates=' + [...outerSkin.keys()].filter(name => /\\.(png|jpe?g|webp)$/i.test(name)).slice(0, 200).join(' | ')); throw new Error('Skin ZIP (direct or nested .osk) has no mania-note/mania-key textures'); }
+if (!maniaTextures.length) { console.log('Skin ZIP image candidates=' + [...outerSkin.keys()].filter(name => /\\.(png|jpe?g|webp)$/i.test(name)).slice(0, 200).join(' | ')); throw new Error('Skin ZIP (direct or nested .osk) has no supported Mania or legacy Orbs textures'); }
 console.log('Mania skin fixture OK: ' + maniaTextures.length + ' mania textures; skin.ini=' + skinIni);
