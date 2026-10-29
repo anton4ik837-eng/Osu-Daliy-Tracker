@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-beta-build-v173
+  group: android-beta-build-v174
   cancel-in-progress: true
 jobs:
   build:
@@ -66,11 +66,11 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.3.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.4.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.7.3
+          name: osu-daily-tracker-v1.7.4
           path: osu-daily-tracker-v1.7.3.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
@@ -84,9 +84,9 @@ jobs:
           body: |
             **Версия 1.7.3 (тестовая beta).**
 
-            Исправлена синхронизация просмотра с музыкой; сохранён импорт раннов из профиля osu!.
+            Переработан запуск музыки и просмотра: музыка запускается один раз, таймер просмотра стартует после подтверждения воспроизведения; сохранён импорт раннов из профиля osu!.
 
-            Сохранён полноценный Replay Lab с импортом недавних раннов из подключённого профиля osu!. Исправлена синхронизация музыки: аудиовремя является источником времени просмотра; при паузе аудио просмотр останавливается, а повторный запуск музыки не выполняется автоматически. Скорость 1×, зацикливание выключено. Android versionName/versionCode: 1.7.3 / 10703.
+            Сохранён полноценный Replay Lab с импортом недавних раннов из подключённого профиля osu!. Убрана гонка между кнопкой включения музыки и кнопкой запуска просмотра. При включении музыки на паузе аудио не запускается отдельно; при старте просмотра воспроизведение запрашивается один раз, и таймер начинает работу после успешного старта аудио. Скорость 1×, зацикливание выключено. Android versionName/versionCode: 1.7.3 / 10704.
 
-            Проверить: запуск и паузу просмотра, переход по шкале времени, воспроизведение музыки без ускорения и самопроизвольного перезапуска.
+            Проверить на устройстве: запуск и паузу просмотра, переход по шкале времени, воспроизведение музыки без ускорения и самопроизвольного перезапуска.
           files: osu-daily-tracker-v1.7.3.apk
