@@ -9,6 +9,11 @@ try {
   process.exit(1);
 }
 
+// Force Android to use the custom launcher artwork, including the round-icon slot.
+xml = xml.replace(/<application\\b([^>]*)>/, (match, attrs) => {
+  let updated = attrs.replace(/\\sandroid:icon="[^"]*"/, '').replace(/\\sandroid:roundIcon="[^"]*"/, '');
+  return '<application' + updated + ' android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"' + '>';
+});
 if (!/android:scheme="osudailytracker"/.test(xml)) {
   const activityStart = xml.search(/<activity\b[^>]*android:name="[^"]*MainActivity"[^>]*>/);
   if (activityStart < 0) {
@@ -69,8 +74,8 @@ console.log('Generated custom launcher icon resources.');
 
 const gradlePath='android/app/build.gradle';
 let gradle=await readFile(gradlePath,'utf8');
-gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 10100');
-gradle=gradle.replace(/versionName\s+['"][^'"]*['"]/, 'versionName "1.1.0"');
+gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 10200');
+gradle=gradle.replace(/versionName\s+['"][^'"]*['"]/, 'versionName "1.2.0"');
 const signingEnv=['ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD'];
 if(!signingEnv.every(key=>process.env[key])) {
   console.error('Stable APK signing is not configured. Add the four ANDROID_* GitHub Actions secrets before building Alpha.');
