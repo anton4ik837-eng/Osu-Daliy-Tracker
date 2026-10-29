@@ -52,11 +52,20 @@ async function loadOsuSkin(file){
  let entries;
  try{
   entries=window.fflate.unzipSync(new Uint8Array(await file.arrayBuffer()));
-  // Also accept a wrapper ZIP containing the actual .osk archive.
+  // Prefer the real .osk when the user selects a wrapper ZIP. Some wrapper
+  // ZIPs also contain thumbnails or other PNGs, so checking only for top-level
+  // images would incorrectly treat the wrapper itself as the skin.
   const hasTextures=archive=>Object.entries(archive).some(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp)$/i.test(path)&&bytes?.length);
+  const nested=Object.entries(entries).filter(([path,bytes])=>/\.osk$/i.test(path)&&bytes?.length);
+  for(const [nestedPath,nestedBytes] of nested){
+   try{
+    const unpacked=window.fflate.unzipSync(nestedBytes);
+    if(hasTextures(unpacked)){entries=unpacked;diagLog('skin.nested_archive_opened',{file:file.name,archive:nestedPath});break;}
+   }catch(e){diagLog('skin.nested_archive_skipped',{file:file.name,archive:nestedPath,error:e?.message||String(e)});}
+  }
   if(!hasTextures(entries)){
-   const nested=Object.entries(entries).filter(([path,bytes])=>/\.(osk|zip)$/i.test(path)&&bytes?.length);
-   for(const [nestedPath,nestedBytes] of nested){
+   const nestedZips=Object.entries(entries).filter(([path,bytes])=>/\.zip$/i.test(path)&&bytes?.length);
+   for(const [nestedPath,nestedBytes] of nestedZips){
     try{
      const unpacked=window.fflate.unzipSync(nestedBytes);
      if(hasTextures(unpacked)){entries=unpacked;diagLog('skin.nested_archive_opened',{file:file.name,archive:nestedPath});break;}
