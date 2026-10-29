@@ -136,7 +136,8 @@ jobs:
           # fails before registering, that command can otherwise hang forever.
           ready=0
           for i in $(seq 1 90); do
-            if timeout 10s adb devices | grep -qE '^emulator-[0-9]+[[:space:]]+device              ready=1
+            if timeout 10s adb devices | grep -qE '^emulator-[0-9]+[[:space:]]+device$'; then
+              ready=1
               break
             fi
             sleep 2
