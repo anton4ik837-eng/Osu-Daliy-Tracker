@@ -106,7 +106,9 @@ jobs:
           echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null
+          # sdkmanager exits after accepting licenses, which closes the pipe;
+          # with pipefail enabled, `yes` can exit 141 and falsely fail the step.
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
           "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "platform-tools" "emulator" "system-images;android-34;google_apis;x86_64"
           adb version
           emulator -version
