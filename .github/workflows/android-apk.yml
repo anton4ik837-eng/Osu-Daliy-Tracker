@@ -56,6 +56,10 @@ jobs:
           java-version: '21'
       - name: Build APK with persistent signature
         working-directory: app/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
         run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.0.0-alpha.apk
