@@ -88,14 +88,15 @@ export default {
       return json({ ok: true, service: "osu-daily-tracker-oauth", version: 2, deploy_marker: "replay-cors-fix-2026-10-29" });
     }
 
-    // Resolve the exact beatmap checksum from an .osr and return its .osu file.
+    // Resolve a public beatmap checksum without requiring the user's OAuth session.
+    // Beatmap lookup is public; only account-owned data endpoints require user bearer tokens.
     if (url.pathname === "/api/me/beatmap-by-checksum" && request.method === "GET") {
-      const auth = request.headers.get("authorization") || "";
-      const match = auth.match(/^Bearer\\s+(.+)$/i);
-      if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
       const checksum = String(url.searchParams.get("checksum") || "").trim().toLowerCase();
       if (!/^[a-f0-9]{32}$/.test(checksum)) return apiJson({ error: "invalid_beatmap_checksum" }, 400);
-      const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + match[1] };
+      let token;
+      try { token = await getPublicApiToken(env); }
+      catch (error) { return apiJson({ error: error.message || "osu_api_unavailable" }, 503); }
+      const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + token };
       const lookup = await fetch("https://osu.ppy.sh/api/v2/beatmaps/lookup?checksum=" + encodeURIComponent(checksum), { headers });
       const beatmap = await lookup.json().catch(() => ({}));
       if (!lookup.ok || !beatmap.id) return apiJson({ error: "beatmap_lookup_failed", upstream_status: lookup.status }, lookup.status === 404 ? 404 : 502);
