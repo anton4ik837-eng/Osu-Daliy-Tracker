@@ -50,7 +50,20 @@ async function loadOsuSkin(file){
  if(!window.fflate?.unzipSync){status.textContent='Не удалось загрузить распаковщик ZIP. Проверь подключение и перезапусти Replay Lab.';return}
  status.textContent='Распаковываю скин…';
  let entries;
- try{entries=window.fflate.unzipSync(new Uint8Array(await file.arrayBuffer()))}catch(e){status.textContent='Файл не похож на корректный .osk/ZIP: '+(e?.message||String(e));return}
+ try{
+  entries=window.fflate.unzipSync(new Uint8Array(await file.arrayBuffer()));
+  // Also accept a wrapper ZIP containing the actual .osk archive.
+  const hasTextures=archive=>Object.entries(archive).some(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp)$/i.test(path)&&bytes?.length);
+  if(!hasTextures(entries)){
+   const nested=Object.entries(entries).filter(([path,bytes])=>/\.(osk|zip)$/i.test(path)&&bytes?.length);
+   for(const [nestedPath,nestedBytes] of nested){
+    try{
+     const unpacked=window.fflate.unzipSync(nestedBytes);
+     if(hasTextures(unpacked)){entries=unpacked;diagLog('skin.nested_archive_opened',{file:file.name,archive:nestedPath});break;}
+    }catch(e){diagLog('skin.nested_archive_skipped',{file:file.name,archive:nestedPath,error:e?.message||String(e)});}
+   }
+  }
+ }catch(e){status.textContent='Файл не похож на корректный .osk/ZIP: '+(e?.message||String(e));return}
  const images=Object.create(null),urls=[];
  const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp)$/i.test(path)&&bytes?.length);
  const loadedNames=[];
