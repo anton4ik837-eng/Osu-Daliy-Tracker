@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-beta-build-v178
+  group: android-beta-build-v179
   cancel-in-progress: true
 jobs:
   build:
@@ -66,29 +66,31 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.8.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.7.9.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.7.8
-          path: osu-daily-tracker-v1.7.8.apk
+          name: osu-daily-tracker-v1.7.9
+          path: osu-daily-tracker-v1.7.9.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.7.8
+          tag_name: v1.7.9
           target_commitish: ${{ github.sha }}
-          name: osu! Daily Tracker 1.7.8
+          name: osu! Daily Tracker 1.7.9
           prerelease: true
           make_latest: false
           body: |
-            **Версия 1.7.8 (тестовая beta).**
+            **Версия 1.7.9 (тестовая beta).**
 
             Добавлен переключатель списка результатов: последние игры или лучшие по PP. Для обоих списков поддерживается постраничная загрузка, а скачивание реплея проверяется по ID результата и владельцу аккаунта.
 
+Исправлено отображение промахов в osu!standard и osu!mania: красные метки MISS появляются на таймлайне и в просмотре. Нажатие на сегмент таймлайна автоматически запускает просмотр с этого места и прокручивает страницу к плееру. Нативное Android-окно выбора сложности заменено стилизованным окном Replay Lab.
+
             Исправлена длительность слайдеров в Replay Lab: учитываются SliderMultiplier, базовый beat length, inherited slider velocity и число повторов. Длинные слайдеры остаются видимыми во время удержания, показывается прогресс по траектории.
 
-            Сохранён импорт недавних результатов и выбор музыки по AudioFilename. Длительность слайдеров рассчитывается по параметрам карты, а визуализация не помечает их завершёнными сразу после старта. Android versionName/versionCode: 1.7.8 / 10708. Android versionName/versionCode: 1.7.8 / 10708.
+            Сохранён импорт недавних результатов и выбор музыки по AudioFilename. Длительность слайдеров рассчитывается по параметрам карты, а визуализация не помечает их завершёнными сразу после старта. Android versionName/versionCode: 1.7.9 / 10709. Android versionName/versionCode: 1.7.9 / 10709.
 
             Проверить на устройстве: запуск и паузу просмотра, переход по шкале времени, воспроизведение музыки без ускорения и самопроизвольного перезапуска.
-          files: osu-daily-tracker-v1.7.8.apk
+          files: osu-daily-tracker-v1.7.9.apk
