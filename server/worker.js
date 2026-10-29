@@ -88,6 +88,24 @@ export default {
       return json({ ok: true, service: "osu-daily-tracker-oauth", version: 2, deploy_marker: "replay-cors-fix-2026-10-29" });
     }
 
+    // Resolve the exact beatmap checksum from an .osr and return its .osu file.
+    if (url.pathname === "/api/me/beatmap-by-checksum" && request.method === "GET") {
+      const auth = request.headers.get("authorization") || "";
+      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
+      const checksum = String(url.searchParams.get("checksum") || "").trim().toLowerCase();
+      if (!/^[a-f0-9]{32}$/.test(checksum)) return apiJson({ error: "invalid_beatmap_checksum" }, 400);
+      const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + match[1] };
+      const lookup = await fetch("https://osu.ppy.sh/api/v2/beatmaps/lookup?checksum=" + encodeURIComponent(checksum), { headers });
+      const beatmap = await lookup.json().catch(() => ({}));
+      if (!lookup.ok || !beatmap.id) return apiJson({ error: "beatmap_lookup_failed", upstream_status: lookup.status }, lookup.status === 404 ? 404 : 502);
+      const file = await fetch("https://osu.ppy.sh/osu/" + encodeURIComponent(beatmap.id), { headers: { accept: "text/plain" } });
+      if (!file.ok) return apiJson({ error: "beatmap_file_download_failed", upstream_status: file.status, beatmap_id: beatmap.id }, 502);
+      const body = await file.text();
+      if (!body.includes("[HitObjects]")) return apiJson({ error: "invalid_beatmap_file", beatmap_id: beatmap.id }, 502);
+      return new Response(body, { status: 200, headers: { "content-type": "text/plain; charset=utf-8", "access-control-allow-origin": "*", "cache-control": "public, max-age=3600", "x-content-type-options": "nosniff" } });
+    }
+
     // Recent scores for the authenticated osu! account.
     if (url.pathname === "/api/me/scores/recent" && request.method === "GET") {
       const auth = request.headers.get("authorization") || "";
