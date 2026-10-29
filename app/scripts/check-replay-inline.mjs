@@ -10,6 +10,18 @@ if (!scripts.length) {
   throw new Error('Replay Lab has no inline JavaScript to validate');
 }
 
+const loaderStart = html.indexOf('async function loadOsuSkin');
+const loaderEnd = html.indexOf("$('skinFile')", loaderStart);
+const skinLoader = loaderStart >= 0 && loaderEnd > loaderStart ? html.slice(loaderStart, loaderEnd) : '';
+const listenerPosition = skinLoader.indexOf('img.onload=()=>finish(resolve)');
+const sourcePosition = skinLoader.indexOf('img.src=url');
+if (!skinLoader || listenerPosition < 0 || sourcePosition < 0 || listenerPosition > sourcePosition) {
+  throw new Error('Skin image loader must register load/error handlers before assigning img.src');
+}
+if (!skinLoader.includes('В архиве не найдены файлы mania-*')) {
+  throw new Error('Skin loader must explain when an archive has no osu!mania textures');
+}
+
 for (let index = 0; index < scripts.length; index += 1) {
   new vm.Script(scripts[index], { filename: 'replay.html:inline-script-' + (index + 1) });
 }
