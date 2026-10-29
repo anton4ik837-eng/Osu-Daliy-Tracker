@@ -136,7 +136,136 @@ jobs:
           # fails before registering, that command can otherwise hang forever.
           ready=0
           for i in $(seq 1 90); do
-            if timeout 10s adb devices | grep -qE '^emulator-[0-9]+[[:space:]]+device
+            if timeout 10s adb devices | grep -qE '^emulator-[0-9]+[[:space:]]+device              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "::error::Emulator never registered with ADB."
+            adb devices -l || true
+            tail -n 250 emulator-results/emulator.log || true
+            exit 1
+          fi
+
+          booted=0
+          for i in $(seq 1 120); do
+            state="$(timeout 10s adb -e shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [ "$state" = "1" ]; then
+              booted=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$booted" -ne 1 ]; then
+            echo "::error::Emulator connected to ADB but Android did not finish booting."
+            adb devices -l || true
+            adb -e logcat -d -t 500 || true
+            tail -n 250 emulator-results/emulator.log || true
+            exit 1
+          fi
+          timeout 15s adb -e shell settings put global window_animation_scale 0
+          timeout 15s adb -e shell settings put global transition_animation_scale 0
+          timeout 15s adb -e shell settings put global animator_duration_scale 0
+
+      - name: Install, launch and capture app
+        run: |
+          set -euxo pipefail
+          adb -e install -r dist/osu-daily-tracker-v1.9.4.apk
+          adb -e logcat -c
+          adb -e shell monkey -p com.osudailytracker.app 1
+          sleep 20
+          adb -e shell pidof com.osudailytracker.app
+          adb -e exec-out screencap -p > emulator-results/home-screen.png
+          adb -e logcat -d -v threadtime > emulator-results/logcat.txt
+          test -s emulator-results/home-screen.png
+          if grep -E 'FATAL EXCEPTION|Fatal signal [0-9]+ \\(SIG' emulator-results/logcat.txt; then
+            echo "::error::Fatal Android crash detected; see logcat artifact."
+            exit 1
+          fi
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: |
+          mkdir -p emulator-results
+          timeout 15s adb devices -l > emulator-results/adb-devices.txt 2>&1 || true
+          timeout 15s adb -e logcat -d -v threadtime > emulator-results/logcat-failure.txt 2>&1 || true
+          tail -n 400 emulator-results/emulator.log > emulator-results/emulator-tail.log 2>&1 || true
+
+      - name: Upload emulator diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-diagnostics-v1.9.4
+          path: emulator-results/
+          if-no-files-found: warn
+          retention-days: 14
+; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "::error::Emulator never registered with ADB."
+            adb devices -l || true
+            tail -n 250 emulator-results/emulator.log || true
+            exit 1
+          fi
+
+          booted=0
+          for i in $(seq 1 120); do
+            state="$(adb -e shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [ "$state" = "1" ]; then
+              booted=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$booted" -ne 1 ]; then
+            echo "::error::Emulator connected to ADB but Android did not finish booting."
+            adb devices -l || true
+            adb -e logcat -d -t 500 || true
+            tail -n 250 emulator-results/emulator.log || true
+            exit 1
+          fi
+          adb -e shell settings put global window_animation_scale 0
+          adb -e shell settings put global transition_animation_scale 0
+          adb -e shell settings put global animator_duration_scale 0
+
+      - name: Install, launch and capture app
+        run: |
+          set -euxo pipefail
+          adb -e install -r dist/osu-daily-tracker-v1.9.4.apk
+          adb -e logcat -c
+          adb -e shell monkey -p com.osudailytracker.app 1
+          sleep 20
+          adb -e shell pidof com.osudailytracker.app
+          adb -e exec-out screencap -p > emulator-results/home-screen.png
+          adb -e logcat -d -v threadtime > emulator-results/logcat.txt
+          test -s emulator-results/home-screen.png
+          if grep -E 'FATAL EXCEPTION|Fatal signal [0-9]+ \\(SIG' emulator-results/logcat.txt; then
+            echo "::error::Fatal Android crash detected; see logcat artifact."
+            exit 1
+          fi
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: |
+          mkdir -p emulator-results
+          timeout 15s adb devices -l > emulator-results/adb-devices.txt 2>&1 || true
+          timeout 15s adb -e logcat -d -v threadtime > emulator-results/logcat-failure.txt 2>&1 || true
+          tail -n 400 emulator-results/emulator.log > emulator-results/emulator-tail.log 2>&1 || true
+
+      - name: Upload emulator diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-diagnostics-v1.9.4
+          path: emulator-results/
+          if-no-files-found: warn
+          retention-days: 14
+; then
               ready=1
               break
             fi
