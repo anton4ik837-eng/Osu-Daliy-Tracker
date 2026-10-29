@@ -175,7 +175,7 @@ export default {
       if (!response.ok) return apiJson({ error: (payload && payload.error) || "osu_scores_failed", stage: scoreType + "_scores", upstream_status: response.status }, response.status === 401 ? 401 : 502);
       if (!Array.isArray(payload)) {
         return apiJson({
-          error: "osu_recent_scores_unexpected_response",
+          error: "osu_scores_unexpected_response",
           stage: scoreType + "_scores",
           upstream_status: response.status,
           response_type: payload === null ? "invalid_json" : typeof payload,
