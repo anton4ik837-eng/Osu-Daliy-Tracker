@@ -62,18 +62,18 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name Alpha APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.1.0.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.2.0.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.1.0
-          path: osu-daily-tracker-v1.1.0.apk
+          name: osu-daily-tracker-v1.2.0
+          path: osu-daily-tracker-v1.2.0.apk
           if-no-files-found: error
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0
-          name: osu! Daily Tracker v1.1.0
+          tag_name: v1.2.0
+          name: osu! Daily Tracker v1.2.0
           prerelease: true
           make_latest: false
           body: |
@@ -82,4 +82,4 @@ jobs:
             Встроенный Replay Lab, вкладка настроек, палитра цветов, иконка приложения и проверка обновлений. Установка обновлений зависит от совместимости подписи APK. Анализатор экспериментальный; точность тайминга зависит от карты и паттернов.
 
             Возможны ошибки и изменения без сохранения совместимости. APK собран как debug-сборка для тестирования, не является финальным релизом.
-          files: osu-daily-tracker-v1.1.0.apk
+          files: osu-daily-tracker-v1.2.0.apk
