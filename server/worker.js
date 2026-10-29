@@ -97,7 +97,7 @@ export default {
       const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 20;
       const mode = validMode(url.searchParams.get("mode") || "osu");
       if (!mode) return apiJson({ error: "invalid_mode" }, 400);
-      const headers = { accept: "application/json", authorization: "Bearer " + match[1] };
+      const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + match[1] };
       const meResponse = await fetch("https://osu.ppy.sh/api/v2/me/" + mode, { headers });
       const me = await meResponse.json().catch(() => ({}));
       if (!meResponse.ok || !me.id) return apiJson({ error: me.error || "osu_profile_request_failed", status: meResponse.status }, meResponse.status === 401 ? 401 : 502);
@@ -134,7 +134,7 @@ export default {
       if (!scoreId) return apiJson({ error: "invalid_score_id" }, 400);
       const mode = validMode(url.searchParams.get("mode") || "osu");
       if (!mode) return apiJson({ error: "invalid_mode" }, 400);
-      const headers = { accept: "application/json", authorization: "Bearer " + match[1] };
+      const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + match[1] };
       const meResponse = await fetch("https://osu.ppy.sh/api/v2/me/" + mode, { headers });
       const me = await meResponse.json().catch(() => ({}));
       if (!meResponse.ok || !me.id) return apiJson({ error: me.error || "osu_profile_request_failed", status: meResponse.status }, meResponse.status === 401 ? 401 : 502);
