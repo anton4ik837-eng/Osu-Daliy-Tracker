@@ -148,7 +148,29 @@ export default {
       if (!ownedScore) return apiJson({ error: "score_not_in_recent_list" }, 404);
       if (!ownedScore.has_replay) return apiJson({ error: "replay_unavailable" }, 404);
       const download = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", { headers: { accept: "application/octet-stream", "x-api-version": "20220705", authorization: "Bearer " + match[1] } });
-      if (!download.ok) return apiJson({ error: "osu_replay_download_failed", stage: "upstream_replay_download", upstream_status: download.status, score_id: scoreId, mode, recent_score_has_replay: ownedScore.has_replay === true }, download.status === 401 ? 401 : download.status === 404 ? 404 : 502);
+      if (!download.ok) {
+        const upstreamContentType = download.headers.get("content-type") || "";
+        const upstreamBody = await download.text().catch(() => "");
+        let upstreamError = null;
+        if (upstreamContentType.includes("json") && upstreamBody) {
+          try {
+            const parsed = JSON.parse(upstreamBody);
+            upstreamError = typeof parsed.error === "string" ? parsed.error : null;
+          } catch {}
+        }
+        return apiJson({
+          error: "osu_replay_download_failed",
+          stage: "upstream_replay_download",
+          upstream_status: download.status,
+          upstream_content_type: upstreamContentType,
+          upstream_error: upstreamError,
+          upstream_body_excerpt: upstreamBody.slice(0, 500),
+          score_id: scoreId,
+          mode,
+          recent_score_has_replay: ownedScore.has_replay === true,
+          recent_score_passed: ownedScore.passed === true
+        }, download.status === 401 ? 401 : download.status === 404 ? 404 : 502);
+      }
       return new Response(download.body, { status: 200, headers: {
         "access-control-allow-origin": "*", "access-control-allow-methods": "GET, OPTIONS",
         "access-control-allow-headers": "authorization", "cache-control": "no-store",
