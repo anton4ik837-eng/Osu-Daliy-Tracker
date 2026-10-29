@@ -74,8 +74,8 @@ console.log('Generated custom launcher icon resources.');
 
 const gradlePath='android/app/build.gradle';
 let gradle=await readFile(gradlePath,'utf8');
-gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 10709');
-gradle=gradle.replace(/versionName\s+['"][^'"]*['"]/, 'versionName "1.7.9"');
+gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 10710');
+gradle=gradle.replace(/versionName\s+['"][^'"]*['"]/, 'versionName "1.7.10"');
 const signingEnv=['ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD'];
 if(!signingEnv.every(key=>process.env[key])) {
   console.error('Stable APK signing is not configured. Add the four ANDROID_* GitHub Actions secrets before building Alpha.');
