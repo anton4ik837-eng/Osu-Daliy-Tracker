@@ -59,7 +59,7 @@ async function loadOsuSkin(file){
  activeSkin={name:file.name,images,urls};
  const relevant=loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|mania-|cursor)/i.test(n));
  const aliases=relevant.filter(n=>/^(hitcircle|approachcircle|sliderb|mania-note|mania-key)/i.test(n));
- status.textContent='Скин загружен: '+file.name+' · прочитано '+loadedNames.length+' изображений. Текстуры игровых объектов: '+(relevant.slice(0,16).join(', ')||'не распознаны по стандартным именам')+'.';
+ const maniaAssets=loadedNames.filter(n=>/^mania-/i.test(n));const standardAssets=loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|cursor)/i.test(n));status.textContent='Скин загружен: '+file.name+' · изображений '+loadedNames.length+' · osu!mania: '+maniaAssets.length+' ('+(maniaAssets.slice(0,12).join(', ')||'текстуры не найдены')+') · osu!standard: '+standardAssets.length+' ('+(standardAssets.slice(0,8).join(', ')||'текстуры не найдены')+').';
  diagLog('skin.loaded',{file:file.name,imageCount:loadedNames.length,relevant:relevant.slice(0,80)});
  if(playMap){drawPlayfield();drawHitbar();}
 }
