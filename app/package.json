@@ -1,6 +1,6 @@
 {
   "name": "osu-daily-tracker-app",
-  "version": "1.7.4",
+  "version": "1.7.5",
   "private": true,
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
