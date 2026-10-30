@@ -53,6 +53,7 @@
 <div class="foot">osu! Daily Tracker · 1.9.0</div>
 </main>
 <script src="./native-bridge.bundle.js"></script>
+<script>window.addEventListener("DOMContentLoaded",()=>{if(window.NativeLogs?.start)window.NativeLogs.start().catch(error=>console.error("Не удалось создать папку логов:",error));});</script>
 <script>
 const API_BASE='https://osu-daily-tracker-oauth.anton4ik837.workers.dev';
 const STORAGE_KEY='osu-daily-tracker-profile';
