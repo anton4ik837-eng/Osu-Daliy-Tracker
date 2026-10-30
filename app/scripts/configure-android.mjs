@@ -185,7 +185,7 @@ public class NativeLogsPlugin extends Plugin {
         return "osu-daily-tracker-log.jsonl";
     }
 }
-\`;
+`;
 await writeFile(javaDir + '/NativeLogsPlugin.java', pluginSource, 'utf8');
 if (!mainActivity.includes('NativeLogsPlugin')) {
   mainActivity = mainActivity.replace('import com.getcapacitor.BridgeActivity;',
