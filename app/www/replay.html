@@ -78,13 +78,15 @@ async function loadOsuSkin(file){
  const images=Object.create(null),urls=[];
  const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp|gif)$/i.test(path)&&bytes?.length);
  const loadedNames=[],pending=[];
+ const skinIniEntry=Object.entries(entries).filter(([path])=>path.split('/').pop().toLowerCase()==='skin.ini').sort((a,b)=>a[0].split('/').length-b[0].split('/').length)[0];
+ const skinRoot=skinIniEntry?skinIniEntry[0].replace(/\\/g,'/').replace(/[^/]+$/,''):'';
  const candidatePaths=new Map();
  // Keep both normal and @2x variants. Prefer root-level canonical textures
  // over preview/subfolder duplicates, but never discard the high-DPI asset.
  const candidates=new Map();
  for(const [path,bytes] of imageFiles){
   const clean=path.replace(/\\/g,'/'),basename=clean.split('/').pop().replace(/\.(png|jpe?g|webp|gif)$/i,'').toLowerCase();
-  const key=basename,rank=(clean.split('/').length===1?100:0)+(basename.endsWith('@2x')?10:0);
+  const key=basename,insideSkinRoot=!skinRoot||clean.startsWith(skinRoot),rank=(insideSkinRoot?1000:0)+(clean.split('/').length===1?100:0)+(basename.endsWith('@2x')?10:0)-(clean.split('/').length*0.01);
   const paths=candidatePaths.get(key)||[];paths.push(clean);candidatePaths.set(key,paths);
   const prev=candidates.get(key);if(!prev||rank>prev.rank)candidates.set(key,{path:clean,bytes,rank});
  }
@@ -117,7 +119,7 @@ async function loadOsuSkin(file){
  if(!Object.keys(images).length){for(const url of urls)URL.revokeObjectURL(url);status.textContent='В архиве не удалось прочитать изображения. Проверь, что это корректный .osk/ZIP с текстурами.';return}
  for(const url of activeSkin.urls||[])URL.revokeObjectURL(url);
  const maniaSections=[];
- const skinIni=Object.entries(entries).filter(([path])=>path.split('/').pop().toLowerCase()==='skin.ini').sort((a,b)=>a[0].split('/').length-b[0].split('/').length)[0];
+ const skinIni=skinIniEntry;
  if(skinIni){
   const lines=new TextDecoder('utf-8').decode(skinIni[1]).replace(/^\uFEFF/,'').split(/\r?\n/);
   let section=null;
