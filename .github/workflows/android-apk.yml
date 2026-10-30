@@ -94,13 +94,14 @@ jobs:
           unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxxhdpi-v4/ic_launcher.png'
           unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher.xml'
           unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round.xml'
-      - name: Name APK 1.10.2
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.10.2-beta.apk
+          unzip -Z1 "$APK" | grep -Fq 'ic_launcher_foreground_art.png'
+      - name: Name APK 1.11.0
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.11.0-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.10.2-beta
-          path: osu-daily-tracker-v1.10.2-beta.apk
+          name: osu-daily-tracker-v1.11.0-beta
+          path: osu-daily-tracker-v1.11.0-beta.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -131,7 +132,7 @@ jobs:
       # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
   publish-release:
-    name: Publish osu! Daily Tracker 1.10.2 Beta
+    name: Publish osu! Daily Tracker 1.11.0 Beta
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
@@ -140,19 +141,19 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.10.2-beta
+          name: osu-daily-tracker-v1.11.0-beta
           path: dist
-      - name: Опубликовать бета-релиз 1.10.2
+      - name: Опубликовать бета-релиз 1.11.0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="v1.10.2-beta"
-          APK="dist/osu-daily-tracker-v1.10.2-beta.apk"
-          TITLE="osu! Daily Tracker 1.10.2 Beta"
+          TAG="v1.11.0-beta"
+          APK="dist/osu-daily-tracker-v1.11.0-beta.apk"
+          TITLE="osu! Daily Tracker 1.11.0 Beta"
           NOTES="$(cat <<'EOF'
-          Экспериментальный тестовый релиз osu! Daily Tracker 1.10.2-beta.
-          - Добавлен переключатель JS renderer на базе replayviewer-js. Это предварительная интеграция для ручного тестирования; старый рендерер остаётся доступен.
+          Экспериментальный тестовый релиз osu! Daily Tracker 1.11.0-beta.
+          - JS renderer на базе replayviewer-js автоматически включается после загрузки карты; переключение на старый рендерер остаётся доступно вручную.
           - Включён отдельный regression test адаптера replayviewer-js перед Android-сборкой.
           - Восстановлен Android APK workflow; сборка запускается при изменениях app/**, test-fixtures/** и самого workflow.
           - Область просмотра реплея ограничена шириной родительской панели, без выхода за края экрана.
@@ -165,10 +166,12 @@ jobs:
           - Убраны синтетические пронумерованные рецепторы: используются KeyImage/KeyImageD из скина.
           - Хитбар оставлен в старом рендерере и скрывается только в JS renderer.
           - Смена и сброс скина обновляют JS-сессию с сохранением текущей позиции и скорости Mania.
-          - Исправлены ресурсы иконки Android: PNG для всех плотностей, adaptive и monochrome варианты.
+          - Исправлена adaptive-иконка Android: foreground теперь использует фактический SVG-арт приложения, как и PNG для всех плотностей; добавлен foreground PNG для Android 8+.
           - HUD и эффекты попадания показывают judgement, а миллисекунды остаются в статистике.
           - Для Standard → Mania число колонок без key-count-мода теперь определяется по фактически используемым клавишам в .osr, а не по общей эвристике генератора.
           - Добавлены регрессионные проверки определения 4K/7K по битовой маске реплея и приоритету явного key-count-мода.
+          - Музыка из .osz включается по умолчанию и запускается вместе с реплеем.
+          - Сворачивание приложения больше не должно останавливать таймлайн при паузе аудио WebView; при возврате приложение синхронизирует музыку и продолжает просмотр.
           - Android-эмуляторная интеграционная проверка запускается отдельно после сборки; её результат не блокирует публикацию APK. Результат и диагностика доступны в GitHub Actions.
           EOF
           )"
@@ -337,7 +340,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.10.2-beta
+          name: android-emulator-diagnostics-v1.11.0-beta
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
