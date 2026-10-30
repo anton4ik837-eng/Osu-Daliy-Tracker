@@ -32,6 +32,9 @@ jobs:
       - name: Validate Mania key-count remapping (7K to 4K)
         working-directory: app
         run: npm run test:mania-key-remap
+      - name: Validate Standard to Mania conversion engine
+        working-directory: app
+        run: npm run test:standard-mania-conversion
       - name: Validate supplied replay, exact beatmap and nested mania skin fixtures
         working-directory: .
         run: node app/scripts/check-replay-fixtures.mjs
