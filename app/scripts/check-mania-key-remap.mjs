@@ -64,7 +64,7 @@ const conversionStart = html.indexOf('function standardManiaTargetColumns(');
 const conversionEnd = html.indexOf('function keyPresses(', conversionStart);
 if (conversionStart < 0 || conversionEnd < 0) throw new Error('Standard -> Mania converter not found');
 vm.runInContext(html.slice(conversionStart, conversionEnd) +
-  '\\nthis.standardManiaTargetColumns = standardManiaTargetColumns; this.convertStandardMapToMania = convertStandardMapToMania;', context);
+  '\nthis.standardManiaTargetColumns = standardManiaTargetColumns; this.convertStandardMapToMania = convertStandardMapToMania;', context);
 const standard = {
   mode: 0, keys: 5, cs: 5, od: 6,
   objects: [
