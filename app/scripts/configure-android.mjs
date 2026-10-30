@@ -13,7 +13,7 @@ try {
 // Force Android to use the custom launcher artwork, including the round-icon slot.
 xml = xml.replace(/<application\b([^>]*)>/, (match, attrs) => {
   let updated = attrs.replace(/\sandroid:icon="[^"]*"/, '').replace(/\sandroid:roundIcon="[^"]*"/, '');
-  return '<application' + updated + ' android:icon="@mipmap/ic_launcher_v11102" android:roundIcon="@mipmap/ic_launcher_round_v11102"' + '>';
+  return '<application' + updated + ' android:icon="@mipmap/ic_launcher_v11103" android:roundIcon="@mipmap/ic_launcher_round_v11103"' + '>';
 });
 if (!/android:scheme="osudailytracker"/.test(xml)) {
   const activityStart = xml.search(/<activity\b[^>]*android:name="[^"]*MainActivity"[^>]*>/);
@@ -49,8 +49,8 @@ const iconSvg=await readFile('www/icon.svg');
 for(const [density,size] of [['mdpi',48],['hdpi',72],['xhdpi',96],['xxhdpi',144],['xxxhdpi',192]]) {
   const dir=res+'/mipmap-'+density;
   await mkdir(dir,{recursive:true});
-  await sharp(iconSvg).resize(size,size,{fit:'contain'}).png().toFile(dir+'/ic_launcher_v11102.png');
-  await sharp(iconSvg).resize(size,size,{fit:'contain'}).png().toFile(dir+'/ic_launcher_round_v11102.png');
+  await sharp(iconSvg).resize(size,size,{fit:'contain'}).png().toFile(dir+'/ic_launcher_v11103.png');
+  await sharp(iconSvg).resize(size,size,{fit:'contain'}).png().toFile(dir+'/ic_launcher_round_v11103.png');
 }
 // Use the checked-in SVG artwork for Android adaptive icons too.
 // The previous hand-drawn vector was a different logo on Android 8+.
@@ -62,10 +62,10 @@ const foregroundPng=await sharp(Buffer.from(iconMarkup))
   .extend({top:86,bottom:86,left:86,right:86,background:{r:0,g:0,b:0,alpha:0}})
   .png().toBuffer();
 await mkdir(res+'/drawable-nodpi',{recursive:true});
-await writeFile(res+'/drawable-nodpi/ic_launcher_foreground_art_v11102.png',foregroundPng);
+await writeFile(res+'/drawable-nodpi/ic_launcher_foreground_art_v11103.png',foregroundPng);
 const foreground=[
 '<?xml version="1.0" encoding="utf-8"?>',
-'<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/ic_launcher_foreground_art_v11102" android:gravity="center"/>'
+'<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/ic_launcher_foreground_art_v11103" android:gravity="center"/>'
 ].join('\n');
 const monochrome=[
 '<?xml version="1.0" encoding="utf-8"?>',
@@ -75,18 +75,18 @@ const monochrome=[
 '<path android:fillColor="#000000" android:pathData="M270,196 L288,196 L288,242 C288,255 294,262 304,262 C315,262 321,254 321,241 L321,196 L339,196 L339,277 L322,277 L322,267 C315,275 306,280 295,279 C277,279 270,266 270,248 Z"/>',
 '</vector>'
 ].join('\n');
-await writeFile(res+'/drawable/ic_launcher_foreground_v11102.xml',foreground,'utf8');
-await writeFile(res+'/drawable/ic_launcher_monochrome_v11102.xml',monochrome,'utf8');
-await writeFile(res+'/values/ic_launcher_background_v11102.xml','<?xml version="1.0" encoding="utf-8"?><resources><color name="ic_launcher_background_v11102">#111026</color></resources>','utf8');
-const adaptiveIcon='<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background_v11102"/><foreground android:drawable="@drawable/ic_launcher_foreground_v11102"/><monochrome android:drawable="@drawable/ic_launcher_monochrome_v11102"/></adaptive-icon>';
-await writeFile(res+'/mipmap-anydpi-v26/ic_launcher_v11102.xml',adaptiveIcon,'utf8');
-await writeFile(res+'/mipmap-anydpi-v26/ic_launcher_round_v11102.xml',adaptiveIcon,'utf8');
+await writeFile(res+'/drawable/ic_launcher_foreground_v11103.xml',foreground,'utf8');
+await writeFile(res+'/drawable/ic_launcher_monochrome_v11103.xml',monochrome,'utf8');
+await writeFile(res+'/values/ic_launcher_background_v11103.xml','<?xml version="1.0" encoding="utf-8"?><resources><color name="ic_launcher_background_v11103">#111036</color></resources>','utf8');
+const adaptiveIcon='<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background_v11103"/><foreground android:drawable="@drawable/ic_launcher_foreground_v11103"/><monochrome android:drawable="@drawable/ic_launcher_monochrome_v11103"/></adaptive-icon>';
+await writeFile(res+'/mipmap-anydpi-v26/ic_launcher_v11103.xml',adaptiveIcon,'utf8');
+await writeFile(res+'/mipmap-anydpi-v26/ic_launcher_round_v11103.xml',adaptiveIcon,'utf8');
 console.log('Generated density-specific launcher PNGs and adaptive/monochrome Android icons.');
 
 const gradlePath='android/app/build.gradle';
 let gradle=await readFile(gradlePath,'utf8');
-gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 11102');
-gradle=gradle.replace(/versionName\s+['"][^'"]*['"]/, 'versionName "1.11.2-beta"');
+gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 11103');
+gradle=gradle.replace(/versionName\s+['"][^'"]*['"]/, 'versionName "1.11.3-beta"');
 const signingEnv=['ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD'];
 if(!signingEnv.every(key=>process.env[key])) {
   console.error('Stable APK signing is not configured. Add the four ANDROID_* GitHub Actions secrets before building Alpha.');
