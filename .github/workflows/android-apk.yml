@@ -80,12 +80,10 @@ jobs:
           name: osu-daily-tracker-v1.9.7
           path: osu-daily-tracker-v1.9.7.apk
           if-no-files-found: error
-      # Публикация запускается только отдельным коммитом с отметкой [publish],
-      # после сборки APK и успешной проверки в эмуляторе.
+      # APK публикуется автоматически после успешной сборки и проверки в эмуляторе.
 
   publish-release:
     name: Publish osu! Daily Tracker 1.9.7
-    if: contains(github.event.head_commit.message, '[publish]')
     needs: [build, emulator-smoke-test]
     runs-on: ubuntu-latest
     permissions:
