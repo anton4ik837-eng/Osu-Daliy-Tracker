@@ -144,7 +144,7 @@ if (remapped.keys !== 4 || remapped.originalKeys !== 7 ||
 }
 
 const layoutStart = html.indexOf('const ManiaPlayfieldLayout={');
-const layoutEnd = html.indexOf('\\n};', layoutStart) + 3;
+const layoutEnd = html.indexOf('\n};', layoutStart) + 3;
 if (layoutStart < 0 || layoutEnd <= layoutStart) {
   throw new Error('Mania playfield layout implementation must be available for execution tests');
 }
