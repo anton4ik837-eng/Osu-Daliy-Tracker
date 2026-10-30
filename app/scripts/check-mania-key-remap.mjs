@@ -2,13 +2,13 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const html = readFileSync(new URL('../www/replay.html', import.meta.url), 'utf8');
-const start = html.indexOf('function applyManiaKeyCount(');
+const start = html.indexOf('function resolveManiaKeyCount(');
 if (start < 0) throw new Error('applyManiaKeyCount() not found');
 const end = html.indexOf('\nfunction parseMap(', start);
 if (end < 0) throw new Error('Could not isolate applyManiaKeyCount()');
 const context = {};
 vm.createContext(context);
-vm.runInContext(html.slice(start, end) + '\nthis.applyManiaKeyCount = applyManiaKeyCount;', context);
+vm.runInContext(html.slice(start, end) + '\nthis.resolveManiaKeyCount = resolveManiaKeyCount; this.applyManiaKeyCount = applyManiaKeyCount;', context);
 const sevenToFour = { keys: 7, objects: Array.from({ length: 7 }, (_, lane) => ({ x: (lane + 0.5) * 512 / 7, column: lane, time: lane * 100 })) };
 context.applyManiaKeyCount(sevenToFour, 4);
 assert.equal(sevenToFour.keys, 4);
@@ -43,4 +43,13 @@ for (let sourceKeys = 1; sourceKeys <= 10; sourceKeys++) {
     matrixCases++;
   }
 }
-console.log('Mania key remap matrix OK: ' + matrixCases + ' source/target pairs, repeated application');
+// Verify every stable osu!mania key-mod bit, including K10 (bit 25).
+const keyModBits = [26, 28, 27, 15, 16, 17, 18, 19, 24, 25];
+for (let keys = 1; keys <= 10; keys++) {
+  const resolved = context.resolveManiaKeyCount(1 << keyModBits[keys - 1], [], 7);
+  assert.equal(resolved.keys, keys, keys + 'K mod bit resolution');
+  assert.equal(resolved.source, 'mod', keys + 'K mod source');
+}
+const tenthLaneFallback = context.resolveManiaKeyCount(0, [{ x: 1 << 9 }], 7);
+assert.equal(tenthLaneFallback.keys, 10, '10K fallback from tenth-lane input');
+console.log('Mania key remap matrix OK: ' + matrixCases + ' source/target pairs, repeated application; all 10 key-mod bits verified');
