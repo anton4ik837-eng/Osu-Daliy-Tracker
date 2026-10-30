@@ -42,11 +42,19 @@ const $=id=>document.getElementById(id);
 let activeSkin={name:'Встроенный вид',images:Object.create(null),urls:[],maniaSections:[]};
 let lastSkinDiagnostics=null;
 function skinImage(...names){
- const normalize=name=>String(name).replace(/\\/g,'/').split('/').pop().toLowerCase().replace(/\.(png|jpe?g|webp|gif|bmp)$/,'');
+ const normalizePath=name=>String(name).replace(/\\/g,'/').replace(/^\.\//,'').replace(/\.(png|jpe?g|webp|gif|bmp)$/i,'').toLowerCase();
+ const normalize=name=>normalizePath(name).split('/').pop();
  const lookup=key=>activeSkin.images[key+'@2x']||activeSkin.images[key]||(key.endsWith('@2x')?activeSkin.images[key.slice(0,-3)]:null)||null;
+ const lookupName=name=>{
+  const path=normalizePath(name),base=normalize(name),paths=activeSkin.imagePaths||{};
+  // skin.ini image values may be relative paths. Resolve the exact archive path
+  // first; basename lookup is only a compatibility fallback for old skins.
+  const exact=paths[path+'@2x']||paths[path]||(path.endsWith('@2x')?paths[path.slice(0,-3)]:null);
+  return exact||lookup(base);
+ };
  // Try every explicit alias first. Do not let a fuzzy lane match steal a better
  // same-lane fallback (for example note2H should prefer note2 over note1H).
- for(const name of names){const img=lookup(normalize(name));if(img)return img;}
+ for(const name of names){const img=lookupName(name);if(img)return img;}
  for(const name of names){
   const key=normalize(name).replace(/@2x$/,'');
   const match=key.match(/^(mania-note|mania-key)(\d+)([hld])?$/i);
@@ -104,24 +112,30 @@ async function loadOsuSkin(file){
  const loadedNames=[],pending=[];
  const skinIniEntry=Object.entries(entries).filter(([path])=>path.split('/').pop().toLowerCase()==='skin.ini').sort((a,b)=>a[0].split('/').length-b[0].split('/').length)[0];
  const skinRoot=skinIniEntry?skinIniEntry[0].replace(/\\/g,'/').replace(/[^/]+$/,''):'';
- const candidatePaths=new Map();
- // Keep both normal and @2x variants. Prefer root-level canonical textures
- // over preview/subfolder duplicates, but never discard the high-DPI asset.
- const candidates=new Map();
+ const candidatePaths=new Map(),candidates=new Map(),basenameWinners=new Map(),imagePaths=Object.create(null);
+ // Decode every distinct archive path so skin.ini values such as
+ // "mania/Key0" cannot accidentally resolve to a same-named preview texture.
+ // Keep a ranked basename winner only for legacy skins that refer to bare names.
  for(const [path,bytes] of imageFiles){
-  const clean=path.replace(/\\/g,'/'),basename=clean.split('/').pop().replace(/\.(png|jpe?g|webp|gif)$/i,'').toLowerCase();
-  const key=basename,insideSkinRoot=!skinRoot||clean.startsWith(skinRoot),rank=(insideSkinRoot?1000:0)+(clean.split('/').length===1?100:0)+(basename.endsWith('@2x')?10:0)-(clean.split('/').length*0.01);
-  const paths=candidatePaths.get(key)||[];paths.push(clean);candidatePaths.set(key,paths);
-  const prev=candidates.get(key);if(!prev||rank>prev.rank)candidates.set(key,{path:clean,bytes,rank});
+  const clean=path.replace(/\\/g,'/'),basename=clean.split('/').pop().replace(/\.(png|jpe?g|webp|gif|bmp)$/i,'').toLowerCase();
+  const insideSkinRoot=!skinRoot||clean.startsWith(skinRoot),rank=(insideSkinRoot?1000:0)+(clean.split('/').length===1?100:0)+(basename.endsWith('@2x')?10:0)-(clean.split('/').length*0.01);
+  const paths=candidatePaths.get(basename)||[];paths.push(clean);candidatePaths.set(basename,paths);
+  const relative=skinRoot&&clean.startsWith(skinRoot)?clean.slice(skinRoot.length):clean;
+  const pathKey=relative.replace(/\.(png|jpe?g|webp|gif|bmp)$/i,'').toLowerCase();
+  candidates.set(pathKey,{path:clean,relative:pathKey,basename,bytes});
+  const prev=basenameWinners.get(basename);if(!prev||rank>prev.rank)basenameWinners.set(basename,{path:clean,rank});
  }
- for(const [basename,item] of candidates){
-  const {path,bytes}=item,type=/\.jpe?g$/i.test(path)?'image/jpeg':(/\.webp$/i.test(path)?'image/webp':(/\.gif$/i.test(path)?'image/gif':'image/png'));
+ for(const [pathKey,item] of candidates){
+  const {path,relative,basename,bytes}=item,type=/\.jpe?g$/i.test(path)?'image/jpeg':(/\.webp$/i.test(path)?'image/webp':(/\.gif$/i.test(path)?'image/gif':'image/png'));
   const url=URL.createObjectURL(new Blob([bytes],{type}));urls.push(url);
   pending.push(new Promise(resolve=>{
    const img=new Image();let settled=false;
    const finish=ok=>{if(settled)return;settled=true;clearTimeout(timeout);img.onload=null;img.onerror=null;
-    if(ok&&img.naturalWidth&&img.naturalHeight){images[basename]=img;loadedNames.push(basename);resolve(true);}
-    else{diagLog('skin.image_decode_failed',{file:file.name,image:basename,path});resolve(false);}
+    if(ok&&img.naturalWidth&&img.naturalHeight){
+     imagePaths[relative]=img;imagePaths[path.replace(/\\/g,'/').replace(/\.(png|jpe?g|webp|gif|bmp)$/i,'').toLowerCase()]=img;
+     if(basenameWinners.get(basename)?.path===path)images[basename]=img;
+     loadedNames.push(pathKey);resolve(true);
+    }else{diagLog('skin.image_decode_failed',{file:file.name,image:basename,path});resolve(false);}
    };
    const timeout=setTimeout(()=>finish(false),15000);
    img.onload=()=>finish(true);img.onerror=()=>finish(false);img.src=url;
@@ -149,7 +163,7 @@ async function loadOsuSkin(file){
  const skinIniPath=skinIni?.[0]||null;
  lastSkinDiagnostics={file:file.name,archiveEntryCount:Object.keys(entries).length,imageEntryCount:imageFiles.length,decodedTextureCount:loadedNames.length,extensionCounts,skinIniPath,maniaSections,basenameCollisionCount:basenameCollisions.length,basenameCollisions:basenameCollisions.slice(0,200),textures:loadedNames.map(name=>({name,width:images[name]?.naturalWidth||0,height:images[name]?.naturalHeight||0})),imagePaths:imageFiles.map(([path])=>path).slice(0,1000),generatedAt:new Date().toISOString()};
  $('downloadSkinDiagnostics').disabled=false;
- activeSkin={name:file.name,images,urls,maniaSections};
+ activeSkin={name:file.name,images,imagePaths,urls,maniaSections};
  const relevant=loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|mania-|cursor)/i.test(n));
  const aliases=relevant.filter(n=>/^(hitcircle|approachcircle|sliderb|mania-note|mania-key)/i.test(n));
  const maniaAssets=loadedNames.filter(n=>/^mania-/i.test(n));const standardAssets=loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|cursor)/i.test(n));status.textContent='Скин загружен: '+file.name+' · текстур '+loadedNames.length+(maniaAssets.length?' · osu!mania текстур '+maniaAssets.length:' · В архиве не найдены файлы mania-*; это может быть не mania-скин')+'.';const preview=$('skinPreview');preview.replaceChildren();const previewGroups=[{title:'osu!mania',items:loadedNames.filter(n=>/^mania-/i.test(n)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).map(n=>[n,n])},{title:'osu!standard',items:loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|cursor)/i.test(n)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).map(n=>[n,n])}];for(const group of previewGroups){if(!group.items.length)continue;const heading=document.createElement('div');heading.textContent=group.title;heading.style.cssText='grid-column:1/-1;font-size:12px;font-weight:700;color:var(--text);margin-top:5px';preview.append(heading);for(const [label,key] of group.items){const img=skinImage(key);if(!img||!img.naturalWidth)continue;const tile=document.createElement('div');tile.style.cssText='min-width:0;text-align:center;color:var(--muted);font-size:10px';const thumb=document.createElement('img');thumb.src=img.src;thumb.alt=label;thumb.style.cssText='display:block;width:100%;height:58px;object-fit:contain;background:repeating-conic-gradient(#263343 0% 25%,#111a27 0% 50%) 0/12px 12px;border:1px solid var(--line);border-radius:8px;padding:4px';thumb.decoding='async';thumb.onerror=()=>{thumb.alt='Не удалось отобразить '+label;thumb.style.background='#4a1825'};const caption=document.createElement('div');caption.textContent=label;caption.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px';tile.append(thumb,caption);preview.append(tile)}}preview.style.display=preview.childElementCount?'grid':'none';
