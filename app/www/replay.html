@@ -133,8 +133,8 @@ async function loadOsuSkin(file){
    const finish=ok=>{if(settled)return;settled=true;clearTimeout(timeout);img.onload=null;img.onerror=null;
     if(ok&&img.naturalWidth&&img.naturalHeight){
      imagePaths[relative]=img;imagePaths[path.replace(/\\/g,'/').replace(/\.(png|jpe?g|webp|gif|bmp)$/i,'').toLowerCase()]=img;
-     if(basenameWinners.get(basename)?.path===path)images[basename]=img;
-     loadedNames.push(pathKey);resolve(true);
+     if(basenameWinners.get(basename)?.path===path){images[basename]=img;loadedNames.push(basename);}
+     resolve(true);
     }else{diagLog('skin.image_decode_failed',{file:file.name,image:basename,path});resolve(false);}
    };
    const timeout=setTimeout(()=>finish(false),15000);
