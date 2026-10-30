@@ -80,6 +80,9 @@ jobs:
           packages: 'platform-tools emulator system-images;android-34;default;x86_64'
           accept-android-sdk-licenses: true
 
+      - name: Add Android emulator to PATH
+        run: echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
+
       - name: Boot Android emulator
         timeout-minutes: 10
         run: |
