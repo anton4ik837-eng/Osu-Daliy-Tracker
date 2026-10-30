@@ -136,7 +136,7 @@ async function loadOsuSkin(file){
  const relevant=loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|mania-|cursor)/i.test(n));
  const aliases=relevant.filter(n=>/^(hitcircle|approachcircle|sliderb|mania-note|mania-key)/i.test(n));
  const maniaAssets=loadedNames.filter(n=>/^mania-/i.test(n));const standardAssets=loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|cursor)/i.test(n));status.textContent='Скин загружен: '+file.name+' · текстур '+loadedNames.length+(maniaAssets.length?' · osu!mania текстур '+maniaAssets.length:' · В архиве не найдены файлы mania-*; это может быть не mania-скин')+'.';const preview=$('skinPreview');preview.replaceChildren();const previewGroups=[{title:'osu!mania',items:loadedNames.filter(n=>/^mania-/i.test(n)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).map(n=>[n,n])},{title:'osu!standard',items:loadedNames.filter(n=>/^(hitcircle|hitcircleoverlay|approachcircle|sliderb\d*|sliderfollowcircle|sliderstartcircle|sliderendcircle|spinner-|cursor)/i.test(n)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).map(n=>[n,n])}];for(const group of previewGroups){if(!group.items.length)continue;const heading=document.createElement('div');heading.textContent=group.title;heading.style.cssText='grid-column:1/-1;font-size:12px;font-weight:700;color:var(--text);margin-top:5px';preview.append(heading);for(const [label,key] of group.items){const img=skinImage(key);if(!img||!img.naturalWidth)continue;const tile=document.createElement('div');tile.style.cssText='min-width:0;text-align:center;color:var(--muted);font-size:10px';const thumb=document.createElement('img');thumb.src=img.src;thumb.alt=label;thumb.style.cssText='display:block;width:100%;height:58px;object-fit:contain;background:repeating-conic-gradient(#263343 0% 25%,#111a27 0% 50%) 0/12px 12px;border:1px solid var(--line);border-radius:8px;padding:4px';thumb.decoding='async';thumb.onerror=()=>{thumb.alt='Не удалось отобразить '+label;thumb.style.background='#4a1825'};const caption=document.createElement('div');caption.textContent=label;caption.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px';tile.append(thumb,caption);preview.append(tile)}}preview.style.display=preview.childElementCount?'grid':'none';
- skinDrawStats={stretch:0,center:0,misses:0,lastMissing:[]};diagLog('skin.loaded',{file:file.name,imageCount:loadedNames.length,archiveEntryCount:lastSkinDiagnostics.archiveEntryCount,imageEntryCount:imageFiles.length,maniaImageCount:maniaAssets.length,extensionCounts,skinIniPath,basenameCollisionCount:basenameCollisions.length,basenameCollisions:basenameCollisions.slice(0,80),maniaSections,allImageNames:loadedNames.slice(0,200),sampleDimensions:loadedNames.slice(0,40).map(name=>({name,width:images[name]?.naturalWidth||0,height:images[name]?.naturalHeight||0})),relevant:relevant.slice(0,80)});
+ skinDrawStats={stretch:0,center:0,misses:0,maniaHeads:0,maniaBodies:0,maniaKeys:0,lastMissing:[]};diagLog('skin.loaded',{file:file.name,imageCount:loadedNames.length,archiveEntryCount:lastSkinDiagnostics.archiveEntryCount,imageEntryCount:imageFiles.length,maniaImageCount:maniaAssets.length,extensionCounts,skinIniPath,basenameCollisionCount:basenameCollisions.length,basenameCollisions:basenameCollisions.slice(0,80),maniaSections,allImageNames:loadedNames.slice(0,200),sampleDimensions:loadedNames.slice(0,40).map(name=>({name,width:images[name]?.naturalWidth||0,height:images[name]?.naturalHeight||0})),relevant:relevant.slice(0,80)});
  if(playMap){drawPlayfield();drawHitbar();}
 }
 $('skinFile')?.addEventListener('change',async e=>{const file=e.target.files?.[0];if(file)await loadOsuSkin(file);e.target.value=''});
@@ -329,12 +329,18 @@ const ManiaSkinResolver={
 };
 const ManiaPlayfieldLayout={
  create(width,height,keyCount,cfg){
-  const keys=Math.max(1,Number(keyCount)||4),scale=Math.min(height/480,width/512);
-  const stageWidth=512*scale,stageLeft=(width-stageWidth)/2;
-  const widths=Array.from({length:keys},(_,i)=>Math.max(1,(cfg.columnwidth?.[i]??cfg.columnwidth?.[0]??30)*scale));
-  const gaps=Array.from({length:Math.max(0,keys-1)},(_,i)=>Math.max(0,(cfg.columnspacing?.[i]??cfg.columnspacing?.[0]??0)*scale));
+  const keys=Math.max(1,Number(keyCount)||4);
+  const rawWidths=Array.from({length:keys},(_,i)=>Math.max(1,Number(cfg.columnwidth?.[i]??cfg.columnwidth?.[0]??30)));
+  const rawGaps=Array.from({length:Math.max(0,keys-1)},(_,i)=>Math.max(0,Number(cfg.columnspacing?.[i]??cfg.columnspacing?.[0]??0)));
+  const contentWidth=rawWidths.reduce((a,b)=>a+b,0)+rawGaps.reduce((a,b)=>a+b,0);
+  const scale=Math.min(height/480,width/Math.max(512,contentWidth));
+  const stageWidth=Math.max(512,contentWidth)*scale,stageLeft=(width-stageWidth)/2;
+  const widths=rawWidths.map(value=>Math.max(1,value*scale));
+  const gaps=rawGaps.map(value=>Math.max(0,value*scale));
   const total=widths.reduce((a,b)=>a+b,0)+gaps.reduce((a,b)=>a+b,0);
-  const configuredStart=(Number.isFinite(cfg.columnstart)?cfg.columnstart:((512-total/scale)/2))*scale;
+  const configured=Number.isFinite(cfg.columnstart)?cfg.columnstart:NaN;
+  const configuredFits=Number.isFinite(configured)&&configured>0&&configured+contentWidth<=Math.max(512,contentWidth);
+  const configuredStart=configuredFits?configured*scale:(stageWidth-total)/2;
   const origin=stageLeft+configuredStart;
   const columns=[];let x=origin;
   for(let i=0;i<keys;i++){columns.push({x,width:widths[i],center:x+widths[i]/2});x+=widths[i]+(gaps[i]||0);}
@@ -385,22 +391,30 @@ const ManiaNoteRenderer={
    const x=col.x+col.width*.08,nw=col.width*.84;
    const headY=layout.hitY-(obj.time-now)*scale,endY=layout.hitY-(obj.endTime-now)*scale;
    if(obj.type==='hold'){
-    const top=Math.max(-4,Math.min(headY,endY)),bottom=Math.min(layout.hitY,Math.max(headY,endY));
+    const top=Math.max(0,Math.min(headY,endY)),bottom=Math.min(ctx.canvas.height,Math.max(headY,endY));
     if(bottom>top){
      const body=ManiaSkinResolver.note(obj.column,'body');
-     if(body?.complete&&body.naturalWidth){
+     if(body?.complete&&body.naturalWidth&&body.naturalHeight){
       const bodyWidth=Math.min(nw,body.naturalWidth*layout.scale),bx=col.center-bodyWidth/2;
-      ctx.drawImage(body,bx,top,bodyWidth,bottom-top);skinDrawStats.maniaBodies++;
+      ctx.save();ctx.beginPath();ctx.rect(col.x,0,col.width,ctx.canvas.height);ctx.clip();
+      ctx.drawImage(body,bx,top,bodyWidth,bottom-top);ctx.restore();skinDrawStats.maniaBodies++;
      }else{
       ctx.fillStyle='rgba(87,201,232,.62)';ctx.fillRect(x,top,nw,bottom-top);
       ctx.strokeStyle='#a9e7ff';ctx.strokeRect(x,top,nw,bottom-top);
      }
     }
+    const tailY=endY,tail=ManiaSkinResolver.note(obj.column,'tail');
+    if(tailY>=-48&&tailY<=ctx.canvas.height+48&&tail?.complete&&tail.naturalWidth&&tail.naturalHeight){
+     const maxW=col.width*.92,maxH=col.width*.92,ratio=tail.naturalWidth/tail.naturalHeight;
+     const drawW=Math.min(maxW,maxH*ratio),drawH=drawW/ratio;
+     ctx.drawImage(tail,col.center-drawW/2,tailY-drawH/2,drawW,drawH);
+    }
    }
    if(headY>=-48&&headY<=layout.hitY+24){
     const head=ManiaSkinResolver.note(obj.column,obj.type==='hold'?'head':'');
     if(head?.complete&&head.naturalWidth&&head.naturalHeight){
-     const ratio=head.naturalWidth/head.naturalHeight,drawH=col.width*.92,drawW=drawH*ratio;
+     const maxW=col.width*.92,maxH=col.width*.92,ratio=head.naturalWidth/head.naturalHeight;
+     const drawW=Math.min(maxW,maxH*ratio),drawH=drawW/ratio;
      ctx.drawImage(head,col.center-drawW/2,headY-drawH/2,drawW,drawH);skinDrawStats.maniaHeads++;
     }else{
      ctx.beginPath();ctx.arc(col.center,headY,col.width*.34,0,Math.PI*2);ctx.fillStyle=headY<layout.hitY?'#57c9e8':'#42d392';ctx.fill();
@@ -417,7 +431,7 @@ function drawPlayfield(){const c=$('playfield');if(!c||!playMap)return;const ctx
  const layout=ManiaPlayfieldLayout.create(w,h,keys,cfg);
  const approach=2400/maniaScrollSpeed,scrollScale=(layout.hitY-24)/approach;
  ManiaStageRenderer.draw(ctx,layout,cfg,h);
- const visible=playMap.objects.filter(o=>o.time>=playerNow-350&&o.time<=playerNow+approach).sort((a,b)=>a.time-b.time);
+ const visible=playMap.objects.filter(o=>(o.time>=playerNow-350||(o.type==='hold'&&o.endTime>=playerNow-350))&&o.time<=playerNow+approach).sort((a,b)=>a.time-b.time);
  ManiaNoteRenderer.draw(ctx,visible,layout,playerNow,scrollScale);
  for(const r of (analysis?.rows||[])){
   const col=layout.columns[Math.max(0,Math.min(keys-1,Number(r.lane)||0))];if(!col)continue;
