@@ -183,6 +183,13 @@ export async function createReplayRendererSession({
       const presentationMs = (Number(mapTimeMs) - session.timeMapper.introOffsetMs) / session.timeMapper.speed;
       session.player.seek(Math.max(0, Math.min(session.player.durationMs, presentationMs)));
     },
+    setManiaScrollSpeed(multiplier) {
+      if (destroyed || session.mode !== 3) return;
+      const factor = Math.max(0.5, Math.min(2, Number(multiplier) || 1));
+      session.renderer.options.maniaScrollSpeed = Math.max(1, Math.min(40, Math.round(20 * factor)));
+      const mapTimeMs = session.timeMapper.toMapTime(session.player.currentTimeMs);
+      session.renderer.renderFrameAt(mapTimeMs);
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;
