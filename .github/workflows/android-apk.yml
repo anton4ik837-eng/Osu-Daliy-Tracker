@@ -170,58 +170,16 @@ jobs:
           name: osu-daily-tracker-ci-test-apk
           path: dist
 
-      - name: Install emulator and system image
+      - name: Install emulator runtime and OCR
         run: |
-          set -euxo pipefail
-          # Android Emulator QEMU requires PulseAudio runtime libraries on Ubuntu.
           sudo apt-get update
           sudo apt-get install -y libpulse0 tesseract-ocr tesseract-ocr-rus
-          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
-          # GITHUB_PATH only affects later steps; export paths for this shell too.
-          export PATH="$SDK_ROOT/platform-tools:$SDK_ROOT/emulator:$PATH"
-          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-          test -x "$SDKMANAGER"
-          # avdmanager lives beside sdkmanager under cmdline-tools/<version>/bin.
-          CMDLINE_TOOLS_BIN="$(dirname "$SDKMANAGER")"
-          echo "$CMDLINE_TOOLS_BIN" >> "$GITHUB_PATH"
-          export PATH="$CMDLINE_TOOLS_BIN:$PATH"
-          # Use a real read-only command as the smoke check; --help may exit 1 on some SDK tools builds.
-          avdmanager list avd >/dev/null
-          # sdkmanager exits after accepting licenses, which closes the pipe;
-          # with pipefail enabled, `yes` can exit 141 and falsely fail the step.
-          set +e
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null
-          license_status=${PIPESTATUS[1]}
-          set -e
-          if [ "$license_status" -ne 0 ]; then
-            echo "::error::sdkmanager --licenses failed with exit code $license_status"
-            exit "$license_status"
-          fi
-          install_sdk_package() {
-            local package="$1"
-            local attempt
-            for attempt in 1 2 3; do
-              echo "::group::Install $package (attempt $attempt/3)"
-              if "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install --verbose "$package"; then
-                echo "::endgroup::"
-                return 0
-              fi
-              echo "::endgroup::"
-              echo "::warning::SDK package installation failed for $package (attempt $attempt/3); clearing partial SDK downloads before retry."
-              rm -rf "$SDK_ROOT/.temp" "$HOME/.android/cache"
-              sleep $((attempt * 5))
-            done
-            echo "::error::Could not install SDK package $package after 3 attempts."
-            return 1
-          }
-          install_sdk_package "platform-tools"
-          install_sdk_package "emulator"
-          install_sdk_package "system-images;android-34;default;x86_64"
-          adb version
-          emulator -version
+
+      - name: Set up Android SDK packages
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools, emulator, system-images;android-34;default;x86_64'
+          accept-android-sdk-licenses: true
 
       - name: Create and start emulator with bounded startup
         timeout-minutes: 7
