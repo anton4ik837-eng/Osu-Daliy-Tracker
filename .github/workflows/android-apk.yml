@@ -104,7 +104,7 @@ jobs:
           prerelease: false
           generate_release_notes: false
           body: |
-            Beta build of osu! Daily Tracker 1.9.6.
+            Обновление osu! Daily Tracker 1.9.7.
             - Улучшена загрузка скинов из архивов и папок.
             - Добавлена обработка вложенных архивов и BMP-текстур.
             - Перед публикацией APK проходит автоматическую проверку и запуск в Android-эмуляторе.
