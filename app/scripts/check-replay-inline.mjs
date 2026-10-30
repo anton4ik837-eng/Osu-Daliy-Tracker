@@ -108,6 +108,16 @@ if (!/width:100%/.test(playfieldCss) || !/max-width:920px/.test(playfieldCss) ||
   throw new Error('Replay viewport must stay inside its panel on narrow screens; standard and Mania stages must use responsive container widths');
 }
 
+if (html.includes('id="hitbar"') || html.includes('function drawHitbar')) {
+  throw new Error('The custom hitbar must be removed from the replay player');
+}
+const stageClose = html.indexOf('</div></div><div class="hud-stats">');
+if (stageClose < 0) {
+  throw new Error('Replay statistics must be placed below the playfield, not over it');
+}
+if (!html.includes('id="speedSlider" type="range" min="0.5" max="2"')) {
+  throw new Error('Mania scroll speed must expose the supported 0.5x–2x range');
+}
 if (!html.includes('maniaMode?640:384') || !html.includes('const scale=Math.min(width/stageBaseWidth,height/480)') || !html.includes('value*scale') || !html.includes('aspect-ratio:4/5')) {
   throw new Error('Mania playfield must use a tall phone-friendly viewport and preserve the original osu!mania aspect ratio with uniform scaling');
 }
