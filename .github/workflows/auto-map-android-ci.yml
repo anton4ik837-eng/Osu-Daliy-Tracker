@@ -20,8 +20,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: auto-map-android-qa
-  cancel-in-progress: true
+  group: auto-map-android-qa-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   android-auto-map:
