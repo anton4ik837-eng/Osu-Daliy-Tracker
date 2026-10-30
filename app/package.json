@@ -4,11 +4,12 @@
   "private": true,
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
-    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js",
+    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js && esbuild mania-converter.js --bundle --format=iife --outfile=www/mania-converter.bundle.js",
     "test:replay-inline": "node scripts/check-replay-inline.mjs",
     "configure:android": "node scripts/configure-android.mjs",
     "test:mania-key-remap": "node scripts/check-mania-key-remap.mjs",
-    "test": "npm run test:replay-inline && npm run test:mania-key-remap"
+    "test": "npm run test:replay-inline && npm run test:mania-key-remap && npm run test:standard-mania-conversion",
+    "test:standard-mania-conversion": "node scripts/check-standard-mania-conversion.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
@@ -16,7 +17,10 @@
     "@capacitor/app": "^7.0.0",
     "@capacitor/browser": "^7.0.0",
     "@capacitor/filesystem": "^7.1.4",
-    "@capacitor/share": "^7.0.2"
+    "@capacitor/share": "^7.0.2",
+    "osu-classes": "^3.1.0",
+    "osu-mania-stable": "^5.0.1",
+    "osu-parsers": "^4.1.7"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
