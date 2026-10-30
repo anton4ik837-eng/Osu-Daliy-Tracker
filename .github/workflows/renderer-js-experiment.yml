@@ -1,0 +1,39 @@
+name: Experimental replayviewer renderer
+
+on:
+  push:
+    branches: [renderer-js-experiment]
+    paths:
+      - 'app/**'
+      - '.github/workflows/renderer-js-experiment.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: replayviewer-experiment-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  renderer-adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: app
+        run: npm install
+      - name: Run existing and renderer adapter regression tests
+        working-directory: app
+        run: npm test
+      - name: Build browser bundles
+        working-directory: app
+        run: npm run build
+      - name: Verify renderer bundle was generated
+        working-directory: app
+        run: test -s www/replay-renderer.bundle.js
