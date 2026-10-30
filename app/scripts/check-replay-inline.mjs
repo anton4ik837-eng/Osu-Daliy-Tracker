@@ -129,8 +129,8 @@ if (!html.includes("audioEnabled=true") ||
     !html.includes("Музыка включится автоматически при запуске реплея")) {
   throw new Error('Audio from a loaded beatmap archive must be enabled by default');
 }
-if (!html.includes('function startReplayAudio(') || !html.includes("element.addEventListener('loadedmetadata',seek,{once:true})") || !html.includes("diagLog('audio.play_rejected'") || html.includes('await audioElement.play()')) {
-  throw new Error('Replay audio must start directly from the Play gesture, seek safely after metadata, and log real playback failures');
+if (!html.includes('function startReplayAudio(') || !html.includes("element.addEventListener('loadedmetadata',seek,{once:true})") || !html.includes("element.addEventListener('playing',confirmPlaying,{once:true})") || !html.includes("diagLog('audio.play_promise_resolved'") || !html.includes("diagLog('audio.start_timeout'") || !html.includes("audioStartPending=false;audioEnabled=false") || html.includes('await audioElement.play()')) {
+  throw new Error('Replay audio must start from the Play gesture, seek after metadata, wait for the real playing event, and diagnose startup timeouts/rejections');
 }
 if (!html.includes('function pausePlaybackForBackground(') ||
     !html.includes("if(appIsBackgrounded)pausePlaybackForBackground('document.visibilitychange')") ||
