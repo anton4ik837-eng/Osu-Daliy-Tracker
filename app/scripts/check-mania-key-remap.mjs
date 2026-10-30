@@ -58,4 +58,30 @@ assert.deepEqual(Array.from(sequential.objects, object => object.column), [0, 0,
 assert.equal(sequential.originalKeys, 7);
 const tenthLaneFallback = context.resolveManiaKeyCount(0, [{ x: 1 << 9 }], 7);
 assert.equal(tenthLaneFallback.keys, 10, '10K fallback from tenth-lane input');
-console.log('Mania key remap matrix OK: ' + matrixCases + ' source/target pairs, repeated application; all 10 key-mod bits verified');
+
+// Standard -> Mania conversion: default column heuristic and object conversion.
+const conversionStart = html.indexOf('function standardManiaTargetColumns(');
+const conversionEnd = html.indexOf('function keyPresses(', conversionStart);
+if (conversionStart < 0 || conversionEnd < 0) throw new Error('Standard -> Mania converter not found');
+vm.runInContext(html.slice(conversionStart, conversionEnd) +
+  '\\nthis.standardManiaTargetColumns = standardManiaTargetColumns; this.convertStandardMapToMania = convertStandardMapToMania;', context);
+const standard = {
+  mode: 0, keys: 5, cs: 5, od: 6,
+  objects: [
+    { time: 0, endTime: 0, type: 'circle', x: 32, y: 100 },
+    { time: 250, endTime: 900, type: 'slider', x: 480, y: 200 },
+    { time: 500, endTime: 1800, type: 'spinner', x: 256, y: 192 },
+    { time: 750, endTime: 750, type: 'circle', x: 256, y: 300 },
+  ],
+};
+assert.equal(context.standardManiaTargetColumns(standard), 7, 'standard conversion default key count');
+const converted = context.convertStandardMapToMania(standard, 4);
+assert.equal(converted.mode, 3, 'converted ruleset');
+assert.equal(converted.keys, 4, 'target key count');
+assert.equal(converted.convertedFromMode, 0, 'source ruleset metadata');
+assert.deepEqual(Array.from(converted.objects, o => o.type), ['note', 'hold', 'hold', 'note']);
+assert.ok(converted.objects.every(o => o.column >= 0 && o.column < 4), 'converted lanes stay in target range');
+assert.equal(converted.objects[1].endTime, 900, 'slider duration retained as hold');
+assert.equal(converted.objects[2].endTime, 1800, 'spinner duration retained as hold');
+assert.equal(converted.objects.length, standard.objects.length, 'conversion preserves source object count');
+console.log('Mania key remap + Standard conversion OK: ' + matrixCases + ' source/target pairs, repeated application; all 10 key-mod bits verified');
