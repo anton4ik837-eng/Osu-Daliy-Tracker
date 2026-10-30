@@ -21,7 +21,7 @@ permissions:
 
 concurrency:
   group: auto-map-android-qa
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   android-auto-map:
@@ -69,22 +69,16 @@ jobs:
           mkdir -p ../../qa-results
           cp app/build/outputs/apk/debug/app-debug.apk ../../qa-results/replay-lab-qa.apk
 
-      - name: Install Android emulator tools
+      - name: Install emulator runtime and OCR
         run: |
-          set -euxo pipefail
           sudo apt-get update
           sudo apt-get install -y libpulse0 tesseract-ocr tesseract-ocr-rus
-          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
-          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-          test -x "$SDKMANAGER"
-          SDK_BIN="$(dirname "$SDKMANAGER")"
-          echo "$SDK_BIN" >> "$GITHUB_PATH"
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
-          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "platform-tools" "emulator" "system-images;android-34;default;x86_64"
-          adb version
-          emulator -version
+
+      - name: Set up Android SDK packages
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools, emulator, system-images;android-34;default;x86_64'
+          accept-android-sdk-licenses: true
 
       - name: Boot Android emulator
         timeout-minutes: 10
