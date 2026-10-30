@@ -19,4 +19,28 @@ context.applyManiaKeyCount(fourToFour, 4);
 assert.deepEqual(Array.from(fourToFour.objects, o => o.column), [0,1,2,3]);
 context.applyManiaKeyCount(sevenToFour, 4);
 assert.deepEqual(Array.from(sevenToFour.objects, o => o.column), [0,0,1,1,2,2,3]);
-console.log('Mania key remap regression OK: 7K -> 4K, unchanged 4K, idempotent remap');
+// Exercise every source/target key-count pair, including repeated application.
+let matrixCases = 0;
+for (let sourceKeys = 1; sourceKeys <= 10; sourceKeys++) {
+  for (let targetKeys = 1; targetKeys <= 10; targetKeys++) {
+    const map = {
+      keys: sourceKeys,
+      objects: Array.from({ length: sourceKeys }, (_, lane) => ({
+        x: (lane + 0.5) * 512 / sourceKeys,
+        column: lane,
+        time: lane * 100,
+      })),
+    };
+    context.applyManiaKeyCount(map, targetKeys);
+    const firstPass = Array.from(map.objects, object => object.column);
+    context.applyManiaKeyCount(map, targetKeys);
+    const secondPass = Array.from(map.objects, object => object.column);
+    const expected = Array.from({ length: sourceKeys }, (_, lane) => Math.floor(lane * targetKeys / sourceKeys));
+    assert.equal(map.keys, targetKeys, sourceKeys + 'K -> ' + targetKeys + 'K target count');
+    assert.deepEqual(firstPass, expected, sourceKeys + 'K -> ' + targetKeys + 'K first pass');
+    assert.deepEqual(secondPass, expected, sourceKeys + 'K -> ' + targetKeys + 'K repeated pass');
+    assert.ok(map.objects.every(object => object.column >= 0 && object.column < targetKeys), sourceKeys + 'K -> ' + targetKeys + 'K lane bounds');
+    matrixCases++;
+  }
+}
+console.log('Mania key remap matrix OK: ' + matrixCases + ' source/target pairs, repeated application');
