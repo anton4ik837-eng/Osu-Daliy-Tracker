@@ -29,6 +29,9 @@ jobs:
       - name: Validate Replay Lab JavaScript syntax
         working-directory: app
         run: npm run test:replay-inline
+      - name: Validate Mania key-count remapping (7K to 4K)
+        working-directory: app
+        run: npm run test:mania-key-remap
       - name: Validate supplied replay, exact beatmap and nested mania skin fixtures
         working-directory: .
         run: node app/scripts/check-replay-fixtures.mjs
