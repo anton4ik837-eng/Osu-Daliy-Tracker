@@ -80,7 +80,7 @@ jobs:
           name: osu-daily-tracker-v1.9.6-beta
           path: osu-daily-tracker-v1.9.6-beta.apk
           if-no-files-found: error
-      # Do not publish every alpha branch build to the fixed v1.9.4 release.
+      # Publish only the explicitly marked 1.9.6 beta build after emulator verification.
       # CI APKs stay in the workflow artifact; release publishing is deliberately separate.
 
   publish-beta-release:
@@ -224,7 +224,7 @@ jobs:
       - name: Install, launch and capture app
         run: |
           set -euxo pipefail
-          adb -e install -r dist/osu-daily-tracker-v1.9.4.apk
+          adb -e install -r dist/osu-daily-tracker-v1.9.6-beta.apk
           adb -e logcat -c
           adb -e shell monkey -p com.osudailytracker.app 1
           sleep 20
@@ -266,7 +266,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.9.4
+          name: android-emulator-diagnostics-v1.9.6-beta
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
