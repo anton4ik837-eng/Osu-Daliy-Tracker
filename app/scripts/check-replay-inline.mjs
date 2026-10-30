@@ -102,6 +102,12 @@ if (!html.includes("activeSkin.name==='Встроенный вид'")) {
 if (html.includes('ctx.arc(col.center,layout.scoreY')) {
   throw new Error('Missing judgement textures must not be replaced with synthetic circles');
 }
+const playfieldCss = html.match(/\.playfield-stage\{([^}]*)\}/)?.[1] || '';
+const maniaStageCss = html.match(/\.playfield-stage\.mania-stage\{([^}]*)\}/)?.[1] || '';
+if (!/width:100%/.test(playfieldCss) || !/max-width:920px/.test(playfieldCss) || /100vw|calc\(50% - 50vw\)/.test(playfieldCss) || !/width:100%/.test(maniaStageCss) || !/max-width:640px/.test(maniaStageCss)) {
+  throw new Error('Replay viewport must stay inside its panel on narrow screens; standard and Mania stages must use responsive container widths');
+}
+
 if (!html.includes('maniaMode?640:384') || !html.includes('const scale=Math.min(width/stageBaseWidth,height/480)') || !html.includes('value*scale') || !html.includes('aspect-ratio:4/5')) {
   throw new Error('Mania playfield must use a tall phone-friendly viewport and preserve the original osu!mania aspect ratio with uniform scaling');
 }
