@@ -320,11 +320,16 @@ const ManiaSkinResolver={
  note(lane,part=''){
   const n=Number(lane)+1,legacy=Number(lane)<2?String(n):'1';
   const suffix=part==='head'?'H':part==='tail'?'T':part==='body'?'L':'';
-  return this.image(['mania-note'+n+suffix,'mania-note'+n,'note'+(suffix==='H'?'HT':suffix==='L'?'L':suffix==='T'?'T':'')+legacy,'note'+legacy]);
+  const cfg=maniaSkinSettings();
+  // skin.ini's noteimageN/H/L/T entries are authoritative. Many skins use
+  // folder paths such as "Arrownote\\note" rather than note1/mania-note1.
+  const configured=cfg['noteimage'+Number(lane)+suffix]||cfg['noteimage'+Number(lane)];
+  return this.image([configured,'mania-note'+n+suffix,'mania-note'+n,'note'+(suffix==='H'?'HT':suffix==='L'?'L':suffix==='T'?'T':'')+legacy,'note'+legacy]);
  },
  key(lane,pressed=false){
-  const n=Number(lane)+1,legacy=Number(lane)<2?String(n):'1';
-  return this.image(['mania-key'+n+(pressed?'D':''),'mania-key'+n,'key'+legacy+(pressed?'D':''),'key'+legacy]);
+  const n=Number(lane)+1,legacy=Number(lane)<2?String(n):'1',cfg=maniaSkinSettings();
+  const configured=pressed?(cfg['keyimage'+Number(lane)+'d']||cfg['keyimage'+Number(lane)]):cfg['keyimage'+Number(lane)];
+  return this.image([configured,'mania-key'+n+(pressed?'D':''),'mania-key'+n,'key'+legacy+(pressed?'D':''),'key'+legacy]);
  }
 };
 const ManiaPlayfieldLayout={
