@@ -1,6 +1,6 @@
 {
   "name": "osu-daily-tracker-app",
-  "version": "1.10.1-beta",
+  "version": "1.10.2-beta",
   "private": true,
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "sharp": "^0.34.3"
   }
 }
