@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10141d"><title>Replay Lab · Beta 1.11.2 Beta</title>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10141d"><title>Replay Lab · Beta 1.11.3 Beta</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--panel:#141b28;--line:#2d4054;--ice:#a9e7ff;--cyan:#57c9e8;--text:#f0f6ff;--muted:#91a3b9;--green:#42d392;--yellow:#f5c451;--red:#ff637d}*{box-sizing:border-box}body{margin:0;padding-top:env(safe-area-inset-top,0px);background:radial-gradient(ellipse at 80% 0%,#24384d 0,transparent 40%),var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}.wrap{max-width:1100px;margin:auto;padding:12px 22px 22px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;padding:4px 0 10px;color:var(--muted);font-size:11px;letter-spacing:.16em}.top a{color:var(--ice);text-decoration:none}.hero,.panel{background:#141b28eF;border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:16px}.eyebrow{color:var(--cyan);font-size:10px;letter-spacing:.22em}.hero h1{font-size:clamp(30px,5vw,48px);line-height:1;margin:12px 0}.muted,.hint{color:var(--muted);font-size:13px}.uploads{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.upload{border:1px dashed #4b6b82;border-radius:14px;padding:16px;background:#101722}.upload label{display:block;font-weight:700;margin-bottom:8px}.upload input{max-width:100%;width:100%;color:var(--muted)}input[type=file]{display:block;min-height:48px;padding:10px;border:1px solid #4b6b82;border-radius:10px;background:#0b111b;cursor:pointer;touch-action:manipulation}input[type=file]::file-selector-button{margin-right:10px;border:1px solid #4e7189;border-radius:8px;background:#183043;color:var(--ice);padding:8px 10px;font:inherit;cursor:pointer}button{border:1px solid #4e7189;border-radius:10px;background:#183043;color:var(--ice);font:inherit;font-weight:700;padding:10px 14px;cursor:pointer}button:disabled{opacity:.5;cursor:wait}button:focus,button:focus-visible,button:active{outline:none;box-shadow:none}button{-webkit-tap-highlight-color:transparent}a{-webkit-tap-highlight-color:transparent}.status{margin-top:14px;padding:12px 14px;background:#101722;border-radius:10px;color:var(--muted);white-space:pre-wrap}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
  .playfield-stage{position:relative;width:100%;max-width:920px;aspect-ratio:4/3;margin:0 auto;overflow:hidden;background:#071522;isolation:isolate}
@@ -32,7 +32,7 @@
 <section class="panel" id="critiquePanel" hidden><h2>Что получилось хорошо и что просело</h2><div id="critiqueContent"></div></section>
 <section class="panel" id="playerPanel" class="player-panel-target" hidden><h2>Просмотр рана</h2><div id="playfieldStage" class="playfield-stage"><canvas id="playfield" width="512" height="384" class="standard-field"></canvas><div id="replayHud" class="replay-hud" aria-hidden="true"><div class="hud-meter-wrap"><div class="hud-meter" id="hudMeter"><span class="hud-meter-marker" id="hudMeterMarker" hidden></span></div><span class="hud-meter-label top">EARLY</span><span class="hud-meter-label mid">0</span><span class="hud-meter-label bottom">LATE</span></div><div class="hud-current" id="hudCurrent">Ожидание попадания</div></div></div><div class="hud-stats"><div class="hud-stat"><small>HIT RATE</small><b id="hudAccuracy">—</b></div><div class="hud-stat"><small>MAX COMBO</small><b id="hudCombo">—</b></div><div class="hud-stat"><small>HITS / MISS</small><b id="hudHits">—</b></div><div class="hud-stat"><small>UR</small><b id="hudUr">—</b></div><div class="hud-stat"><small>AVG OFFSET</small><b id="hudMean">—</b></div><div class="hud-stat"><small>BPM</small><b id="hudBpm">—</b></div></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px"><button id="playToggle" type="button">▶ Играть</button><button id="rendererEngineToggle" type="button">JS renderer: OFF</button><input id="seek" type="range" min="0" max="1000" value="0" style="flex:1;min-width:150px"><span id="playerTime" class="muted">00:00.000</span></div><div class="status" id="skinPanel" style="margin-top:12px"><strong>Скин osu!</strong><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="skinFile" type="file" accept=".osk,.zip,application/zip,application/octet-stream" style="flex:1;min-width:180px"><button id="chooseSkinFolder" type="button">Выбрать папку</button><input id="skinFolder" type="file" webkitdirectory directory multiple hidden aria-label="Папка распакованного скина"><button id="resetSkin" type="button">Стандартный вид</button><button id="downloadSkinDiagnostics" type="button" disabled>Отчёт скина</button></div><div id="skinStatus" class="muted" role="status" style="margin-top:8px">Скин не загружен — используется встроенный вид.</div><div id="skinPreview" style="display:none;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px;margin-top:10px"></div></div><div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:12px"><label id="arControl" class="muted">AR standard: <output id="arValue">9.0</output><br><input id="arSlider" type="range" min="0" max="11" step="0.5" value="9" style="width:min(240px,70vw)"></label><label id="speedControl" class="muted" hidden>Скорость прокрутки mania: <output id="speedValue">1.0×</output><br><input id="speedSlider" type="range" min="0.5" max="2" step="0.1" value="1" style="width:min(240px,70vw)"></label><label id="playbackSpeedControl" class="muted">Скорость реплея и музыки: <output id="playbackSpeedValue">1.0×</output><br><input id="playbackSpeedSlider" type="range" min="0.5" max="2" step="0.1" value="1" style="width:min(240px,70vw)"></label></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px"><button id="audioToggle" type="button" disabled>♫ Включить песню</button><label class="muted" for="audioOffset">Сдвиг музыки (мс)</label><input id="audioOffset" type="range" min="-300" max="300" step="10" value="0" style="width:min(220px,40vw)"><output id="audioOffsetValue" class="muted">0 ms</output><span id="audioStatus" class="muted">Загрузи .osz, чтобы получить аудио.</span></div></section>
 <section class="panel" id="eventsPanel" hidden><h2>Задержка каждого нажатия</h2><div class="tablewrap"><table><thead><tr><th>#</th><th>Время карты</th><th>Отклонение</th><th>Тип объекта</th><th>Оценка</th></tr></thead><tbody id="eventRows"></tbody></table></div></section>
-<div id="beatmapPicker" class="picker-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="beatmapPickerTitle"><div class="picker-dialog"><h2 id="beatmapPickerTitle">Выбери сложность</h2><p class="muted" id="beatmapPickerHint">MD5 реплея не совпал с архивом. Выбери нужную сложность вручную.</p><div id="beatmapPickerOptions" class="picker-list"></div><button id="beatmapPickerCancel" class="picker-cancel" type="button">Отмена</button></div></div><div class="foot muted" style="text-align:center;padding:24px">Replay Lab · Beta 1.11.2</div>
+<div id="beatmapPicker" class="picker-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="beatmapPickerTitle"><div class="picker-dialog"><h2 id="beatmapPickerTitle">Выбери сложность</h2><p class="muted" id="beatmapPickerHint">MD5 реплея не совпал с архивом. Выбери нужную сложность вручную.</p><div id="beatmapPickerOptions" class="picker-list"></div><button id="beatmapPickerCancel" class="picker-cancel" type="button">Отмена</button></div></div><div class="foot muted" style="text-align:center;padding:24px">Replay Lab · Beta 1.11.3</div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/lzma@2.3.2/src/lzma.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
@@ -215,11 +215,47 @@ function startReplayAudio(targetMapTimeMs,source='replay'){
  const element=audioElement;if(!element||!audioEnabled)return false;
  const targetSeconds=Math.max(0,(Number(targetMapTimeMs||0)+audioOffsetMs)/1000);
  element.pause();element.playbackRate=playbackSpeed;audioStartPending=true;
+ let playbackConfirmed=false,startWatchdog=0;
+ const confirmPlaying=()=>{
+  if(playbackConfirmed||audioElement!==element||!audioEnabled)return;
+  playbackConfirmed=true;
+  if(startWatchdog)clearTimeout(startWatchdog);
+  audioStartPending=false;
+  diagLog('audio.playing',{source,currentTime:element.currentTime,readyState:element.readyState,paused:element.paused});
+  if(!appIsBackgrounded)$('audioStatus').textContent='Музыка воспроизводится вместе с реплеем.';
+ };
+ element.addEventListener('playing',confirmPlaying,{once:true});
  const seek=()=>{if(audioElement!==element||!audioEnabled||(!playerStarting&&!playerRunning))return;if(element.readyState<1)return;try{const duration=Number.isFinite(element.duration)?element.duration:targetSeconds;element.currentTime=Math.min(targetSeconds,Math.max(0,duration));diagLog('audio.seek_applied',{source,targetSeconds,actualSeconds:element.currentTime,readyState:element.readyState});}catch(error){diagLog('audio.seek_error',{source,targetSeconds,message:String(error?.message||error),readyState:element.readyState});}};
  if(element.readyState>=1)seek();else element.addEventListener('loadedmetadata',seek,{once:true});
  diagLog('audio.play_requested',{source,readyState:element.readyState,networkState:element.networkState,src:element.currentSrc||audioObjectUrl||'',targetSeconds});
- let playPromise;try{playPromise=element.play();}catch(error){audioStartPending=false;audioEnabled=false;$('audioToggle').textContent='♫ Включить песню';$('audioStatus').textContent='Не удалось запустить аудио: '+String(error?.message||error);diagLog('audio.play_rejected',{source,message:String(error?.message||error)});return false;}
- Promise.resolve(playPromise).then(()=>{audioStartPending=false;diagLog('audio.playing',{source,currentTime:element.currentTime,readyState:element.readyState});if(element===audioElement&&audioEnabled&&!appIsBackgrounded)$('audioStatus').textContent='Музыка воспроизводится вместе с реплеем.';},error=>{audioStartPending=false;audioEnabled=false;if(element===audioElement){$('audioToggle').textContent='♫ Включить песню';$('audioStatus').textContent='Не удалось запустить аудио: '+String(error?.message||error);}diagLog('audio.play_rejected',{source,message:String(error?.message||error),name:error?.name||null,readyState:element.readyState,networkState:element.networkState});});
+ let playPromise;try{playPromise=element.play();}catch(error){element.removeEventListener('playing',confirmPlaying);audioStartPending=false;audioEnabled=false;$('audioToggle').textContent='♫ Включить песню';$('audioStatus').textContent='Не удалось запустить аудио: '+String(error?.message||error);diagLog('audio.play_rejected',{source,message:String(error?.message||error)});return false;}
+ Promise.resolve(playPromise).then(()=>{
+  // A resolved play() promise is not enough on every Android WebView: keep the
+  // replay clock in its startup state until the media element emits "playing".
+  diagLog('audio.play_promise_resolved',{source,currentTime:element.currentTime,readyState:element.readyState,paused:element.paused});
+ },error=>{
+  if(playbackConfirmed)return;
+  if(startWatchdog)clearTimeout(startWatchdog);
+  element.removeEventListener('playing',confirmPlaying);
+  audioStartPending=false;audioEnabled=false;
+  if(element===audioElement){$('audioToggle').textContent='♫ Включить песню';$('audioStatus').textContent='Не удалось запустить аудио: '+String(error?.message||error);}
+  diagLog('audio.play_rejected',{source,message:String(error?.message||error),name:error?.name||null,readyState:element.readyState,networkState:element.networkState});
+ });
+ startWatchdog=setTimeout(()=>{
+  if(playbackConfirmed)return;
+  element.removeEventListener('playing',confirmPlaying);
+  audioStartPending=false;
+  if(element!==audioElement||!audioEnabled)return;
+  if(!element.paused){
+   diagLog('audio.playing_event_missing',{source,currentTime:element.currentTime,readyState:element.readyState});
+   $('audioStatus').textContent='Аудио запущено, подтверждение Android WebView задерживается.';
+   return;
+  }
+  audioEnabled=false;
+  $('audioToggle').textContent='♫ Включить песню';
+  $('audioStatus').textContent='Android WebView не начал воспроизведение. Нажми «Включить песню» и затем «Играть» ещё раз.';
+  diagLog('audio.start_timeout',{source,readyState:element.readyState,networkState:element.networkState,errorCode:element.error?.code||null});
+ },4000);
  return true;
 }
 try{const saved=JSON.parse(localStorage.getItem(DIAG_LOG_KEY)||'[]');if(Array.isArray(saved))diagnosticEntries=saved.slice(-DIAG_LOG_LIMIT)}catch{}
