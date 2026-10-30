@@ -24,11 +24,14 @@ if (!skinLoader.includes('await Promise.all(pending)')) {
 if (!skinLoader.includes('В архиве не найдены файлы mania-*')) {
   throw new Error('Skin loader must explain when an archive has no osu!mania textures');
 }
-if (!skinLoader.includes("filter(([path,bytes])=>/\\.osk$/i.test(path)&&bytes?.length)")) {
-  throw new Error('Skin loader must inspect nested .osk archives inside wrapper ZIP files');
+if (!skinLoader.includes('const inspectArchive=(archive,depth=0)=>{')) {
+  throw new Error('Skin loader must recursively inspect nested skin archives');
 }
-if (skinLoader.indexOf("filter(([path,bytes])=>/\\.osk$/i.test(path)&&bytes?.length)") > skinLoader.indexOf('const imageFiles=')) {
-  throw new Error('Skin loader must inspect nested .osk archives before choosing textures from the wrapper ZIP');
+if (!skinLoader.includes("if(!/\\.(osk|zip)$/i.test(path)||!bytes?.length)continue;")) {
+  throw new Error('Skin loader must inspect nested .osk and .zip archives inside wrapper ZIP files');
+}
+if (!skinLoader.includes('const selected=inspectArchive(outer);') || !skinLoader.includes('entries=selected.entries;')) {
+  throw new Error('Skin loader must select the best matching nested skin archive before choosing textures');
 }
 if (!skinLoader.includes("diagLog('skin.nested_archive_opened'")) {
   throw new Error('Skin loader must record when a nested skin archive is opened');
