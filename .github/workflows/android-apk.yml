@@ -73,10 +73,10 @@ jobs:
         working-directory: app
         run: |
           set -euo pipefail
-          grep -Eq 'android:icon="@mipmap/ic_launcher_v11102"' android/app/src/main/AndroidManifest.xml
-          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_round_v11102"' android/app/src/main/AndroidManifest.xml
-          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_v11102.xml
-          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round_v11102.xml
+          grep -Eq 'android:icon="@mipmap/ic_launcher_v11103"' android/app/src/main/AndroidManifest.xml
+          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_round_v11103"' android/app/src/main/AndroidManifest.xml
+          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_v11103.xml
+          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round_v11103.xml
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -95,29 +95,29 @@ jobs:
           set -euo pipefail
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-mdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-hdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xhdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxhdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxxhdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_v11102.xml'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round_v11102.xml'
-          unzip -Z1 "$APK" | grep -Fq 'ic_launcher_foreground_art_v11102.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-mdpi-v4/ic_launcher_v11103.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-hdpi-v4/ic_launcher_v11103.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xhdpi-v4/ic_launcher_v11103.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxhdpi-v4/ic_launcher_v11103.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxxhdpi-v4/ic_launcher_v11103.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_v11103.xml'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round_v11103.xml'
+          unzip -Z1 "$APK" | grep -Fq 'ic_launcher_foreground_art_v11103.png'
           AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
           test -x "$AAPT"
           "$AAPT" dump badging "$APK" > /tmp/osu-apk-badging.txt
           grep -Eq "^application-icon-[0-9]+:.*ic_launcher" /tmp/osu-apk-badging.txt
           "$AAPT" dump resources "$APK" > /tmp/osu-apk-resources.txt
-          grep -Fq 'mipmap/ic_launcher_v11102' /tmp/osu-apk-resources.txt
-          grep -Fq 'mipmap/ic_launcher_round_v11102' /tmp/osu-apk-resources.txt
-          grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11102" /tmp/osu-apk-badging.txt
-      - name: Name APK 1.11.2
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.11.2-beta.apk
+          grep -Fq 'mipmap/ic_launcher_v11103' /tmp/osu-apk-resources.txt
+          grep -Fq 'mipmap/ic_launcher_round_v11103' /tmp/osu-apk-resources.txt
+          grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11103" /tmp/osu-apk-badging.txt
+      - name: Name APK 1.11.3
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.11.3-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.11.2-beta
-          path: osu-daily-tracker-v1.11.2-beta.apk
+          name: osu-daily-tracker-v1.11.3-beta
+          path: osu-daily-tracker-v1.11.3-beta.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -148,7 +148,7 @@ jobs:
       # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
   publish-release:
-    name: Publish osu! Daily Tracker 1.11.2 Beta
+    name: Publish osu! Daily Tracker 1.11.3 Beta
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
@@ -157,18 +157,18 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.11.2-beta
+          name: osu-daily-tracker-v1.11.3-beta
           path: dist
-      - name: Опубликовать бета-релиз 1.11.2
+      - name: Опубликовать бета-релиз 1.11.3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="v1.11.2-beta"
-          APK="dist/osu-daily-tracker-v1.11.2-beta.apk"
-          TITLE="osu! Daily Tracker 1.11.2 Beta"
+          TAG="v1.11.3-beta"
+          APK="dist/osu-daily-tracker-v1.11.3-beta.apk"
+          TITLE="osu! Daily Tracker 1.11.3 Beta"
           NOTES="$(cat <<'EOF'
-          Экспериментальный тестовый релиз osu! Daily Tracker 1.11.2-beta.
+          Экспериментальный тестовый релиз osu! Daily Tracker 1.11.3-beta.
           - JS renderer на базе replayviewer-js автоматически включается после загрузки карты; переключение на старый рендерер остаётся доступно вручную.
           - Включён отдельный regression test адаптера replayviewer-js перед Android-сборкой.
           - Восстановлен Android APK workflow; сборка запускается при изменениях app/**, test-fixtures/** и самого workflow.
@@ -356,7 +356,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.11.2-beta
+          name: android-emulator-diagnostics-v1.11.3-beta
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
