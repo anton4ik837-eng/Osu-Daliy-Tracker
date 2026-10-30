@@ -260,9 +260,9 @@ jobs:
           sleep 3
           adb -e exec-out screencap -p > emulator-results/replay-section-screen.png
           tesseract emulator-results/replay-section-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-section-ocr.txt
-          # Screenshot is 924x1664 on this Pixel 2 AVD; CTA center is approximately (465, 1340).
-          # Tap the visible button, not the Android gesture-navigation area at the bottom.
-          adb -e shell input tap 465 1340
+          # ADB reports the Pixel 2 AVD at 1080x1920; screenshot preview is scaled down.
+          # The CTA center in device coordinates is approximately (545, 1565).
+          adb -e shell input tap 545 1565
           sleep 7
           adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
           # Require controls that exist only inside replay.html, not merely the home-page card.
