@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { convertStandardToMania } from '../mania-converter.mjs';
 
 const beatmap = `osu file format v14
@@ -55,4 +56,11 @@ assert.ok(convertedByKeyCount.get(4).objects.some(object => object.type === 'hol
 assert.equal(convertStandardToMania(beatmap).keys, 7,
   'default key count should follow the osu-mania-stable conversion heuristic');
 assert.throws(() => convertStandardToMania(beatmap, 11), /от 1 до 10/);
+const replayLabSource = readFileSync(new URL('../www/replay.html', import.meta.url), 'utf8');
+assert.ok(!replayLabSource.includes('standardManiaTargetColumns'),
+  'Replay Lab must not reference the removed standardManiaTargetColumns helper');
+assert.ok(replayLabSource.includes('convertStandardToMania(mapText,undefined,map)'),
+  'Replay Lab must derive the default Mania key count from the conversion engine');
+assert.ok(replayLabSource.includes('defaultConvertedMap.keys'),
+  'Replay Lab must use the engine-generated default column count before resolving key mods');
 console.log('Standard -> Mania converter OK: 1K–10K, deterministic patterns, sliders, repeats, spinner, timing points and SV.');
