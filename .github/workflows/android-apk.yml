@@ -178,7 +178,7 @@ jobs:
       - name: Set up Android SDK packages
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools, emulator, system-images;android-34;default;x86_64'
+          packages: 'platform-tools emulator system-images;android-34;default;x86_64'
           accept-android-sdk-licenses: true
 
       - name: Create and start emulator with bounded startup
