@@ -42,7 +42,7 @@ function skinImage(...names){
  }
  return null
 }
-let skinDrawStats={stretch:0,center:0,misses:0,lastMissing:[]};
+let skinDrawStats={stretch:0,center:0,misses:0,maniaHeads:0,maniaBodies:0,maniaKeys:0,lastMissing:[]};
 function drawSkinStretch(ctx,names,x,y,w,h,alpha=1){const candidates=Array.isArray(names)?names:[names],img=skinImage(...candidates);if(!img||!img.complete||!img.naturalWidth){skinDrawStats.misses++;if(skinDrawStats.lastMissing.length<30)skinDrawStats.lastMissing.push(candidates);return false}ctx.save();ctx.globalAlpha*=alpha;ctx.drawImage(img,x,y,w,h);ctx.restore();skinDrawStats.stretch++;return true}
 function drawSkinImage(ctx,names,x,y,w,h,alpha=1){const candidates=Array.isArray(names)?names:[names],img=skinImage(...candidates);if(!img||!img.complete||!img.naturalWidth||!img.naturalHeight){skinDrawStats.misses++;if(skinDrawStats.lastMissing.length<30)skinDrawStats.lastMissing.push(candidates);return false}const scale=Math.min(w/img.naturalWidth,h/img.naturalHeight),drawW=img.naturalWidth*scale,drawH=img.naturalHeight*scale;ctx.save();ctx.globalAlpha*=alpha;ctx.drawImage(img,x-drawW/2,y-drawH/2,drawW,drawH);ctx.restore();skinDrawStats.center++;return true}
 function drawSkinSized(ctx,names,x,y,size,alpha=1){const candidates=Array.isArray(names)?names:[names],img=skinImage(...candidates);if(!img||!img.complete||!img.naturalWidth||!img.naturalHeight){skinDrawStats.misses++;if(skinDrawStats.lastMissing.length<30)skinDrawStats.lastMissing.push(candidates);return false}const scale=size/Math.max(img.naturalWidth,img.naturalHeight),dw=img.naturalWidth*scale,dh=img.naturalHeight*scale;ctx.save();ctx.globalAlpha*=alpha;ctx.drawImage(img,x-dw/2,y-dh/2,dw,dh);ctx.restore();skinDrawStats.center++;return true}
@@ -390,7 +390,7 @@ const ManiaNoteRenderer={
      const body=ManiaSkinResolver.note(obj.column,'body');
      if(body?.complete&&body.naturalWidth){
       const bodyWidth=Math.min(nw,body.naturalWidth*layout.scale),bx=col.center-bodyWidth/2;
-      ctx.drawImage(body,bx,top,bodyWidth,bottom-top);
+      ctx.drawImage(body,bx,top,bodyWidth,bottom-top);skinDrawStats.maniaBodies++;
      }else{
       ctx.fillStyle='rgba(87,201,232,.62)';ctx.fillRect(x,top,nw,bottom-top);
       ctx.strokeStyle='#a9e7ff';ctx.strokeRect(x,top,nw,bottom-top);
@@ -401,7 +401,7 @@ const ManiaNoteRenderer={
     const head=ManiaSkinResolver.note(obj.column,obj.type==='hold'?'head':'');
     if(head?.complete&&head.naturalWidth&&head.naturalHeight){
      const ratio=head.naturalWidth/head.naturalHeight,drawH=col.width*.92,drawW=drawH*ratio;
-     ctx.drawImage(head,col.center-drawW/2,headY-drawH/2,drawW,drawH);
+     ctx.drawImage(head,col.center-drawW/2,headY-drawH/2,drawW,drawH);skinDrawStats.maniaHeads++;
     }else{
      ctx.beginPath();ctx.arc(col.center,headY,col.width*.34,0,Math.PI*2);ctx.fillStyle=headY<layout.hitY?'#57c9e8':'#42d392';ctx.fill();
      ctx.strokeStyle='#d8f7ff';ctx.lineWidth=1.5;ctx.stroke();
@@ -429,7 +429,7 @@ function drawPlayfield(){const c=$('playfield');if(!c||!playMap)return;const ctx
   }
   if(r.press&&r.press.time<=playerNow&&playerNow-r.press.time<220){
    const key=ManiaSkinResolver.key(r.lane,true),alpha=1-(playerNow-r.press.time)/220;
-   if(key?.complete&&key.naturalWidth&&key.naturalHeight){const dw=col.width,dh=dw*key.naturalHeight/key.naturalWidth;ctx.save();ctx.globalAlpha=alpha;ctx.drawImage(key,col.center-dw/2,layout.hitY+4,dw,dh);ctx.restore();}
+   if(key?.complete&&key.naturalWidth&&key.naturalHeight){const dw=col.width,dh=dw*key.naturalHeight/key.naturalWidth;ctx.save();ctx.globalAlpha=alpha;ctx.drawImage(key,col.center-dw/2,layout.hitY+4,dw,dh);skinDrawStats.maniaKeys++;ctx.restore();}
    ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle='#fff';ctx.font='bold 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText((r.offset>0?'+':'')+r.offset+'ms',col.center,layout.hitY-13);ctx.restore();
   }
  }
@@ -613,8 +613,9 @@ refreshReplayLibrary();
   const maniaImages=customImages.filter(n=>/^mania-(note|key)\d+/i.test(n));
   check('custom_skin_selected',activeSkin.name===skin.name,{name:activeSkin.name});
   check('custom_mania_textures_loaded',maniaImages.length>0,{imageCount:customImages.length,maniaImageCount:maniaImages.length,skinIni:!!lastSkinDiagnostics?.skinIniPath});
-  playerNow=Math.max(0,(playMap.objects[0]?.time||0)-1200);skinDrawStats={stretch:0,center:0,misses:0,lastMissing:[]};drawPlayfield();
-  check('custom_skin_rendered',!!$('playfield').getContext('2d')&&customImages.length>0,{skin:activeSkin.name,maniaImageCount:maniaImages.length,canvasWidth:$('playfield').width,canvasHeight:$('playfield').height});
+  playerNow=Math.max(0,(playMap.objects[0]?.time||0)-1200);skinDrawStats={stretch:0,center:0,misses:0,maniaHeads:0,maniaBodies:0,maniaKeys:0,lastMissing:[]};drawPlayfield();
+  const noteDrawCount=skinDrawStats.maniaHeads+skinDrawStats.maniaBodies;
+  check('custom_skin_rendered',!!$('playfield').getContext('2d')&&customImages.length>0&&noteDrawCount>0,{skin:activeSkin.name,maniaImageCount:maniaImages.length,noteDrawCount,drawStats:{...skinDrawStats},canvasWidth:$('playfield').width,canvasHeight:$('playfield').height});
   const customResult={skin:activeSkin.name,images:customImages.length,maniaImages:maniaImages.length,drawStats:{...skinDrawStats}};
   $('resetSkin').click();playerNow=Math.max(0,(playMap.objects[0]?.time||0)-1200);drawPlayfield();
   check('builtin_skin_reset',activeSkin.name==='Встроенный вид'&&Object.keys(activeSkin.images||{}).length===0,{name:activeSkin.name,imageCount:Object.keys(activeSkin.images||{}).length});
