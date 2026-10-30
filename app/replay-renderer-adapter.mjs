@@ -34,7 +34,7 @@ function sectionText(osuText, name) {
   return lines.slice(start + 1, end < 0 ? lines.length : end).join('\n');
 }
 
-function buildManiaOsuText(sourceText, convertedMap) {
+export function buildManiaOsuText(sourceText, convertedMap) {
   const keys = Math.max(1, Math.min(10, Math.round(Number(convertedMap?.keys) || 4)));
   const objects = Array.isArray(convertedMap?.objects) ? convertedMap.objects : [];
   if (!objects.length) throw new Error('Converted Mania map has no objects.');
