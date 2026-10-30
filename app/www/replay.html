@@ -333,13 +333,14 @@ const ManiaPlayfieldLayout={
   const rawWidths=Array.from({length:keys},(_,i)=>Math.max(1,Number(cfg.columnwidth?.[i]??cfg.columnwidth?.[0]??30)));
   const rawGaps=Array.from({length:Math.max(0,keys-1)},(_,i)=>Math.max(0,Number(cfg.columnspacing?.[i]??cfg.columnspacing?.[0]??0)));
   const contentWidth=rawWidths.reduce((a,b)=>a+b,0)+rawGaps.reduce((a,b)=>a+b,0);
-  const scale=Math.min(height/480,width/Math.max(512,contentWidth));
-  const stageWidth=Math.max(512,contentWidth)*scale,stageLeft=(width-stageWidth)/2;
+  const stageBaseWidth=384;
+  const scale=Math.min(height/480,width/Math.max(stageBaseWidth,contentWidth));
+  const stageWidth=Math.max(stageBaseWidth,contentWidth)*scale,stageLeft=(width-stageWidth)/2;
   const widths=rawWidths.map(value=>Math.max(1,value*scale));
   const gaps=rawGaps.map(value=>Math.max(0,value*scale));
   const total=widths.reduce((a,b)=>a+b,0)+gaps.reduce((a,b)=>a+b,0);
   const configured=Number.isFinite(cfg.columnstart)?cfg.columnstart:NaN;
-  const configuredFits=Number.isFinite(configured)&&configured>0&&configured+contentWidth<=Math.max(512,contentWidth);
+  const configuredFits=Number.isFinite(configured)&&configured>0&&configured+contentWidth<=Math.max(stageBaseWidth,contentWidth);
   const configuredStart=configuredFits?configured*scale:(stageWidth-total)/2;
   const origin=stageLeft+configuredStart;
   const columns=[];let x=origin;
