@@ -233,14 +233,17 @@ jobs:
           screen_size=$(adb -e shell wm size | tail -n 1 | awk '{print $3}')
           screen_width=${screen_size%x*}
           screen_height=${screen_size#*x}
-          adb -e shell input tap $((screen_width * 65 / 100)) $((screen_height * 7 / 100))
+          # Open the large Replay Lab call-to-action near the bottom of the home page.
+          # The previous tap hit the top navigation and left the app on the home screen,
+          # while the permissive OCR check incorrectly passed on the home-page card.
+          adb -e shell input tap $((screen_width * 50 / 100)) $((screen_height * 83 / 100))
           sleep 7
           adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
-          # WebView DOM controls are not consistently exposed through UIAutomator.
-          # OCR the actual screenshot instead of relying on the WebView accessibility wrapper.
+          # Require controls that exist only inside replay.html, not merely the home-page card.
           tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-lab-ocr.txt
-          if ! grep -Eqi 'Replay Lab|Реплей|Скин|Играть|Загрузить' emulator-results/replay-lab-ocr.txt; then
-            echo "::error::Replay Lab text was not detected in the captured screen."
+          if ! grep -Eqi 'Скин|Просмотр рана|Загрузи реплей|Реплей \\(' emulator-results/replay-lab-ocr.txt; then
+            echo "::error::Replay Lab itself did not open; replay.html controls were not detected."
+            cat emulator-results/replay-lab-ocr.txt
             exit 1
           fi
           adb -e logcat -d -v threadtime > emulator-results/logcat.txt
