@@ -149,8 +149,8 @@ if (layoutStart < 0 || layoutEnd <= layoutStart) {
   throw new Error('Mania playfield layout implementation must be available for execution tests');
 }
 const layoutContext = vm.createContext({});
-vm.runInContext(html.slice(layoutStart, layoutEnd), layoutContext);
-const configuredLayout = layoutContext.ManiaPlayfieldLayout.create(512, 640, 4, {
+vm.runInContext(html.slice(layoutStart, layoutEnd) + '\n;globalThis.__testManiaPlayfieldLayout = ManiaPlayfieldLayout;', layoutContext);
+const configuredLayout = layoutContext.__testManiaPlayfieldLayout.create(512, 640, 4, {
   columnwidth: [30], columnspacing: [4], columnstart: 120,
   hitposition: 402, scoreposition: 330, lightposition: 413
 });
