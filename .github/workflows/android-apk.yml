@@ -159,7 +159,7 @@ jobs:
         with:
           name: osu-daily-tracker-v2.0.0
           path: dist
-      - name: Опубликовать бета-релиз 1.11.3
+      - name: Опубликовать глобальный релиз 2.0.0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -168,19 +168,19 @@ jobs:
           APK="dist/osu-daily-tracker-v2.0.0.apk"
           TITLE="osu! Daily Tracker 2.0.0"
           NOTES="$(cat <<'EOF'
-Глобальный релиз osu! Daily Tracker 2.0.0.
-- Добавлен Replay Lab с новым JS-рендерером и ручным переключением на старый.
-- Обновлено отображение Standard и Mania: judgement-эффекты, hit windows, текстуры и позиции элементов скина.
-- Улучшена конвертация Standard → Mania и определение 4K/7K по реплею.
-- Обновлена работа со скинами и сохранение позиции/скорости при их смене.
-- Исправлена иконка приложения; добавлена поддержка OAuth deep link и экспорт данных в Downloads.
-- При сворачивании приложения реплей приостанавливается с сохранением позиции.
-EOF
+          Глобальный релиз osu! Daily Tracker 2.0.0.
+          - Добавлен Replay Lab с новым JS-рендерером и ручным переключением на старый.
+          - Обновлено отображение Standard и Mania: judgement-эффекты, hit windows, текстуры и позиции элементов скина.
+          - Улучшена конвертация Standard → Mania и определение 4K/7K по реплею.
+          - Обновлена работа со скинами и сохранение позиции/скорости при их смене.
+          - Исправлена иконка приложения; добавлена поддержка OAuth deep link и экспорт данных в Downloads.
+          - При сворачивании приложения реплей приостанавливается с сохранением позиции.
+          EOF
           )"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES"
           else
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TITLE" --notes "$NOTES" --prerelease
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TITLE" --notes "$NOTES"
           fi
           gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
 
