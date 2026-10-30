@@ -84,8 +84,14 @@ if (!html.includes("judgement:maniaJudgement(delta,map.od)")) {
 if (!html.includes("label.textContent=current.kind+'  '+current.judgement")) {
   throw new Error('Replay HUD must show judgement instead of milliseconds');
 }
-if (!html.includes("ctx.fillText(r.judgement||'MISS',col.center,layout.scoreY-15)")) {
-  throw new Error('Lane hit feedback must show judgement at ScorePosition');
+if (html.includes("ctx.fillText(r.judgement||'MISS',col.center,layout.scoreY-15)")) {
+  throw new Error('Judgement labels must not be duplicated above individual lanes');
+}
+if (!html.includes("MAX:'Marvelous',300:'Perfect',200:'Great',100:'Good',50:'Bad',MISS:'Miss'")) {
+  throw new Error('Mania judgement codes must be presented as named judgements');
+}
+if (!html.includes('ctx.strokeText(label,w/2,h/2)') || !html.includes('ctx.fillText(label,w/2,h/2)')) {
+  throw new Error('Only the latest mania judgement must be shown at the playfield centre');
 }
 if (!html.includes('legacy .osr Mania replays, x stores the Mania key bitfield')) {
   throw new Error('Mania replay input must decode the key bitfield from the x field');
