@@ -245,10 +245,16 @@ function applyManiaKeyCount(map,keyCount){
  const keys=Math.max(1,Math.min(10,Math.round(Number(keyCount)||originalKeys)));
  map.originalKeys=originalKeys;
  map.keys=keys;
- if(keys!==originalKeys){
-  for(const object of map.objects||[]){
-   if(Number.isFinite(Number(object.x)))object.column=Math.max(0,Math.min(keys-1,Math.floor(Number(object.x)*keys/512)));
-  }
+ for(const object of map.objects||[]){
+  if(!Number.isFinite(Number(object.x)))continue;
+  // Resolve the source lane first, then remap that discrete lane. Scaling x
+  // directly to the target key count moves the boundaries and can assign
+  // notes from the same source column inconsistently (notably 7K -> 4K).
+  const sourceColumn=Number.isInteger(object.originalColumn)
+   ?Math.max(0,Math.min(originalKeys-1,object.originalColumn))
+   :Math.max(0,Math.min(originalKeys-1,Math.floor(Number(object.x)*originalKeys/512)));
+  object.originalColumn=sourceColumn;
+  object.column=Math.max(0,Math.min(keys-1,Math.floor(sourceColumn*keys/originalKeys)));
  }
  return map;
 }
