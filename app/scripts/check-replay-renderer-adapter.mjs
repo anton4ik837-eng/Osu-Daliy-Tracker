@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { buildManiaOsuText } from '../replay-renderer-adapter.mjs';
 import { parseBeatmap } from 'replayviewer-js';
+
+const adapterSource = readFileSync(new URL('../replay-renderer-adapter.mjs', import.meta.url), 'utf8');
+assert.match(adapterSource, /async setSkin\(nextSkinBytes = null\)/, 'active JS renderer must support in-place skin refresh');
+assert.match(adapterSource, /previousSession\.destroy\(\)/, 'skin refresh must release the previous renderer session');
+assert.match(adapterSource, /maniaScrollMultiplier/, 'skin refresh must preserve Mania scroll speed');
 
 const source = [
   'osu file format v14',
