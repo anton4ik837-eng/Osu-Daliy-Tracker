@@ -113,6 +113,36 @@ if (!html.includes('The latest hit replaces the previous one; use the judgement 
 }
 
 
+
+const maniaModTestStart = html.indexOf('function resolveManiaKeyCount(');
+const maniaModTestEnd = html.indexOf('function parseMap(text)', maniaModTestStart);
+if (maniaModTestStart < 0 || maniaModTestEnd <= maniaModTestStart) {
+  throw new Error('Mania key-mod resolver and column remapper must be present');
+}
+const maniaModContext = vm.createContext({});
+vm.runInContext(html.slice(maniaModTestStart, maniaModTestEnd), maniaModContext);
+const expectedKeyModBits = [[1,26],[2,28],[3,27],[4,15],[5,16],[6,17],[7,18],[8,19],[9,24]];
+for (const [keys,bit] of expectedKeyModBits) {
+  const resolved = maniaModContext.resolveManiaKeyCount(2 ** bit, [], 7);
+  if (resolved.keys !== keys || resolved.source !== 'mod') {
+    throw new Error('Mania '+keys+'K modifier bit '+bit+' must resolve to '+keys+'K');
+  }
+}
+if (maniaModContext.resolveManiaKeyCount(0, [{x:512}], 7).keys !== 10) {
+  throw new Error('A recorded tenth-lane press must identify a 10K replay');
+}
+if (maniaModContext.resolveManiaKeyCount(0, [], 7).keys !== 7) {
+  throw new Error('Mania replays without key mods must preserve the source map key count');
+}
+const remapped = maniaModContext.applyManiaKeyCount({
+  keys:7,
+  objects:[{x:36,column:0},{x:475,column:6}]
+},4);
+if (remapped.keys !== 4 || remapped.originalKeys !== 7 ||
+    remapped.objects[0].column !== 0 || remapped.objects[1].column !== 3) {
+  throw new Error('Mania note columns must be remapped from source X positions to the modded key count');
+}
+
 for (let index = 0; index < scripts.length; index += 1) {
   new vm.Script(scripts[index], { filename: 'replay.html:inline-script-' + (index + 1) });
 }
