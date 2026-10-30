@@ -4,7 +4,7 @@
   "private": true,
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
-    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js && esbuild mania-converter.mjs --bundle --format=iife --outfile=www/mania-converter.bundle.js",
+    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js && esbuild mania-converter.mjs --bundle --format=iife --outfile=www/mania-converter.bundle.js && esbuild replay-renderer-adapter.mjs --bundle --format=iife --global-name=OsuReplayRenderer --outfile=www/replay-renderer.bundle.js",
     "test:replay-inline": "node scripts/check-replay-inline.mjs",
     "configure:android": "node scripts/configure-android.mjs",
     "test:mania-key-remap": "node scripts/check-mania-key-remap.mjs",
@@ -20,7 +20,8 @@
     "@capacitor/share": "^7.0.2",
     "osu-classes": "^3.1.0",
     "osu-mania-stable": "^5.0.1",
-    "osu-parsers": "^4.1.7"
+    "osu-parsers": "^4.1.7",
+    "replayviewer-js": "^1.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
