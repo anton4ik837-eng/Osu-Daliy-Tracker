@@ -231,11 +231,10 @@ function sliderPointAt(o,progress){
 }
 // Legacy .osr mod bits for mania key-count modifiers (the bit positions are not sequential).
 function resolveManiaKeyCount(mods,frames,originalKeys){
- const keyMods=[{keys:1,bit:26},{keys:2,bit:28},{keys:3,bit:27},{keys:4,bit:15},{keys:5,bit:16},{keys:6,bit:17},{keys:7,bit:18},{keys:8,bit:19},{keys:9,bit:24}];
+ const keyMods=[{keys:1,bit:26},{keys:2,bit:28},{keys:3,bit:27},{keys:4,bit:15},{keys:5,bit:16},{keys:6,bit:17},{keys:7,bit:18},{keys:8,bit:19},{keys:9,bit:24},{keys:10,bit:25}];
  const selected=keyMods.find(item=>(Number(mods)>>>item.bit)&1);
  if(selected)return{keys:selected.keys,source:'mod',label:selected.keys+'K'};
- // Legacy .osr has no distinct, portable 10K mod bit. A 10th-lane press is
- // unambiguous evidence of a 10K replay, so detect it from the recorded lane bitfield.
+ // Keep input-based detection as a fallback for replay headers without the K10 mod bit.
  const hasTenthLane=(frames||[]).some(frame=>(((Math.round(Number(frame.x)||0)>>>0)&(1<<9))!==0));
  if(hasTenthLane)return{keys:10,source:'replay-input',label:'10K'};
  return{keys:Math.max(1,Math.min(10,Math.round(Number(originalKeys)||4))),source:'map',label:null};
