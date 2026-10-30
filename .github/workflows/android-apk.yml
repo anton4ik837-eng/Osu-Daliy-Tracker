@@ -82,6 +82,10 @@ jobs:
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euxo pipefail
           mkdir -p app/www/ci-fixtures
@@ -113,7 +117,7 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-ci-test-apk
+          name: osu-daily-tracker-v1.9.7
           path: dist
       - name: Опубликовать релиз 1.9.7
         uses: softprops/action-gh-release@v2
@@ -242,7 +246,7 @@ jobs:
       - name: Install, launch and capture app
         run: |
           set -euxo pipefail
-          adb -e install -r dist/osu-daily-tracker-v1.9.7.apk
+          adb -e install -r dist/osu-daily-tracker-ci-test.apk
           adb -e logcat -c
           adb -e shell monkey -p com.osudailytracker.app 1
           sleep 20
