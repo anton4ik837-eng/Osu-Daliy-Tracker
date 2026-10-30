@@ -198,7 +198,26 @@ jobs:
             echo "::error::sdkmanager --licenses failed with exit code $license_status"
             exit "$license_status"
           fi
-          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install --verbose "platform-tools" "emulator" "system-images;android-34;default;x86_64"
+          install_sdk_package() {
+            local package="$1"
+            local attempt
+            for attempt in 1 2 3; do
+              echo "::group::Install $package (attempt $attempt/3)"
+              if "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install --verbose "$package"; then
+                echo "::endgroup::"
+                return 0
+              fi
+              echo "::endgroup::"
+              echo "::warning::SDK package installation failed for $package (attempt $attempt/3); clearing partial SDK downloads before retry."
+              rm -rf "$SDK_ROOT/.temp" "$HOME/.android/cache"
+              sleep $((attempt * 5))
+            done
+            echo "::error::Could not install SDK package $package after 3 attempts."
+            return 1
+          }
+          install_sdk_package "platform-tools"
+          install_sdk_package "emulator"
+          install_sdk_package "system-images;android-34;default;x86_64"
           adb version
           emulator -version
 
