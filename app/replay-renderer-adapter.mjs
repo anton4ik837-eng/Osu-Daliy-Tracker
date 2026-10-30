@@ -148,7 +148,7 @@ export async function createReplayRendererSession({
     storyboardImages: new Map(),
     video: null,
   };
-  const session = await createReplaySession({
+  const sessionInputs = {
     canvas,
     audioContext,
     replay,
@@ -157,9 +157,11 @@ export async function createReplayRendererSession({
     pageZoom,
     storyboard: false,
     video: false,
-  });
-
+  };
+  let session = await createReplaySession(sessionInputs);
   let destroyed = false;
+  let rendererRunning = false;
+  let currentMapTimeMs = 0;
   return {
     session,
     mode: replay.mode,
@@ -167,21 +169,41 @@ export async function createReplayRendererSession({
     replay,
     start() {
       if (destroyed) throw new Error('Renderer session has been destroyed.');
+      rendererRunning = true;
       session.renderer.start();
     },
     pause() {
       if (destroyed) return;
       session.player.pause();
+      rendererRunning = false;
     },
     play() {
       if (destroyed) throw new Error('Renderer session has been destroyed.');
       session.player.play();
+      rendererRunning = true;
       session.renderer.start();
     },
     seekMapTime(mapTimeMs) {
       if (destroyed) return;
+      currentMapTimeMs = Number(mapTimeMs) || 0;
       const presentationMs = (Number(mapTimeMs) - session.timeMapper.introOffsetMs) / session.timeMapper.speed;
       session.player.seek(Math.max(0, Math.min(session.player.durationMs, presentationMs)));
+    },
+    async setSkin(nextSkinBytes = null) {
+      if (destroyed) throw new Error('Renderer session has been destroyed.');
+      let nextSkin = emptySkin();
+      if (nextSkinBytes) {
+        const skinBuffer = nextSkinBytes instanceof ArrayBuffer ? nextSkinBytes : await nextSkinBytes.arrayBuffer();
+        nextSkin = await loadSkin(skinBuffer, audioContext);
+      }
+      const nextSession = await createReplaySession({ ...sessionInputs, skin: nextSkin });
+      const presentationMs = (currentMapTimeMs - nextSession.timeMapper.introOffsetMs) / nextSession.timeMapper.speed;
+      nextSession.player.seek(Math.max(0, Math.min(nextSession.player.durationMs, presentationMs)));
+      const previousSession = session;
+      session = nextSession;
+      previousSession.destroy();
+      if (rendererRunning) session.renderer.start();
+      return true;
     },
     setManiaScrollSpeed(multiplier) {
       if (destroyed || session.mode !== 3) return;
