@@ -25,10 +25,10 @@ jobs:
     env:
       QA_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
-      - name: Checkout published release source
+      - name: Checkout Replay Lab QA harness
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: alpha-1.0.0-work
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
