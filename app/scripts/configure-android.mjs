@@ -62,11 +62,11 @@ const foregroundPng=await sharp(Buffer.from(iconMarkup))
   .extend({top:86,bottom:86,left:86,right:86,background:{r:0,g:0,b:0,alpha:0}})
   .png().toBuffer();
 await mkdir(res+'/drawable-nodpi',{recursive:true});
-await writeFile(res+'/drawable-nodpi/ic_launcher_foreground.png',foregroundPng);
+await writeFile(res+'/drawable-nodpi/ic_launcher_foreground_art.png',foregroundPng);
 const foreground=[
 '<?xml version="1.0" encoding="utf-8"?>',
-'<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/ic_launcher_foreground" android:gravity="center"/>'
-].join('\\n');
+'<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/ic_launcher_foreground_art" android:gravity="center"/>'
+].join('\n');
 const monochrome=[
 '<?xml version="1.0" encoding="utf-8"?>',
 '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="512" android:viewportHeight="512">',
