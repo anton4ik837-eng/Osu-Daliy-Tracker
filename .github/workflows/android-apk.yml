@@ -78,13 +78,13 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
-      - name: Name APK 1.9.12
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.12-beta.apk
+      - name: Name APK 1.9.13
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.13-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.12-beta
-          path: osu-daily-tracker-v1.9.12-beta.apk
+          name: osu-daily-tracker-v1.9.13-beta
+          path: osu-daily-tracker-v1.9.13-beta.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -114,7 +114,7 @@ jobs:
       # APK публикуется автоматически после успешной сборки и проверки в эмуляторе.
 
   publish-release:
-    name: Publish osu! Daily Tracker 1.9.12 Beta
+    name: Publish osu! Daily Tracker 1.9.13 Beta
     needs: [build, emulator-smoke-test]
     runs-on: ubuntu-latest
     permissions:
@@ -123,18 +123,18 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.12-beta
+          name: osu-daily-tracker-v1.9.13-beta
           path: dist
-      - name: Опубликовать бета-релиз 1.9.12
+      - name: Опубликовать бета-релиз 1.9.13
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="v1.9.12-beta"
-          APK="dist/osu-daily-tracker-v1.9.12-beta.apk"
-          TITLE="osu! Daily Tracker 1.9.12 Beta"
+          TAG="v1.9.13-beta"
+          APK="dist/osu-daily-tracker-v1.9.13-beta.apk"
+          TITLE="osu! Daily Tracker 1.9.13 Beta"
           NOTES="$(cat <<'EOF'
-          Бета-обновление osu! Daily Tracker 1.9.12.
+          Бета-обновление osu! Daily Tracker 1.9.13.
           - Восстановлен Android APK workflow; сборка запускается при изменениях app/**, test-fixtures/** и самого workflow.
           - Область просмотра реплея ограничена шириной родительской панели, без выхода за края экрана.
           - Ошибки разбора карты больше не маскируются сообщением об успешной загрузке.
@@ -145,6 +145,8 @@ jobs:
           - Добавлены OD-зависимые окна MAX/300/200/100/50/MISS.
           - Убраны синтетические пронумерованные рецепторы: используются KeyImage/KeyImageD из скина.
           - HUD и эффекты попадания показывают judgement, а миллисекунды остаются в статистике.
+          - Для Standard → Mania число колонок без key-count-мода теперь определяется по фактически используемым клавишам в .osr, а не по общей эвристике генератора.
+          - Добавлены регрессионные проверки определения 4K/7K по битовой маске реплея и приоритету явного key-count-мода.
           - Перед публикацией APK проходит автоматическую проверку и запуск в Android-эмуляторе.
           EOF
           )"
@@ -352,7 +354,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.9.12-beta
+          name: android-emulator-diagnostics-v1.9.13-beta
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
