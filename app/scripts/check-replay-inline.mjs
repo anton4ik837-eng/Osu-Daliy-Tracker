@@ -105,6 +105,13 @@ if (html.includes('ctx.arc(col.center,layout.scoreY')) {
 if (!html.includes('maniaMode?640:384') || !html.includes('const scale=Math.min(width/stageBaseWidth,height/480)') || !html.includes('value*scale') || !html.includes('aspect-ratio:4/5')) {
   throw new Error('Mania playfield must use a tall phone-friendly viewport and preserve the original osu!mania aspect ratio with uniform scaling');
 }
+if (!html.includes("diagLog('beatmap.checksum_match'") || !html.includes("modeMatches:matchedMap.mode===Number(parsedReplay?.mode)")) {
+  throw new Error('Checksum-matched beatmaps must log their parsed mode against the replay mode');
+}
+if (!html.includes("setStatus('Не удалось разобрать карту: '+e.message);throw e;")) {
+  throw new Error('Map parsing failures must propagate to automatic loading instead of being overwritten by a success status');
+}
+
 if (!html.includes('legacy .osr Mania replays, x stores the Mania key bitfield')) {
   throw new Error('Mania replay input must decode the key bitfield from the x field');
 }
