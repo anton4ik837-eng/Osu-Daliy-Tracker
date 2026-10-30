@@ -69,6 +69,14 @@ jobs:
       - name: Sync web assets
         working-directory: app
         run: npx cap sync android
+      - name: Verify launcher manifest after Capacitor sync
+        working-directory: app
+        run: |
+          set -euo pipefail
+          grep -Eq 'android:icon="@mipmap/ic_launcher"' android/app/src/main/AndroidManifest.xml
+          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_round"' android/app/src/main/AndroidManifest.xml
+          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -95,13 +103,20 @@ jobs:
           unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher.xml'
           unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round.xml'
           unzip -Z1 "$APK" | grep -Fq 'ic_launcher_foreground_art.png'
-      - name: Name APK 1.11.1
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.11.1-beta.apk
+          AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$AAPT"
+          "$AAPT" dump badging "$APK" > /tmp/osu-apk-badging.txt
+          grep -Eq "^application-icon-[0-9]+:.*ic_launcher" /tmp/osu-apk-badging.txt
+          "$AAPT" dump xmltree "$APK" AndroidManifest.xml > /tmp/osu-apk-manifest.txt
+          grep -Fq 'mipmap/ic_launcher' /tmp/osu-apk-manifest.txt
+          grep -Fq 'mipmap/ic_launcher_round' /tmp/osu-apk-manifest.txt
+      - name: Name APK 1.11.2
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.11.2-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.11.1-beta
-          path: osu-daily-tracker-v1.11.1-beta.apk
+          name: osu-daily-tracker-v1.11.2-beta
+          path: osu-daily-tracker-v1.11.2-beta.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -132,7 +147,7 @@ jobs:
       # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
   publish-release:
-    name: Publish osu! Daily Tracker 1.11.1 Beta
+    name: Publish osu! Daily Tracker 1.11.2 Beta
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
@@ -141,18 +156,18 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.11.1-beta
+          name: osu-daily-tracker-v1.11.2-beta
           path: dist
-      - name: Опубликовать бета-релиз 1.11.1
+      - name: Опубликовать бета-релиз 1.11.2
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="v1.11.1-beta"
-          APK="dist/osu-daily-tracker-v1.11.1-beta.apk"
-          TITLE="osu! Daily Tracker 1.11.1 Beta"
+          TAG="v1.11.2-beta"
+          APK="dist/osu-daily-tracker-v1.11.2-beta.apk"
+          TITLE="osu! Daily Tracker 1.11.2 Beta"
           NOTES="$(cat <<'EOF'
-          Экспериментальный тестовый релиз osu! Daily Tracker 1.11.1-beta.
+          Экспериментальный тестовый релиз osu! Daily Tracker 1.11.2-beta.
           - JS renderer на базе replayviewer-js автоматически включается после загрузки карты; переключение на старый рендерер остаётся доступно вручную.
           - Включён отдельный regression test адаптера replayviewer-js перед Android-сборкой.
           - Восстановлен Android APK workflow; сборка запускается при изменениях app/**, test-fixtures/** и самого workflow.
@@ -340,7 +355,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.11.1-beta
+          name: android-emulator-diagnostics-v1.11.2-beta
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
