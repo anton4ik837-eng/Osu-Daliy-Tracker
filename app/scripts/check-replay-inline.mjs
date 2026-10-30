@@ -66,6 +66,19 @@ if (!html.includes("ManiaNoteRenderer.draw(ctx,visible,layout,playerNow,scrollSc
   throw new Error('Mania notes must be rendered through the dedicated note renderer');
 }
 
+if (!html.includes("tier=a<=20?'300':a<=50?'200':a<=100?'100':a<=150?'50':'0'")) {
+  throw new Error('Mania hit effects must map tight timing offsets to hit300, not the miss texture hit0');
+}
+if (!html.includes('legacy .osr Mania replays, x stores the Mania key bitfield')) {
+  throw new Error('Mania replay input must decode the key bitfield from the x field');
+}
+if (!html.includes('osu!-style judgement feedback is shared and centered')) {
+  throw new Error('Mania judgement feedback must be centered instead of repeated per lane');
+}
+if (!html.includes('ctx.fillText(String(i+1),col.center,ry+rh/2)')) {
+  throw new Error('Mania playfield must keep visible key receptors at the judgement line');
+}
+
 
 for (let index = 0; index < scripts.length; index += 1) {
   new vm.Script(scripts[index], { filename: 'replay.html:inline-script-' + (index + 1) });
