@@ -393,19 +393,26 @@ const ManiaNoteRenderer={
    const headY=layout.hitY-(obj.time-now)*scale,endY=layout.hitY-(obj.endTime-now)*scale;
    if(obj.type==='hold'){
     const top=Math.max(0,Math.min(headY,endY)),bottom=Math.min(ctx.canvas.height,Math.max(headY,endY));
-    if(bottom>top){
+    // Once a hold head crosses the judgement line, its visible body must stop there.
+    // The remaining tail continues approaching the line until the hold ends.
+    const bodyTop=Math.max(0,Math.min(headY,endY));
+    const bodyBottom=Math.min(layout.hitY,Math.max(headY,endY));
+    if(bodyBottom>bodyTop){
      const body=ManiaSkinResolver.note(obj.column,'body');
      if(body?.complete&&body.naturalWidth&&body.naturalHeight){
       const bodyWidth=Math.min(nw,body.naturalWidth*layout.scale),bx=col.center-bodyWidth/2;
-      ctx.save();ctx.beginPath();ctx.rect(col.x,0,col.width,ctx.canvas.height);ctx.clip();
-      // mania-noteN L is the hold body texture: stretch its middle scanline only.
-      // This prevents rounded source-image caps from becoming a giant capsule.
-      const sourceY=Math.max(0,Math.min(body.naturalHeight-1,Math.floor(body.naturalHeight/2)));
-      ctx.drawImage(body,0,sourceY,body.naturalWidth,1,bx,top,bodyWidth,bottom-top);
+      const tileHeight=Math.max(1,body.naturalHeight*layout.scale);
+      ctx.save();ctx.beginPath();ctx.rect(col.x,0,col.width,layout.hitY);ctx.clip();
+      // Tile the full body texture vertically; never stretch a hold across its full duration.
+      for(let y=bodyTop;y<bodyBottom;y+=tileHeight){
+       const h=Math.min(tileHeight,bodyBottom-y);
+       ctx.drawImage(body,bx,y,bodyWidth,h);
+      }
       ctx.restore();skinDrawStats.maniaBodies++;
      }else{
-      ctx.fillStyle='rgba(87,201,232,.62)';ctx.fillRect(x,top,nw,bottom-top);
-      ctx.strokeStyle='#a9e7ff';ctx.strokeRect(x,top,nw,bottom-top);
+      ctx.save();ctx.beginPath();ctx.rect(col.x,0,col.width,layout.hitY);ctx.clip();
+      ctx.fillStyle='rgba(87,201,232,.62)';ctx.fillRect(x,bodyTop,nw,bodyBottom-bodyTop);
+      ctx.strokeStyle='#a9e7ff';ctx.strokeRect(x,bodyTop,nw,bodyBottom-bodyTop);ctx.restore();
      }
     }
     const tailY=endY,tail=ManiaSkinResolver.note(obj.column,'tail');
@@ -415,7 +422,7 @@ const ManiaNoteRenderer={
      ctx.drawImage(tail,col.center-drawW/2,tailY-drawH/2,drawW,drawH);
     }
    }
-   if(headY>=-48&&headY<=layout.hitY+24){
+   if(headY>=-48&&headY<=layout.hitY&&(obj.type!=='hold'||headY<=layout.hitY)){
     const head=ManiaSkinResolver.note(obj.column,obj.type==='hold'?'head':'');
     if(head?.complete&&head.naturalWidth&&head.naturalHeight){
      const maxW=col.width*.92,maxH=col.width*.92,ratio=head.naturalWidth/head.naturalHeight;
