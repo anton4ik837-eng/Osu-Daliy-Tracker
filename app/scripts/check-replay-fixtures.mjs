@@ -95,4 +95,8 @@ for (const [archiveName, archiveBytes] of nestedSkin) {
   }
 }
 if (!maniaTextures.length) { console.log('Skin ZIP image candidates=' + [...outerSkin.keys()].filter(name => /\\.(png|jpe?g|webp)$/i.test(name)).slice(0, 200).join(' | ')); throw new Error('Skin ZIP (direct or nested .osk) has no supported Mania or legacy Orbs textures'); }
-console.log('Mania skin fixture OK: ' + maniaTextures.length + ' mania textures; skin.ini=' + skinIni);
+const allSkinNames=[...outerSkin.keys()].map(name=>name.split('/').pop().toLowerCase());
+const hit300g=allSkinNames.includes('mania-hit300g.png')||allSkinNames.includes('hit300g.png');
+const hit300=allSkinNames.includes('mania-hit300.png')||allSkinNames.includes('hit300.png');
+if(!hit300g||!hit300)throw new Error('Skin fixture must contain distinct MAX (mania-hit300g) and 300 (mania-hit300) judgement textures');
+console.log('Mania skin fixture OK: ' + maniaTextures.length + ' mania textures; skin.ini=' + skinIni + '; MAX and 300 textures verified');

@@ -72,13 +72,13 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
-      - name: Name APK 1.9.9-beta
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.9-beta.apk
+      - name: Name APK 1.9.10
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.10.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.9-beta
-          path: osu-daily-tracker-v1.9.9-beta.apk
+          name: osu-daily-tracker-v1.9.10
+          path: osu-daily-tracker-v1.9.10.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -108,7 +108,7 @@ jobs:
       # APK публикуется автоматически после успешной сборки и проверки в эмуляторе.
 
   publish-release:
-    name: Publish osu! Daily Tracker Beta 1.9.9
+    name: Publish osu! Daily Tracker 1.9.10
     needs: [build, emulator-smoke-test]
     runs-on: ubuntu-latest
     permissions:
@@ -117,20 +117,22 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.9-beta
+          name: osu-daily-tracker-v1.9.10
           path: dist
-      - name: Опубликовать beta-релиз 1.9.9
+      - name: Опубликовать релиз 1.9.10
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="v1.9.9-beta"
-          APK="dist/osu-daily-tracker-v1.9.9-beta.apk"
-          TITLE="osu! Daily Tracker Beta 1.9.9"
+          TAG="v1.9.10"
+          APK="dist/osu-daily-tracker-v1.9.10.apk"
+          TITLE="osu! Daily Tracker 1.9.10"
           NOTES="$(cat <<'EOF'
-          Обновление osu! Daily Tracker 1.9.9-beta.
-          - Исправлены эффекты judgement в Mania: точные попадания больше не отображаются текстурой MISS.
-          - Добавлены видимая линия judgement, приёмники и централизованная индикация MISS/offset.
+          Обновление osu! Daily Tracker 1.9.10.
+          - Исправлен выбор judgement-текстур osu!mania: MAX использует mania-hit300g, 300 — mania-hit300.
+          - Добавлены OD-зависимые окна MAX/300/200/100/50/MISS.
+          - Убраны синтетические пронумерованные рецепторы: используются KeyImage/KeyImageD из скина.
+          - HUD и эффекты попадания показывают judgement, а миллисекунды остаются в статистике.
           - Перед публикацией APK проходит автоматическую проверку и запуск в Android-эмуляторе.
           EOF
           )"
@@ -319,7 +321,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.9.9-beta
+          name: android-emulator-diagnostics-v1.9.10
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
