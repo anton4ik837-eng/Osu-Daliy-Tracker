@@ -587,5 +587,48 @@ $('refreshLibraryButton').addEventListener('click',refreshReplayLibrary);
 refreshReplayLibrary();
 </script>
 <!-- Replay Lab 1.6.1: include account replay library persistence and paginated score history. -->
+
+<!-- CI replay/skin integration test harness -->
+<script>
+(async()=>{
+ if(new URLSearchParams(location.search).get('ciReplaySkin')!=='1')return;
+ const status=document.createElement('div');status.id='ciTestStatus';status.style.cssText='position:sticky;top:0;z-index:10000;padding:12px;background:#123;color:#fff;font-weight:800;text-align:center';status.textContent='CI TEST STARTING';document.body.prepend(status);
+ const report={startedAt:new Date().toISOString(),checks:[],errors:[]};
+ const check=(name,ok,details={})=>{report.checks.push({name,ok,...details});diagLog('ci.replay_skin_check',{name,ok,...details});if(!ok)throw new Error('CI assertion failed: '+name)};
+ const waitFor=async(fn,label,timeout=60000)=>{const start=Date.now();while(Date.now()-start<timeout){if(fn())return;await new Promise(r=>setTimeout(r,250));}throw new Error('Timeout waiting for '+label+'; status='+$('status').textContent)};
+ try{
+  const fixture=async(name)=>{const response=await fetch('./ci-fixtures/'+name);if(!response.ok)throw new Error('Fixture fetch failed '+name+' HTTP '+response.status);return new File([await response.arrayBuffer()],name.split('/').pop(),{type:'application/octet-stream'});};
+  const replay=await fixture('solo-replay-mania_429549_7779890059.osr');
+  const map=await fixture('176446 High Speed Music Team Sharpnel - M.A.M.A..osz');
+  const skin=await fixture('百鬼あやめ.osk.zip');
+  $('mapFile')._savedFile=map;$('mapFile')._savedResolved=false;
+  await loadReplay(replay);
+  await waitFor(()=>!!playMap&&playMap.mode===3,'mania replay and matching map');
+  check('replay_loaded',!!window.replayFrames&&parsedReplay?.mode===3,{mode:parsedReplay?.mode,player:parsedReplay?.player,frames:window.replayFrames?.length||0});
+  check('exact_map_loaded',!!playMap&&playMap.mode===3&&playMap.objects.length>0,{keys:playMap?.keys,objects:playMap?.objects?.length||0,md5:parsedReplay?.beatmapMd5});
+  await loadOsuSkin(skin);
+  await waitFor(()=>Object.keys(activeSkin.images||{}).length>0,'custom skin images');
+  await new Promise(resolve=>setTimeout(resolve,500));
+  const customImages=Object.keys(activeSkin.images||{});
+  const maniaImages=customImages.filter(n=>/^mania-(note|key)\d+/i.test(n));
+  check('custom_skin_selected',activeSkin.name===skin.name,{name:activeSkin.name});
+  check('custom_mania_textures_loaded',maniaImages.length>0,{imageCount:customImages.length,maniaImageCount:maniaImages.length,skinIni:!!lastSkinDiagnostics?.skinIniPath});
+  playerNow=Math.max(0,(playMap.objects[0]?.time||0)-1200);skinDrawStats={stretch:0,center:0,misses:0,lastMissing:[]};drawPlayfield();
+  check('custom_skin_rendered',!!$('playfield').getContext('2d')&&customImages.length>0,{skin:activeSkin.name,maniaImageCount:maniaImages.length,canvasWidth:$('playfield').width,canvasHeight:$('playfield').height});
+  const customResult={skin:activeSkin.name,images:customImages.length,maniaImages:maniaImages.length,drawStats:{...skinDrawStats}};
+  $('resetSkin').click();playerNow=Math.max(0,(playMap.objects[0]?.time||0)-1200);drawPlayfield();
+  check('builtin_skin_reset',activeSkin.name==='Встроенный вид'&&Object.keys(activeSkin.images||{}).length===0,{name:activeSkin.name,imageCount:Object.keys(activeSkin.images||{}).length});
+  check('builtin_renderer_drawn',!!playMap&&$('playfield').width===512,{mode:playMap.mode,keys:playMap.keys});
+  report.customSkin=customResult;report.finishedAt=new Date().toISOString();window.__CI_REPLAY_SKIN_RESULT__=report;
+  status.textContent='CI TEST PASS · REPLAY + CUSTOM SKIN + BUILT-IN SKIN';
+  diagLog('ci.replay_skin_test_pass',report);
+ }catch(error){
+  report.errors.push(String(error?.stack||error));report.finishedAt=new Date().toISOString();window.__CI_REPLAY_SKIN_RESULT__=report;
+  status.textContent='CI TEST FAIL · '+String(error?.message||error);
+  status.style.background='#8b1d32';diagLog('ci.replay_skin_test_fail',report);
+ }
+})();
+</script>
+
 </body>
 </html>
