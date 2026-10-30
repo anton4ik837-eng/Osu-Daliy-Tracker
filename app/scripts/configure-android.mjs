@@ -102,7 +102,7 @@ if (!packageMatch) throw new Error('Could not determine Android application pack
 const javaPackage = packageMatch[1];
 const javaDir = 'android/app/src/main/java/' + javaPackage.replace(/\./g, '/');
 await mkdir(javaDir, { recursive: true });
-const pluginSource = \`package \${javaPackage};
+const pluginSource = `package ${javaPackage};
 
 import android.content.ContentValues;
 import android.database.Cursor;
