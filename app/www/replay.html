@@ -398,7 +398,11 @@ const ManiaNoteRenderer={
      if(body?.complete&&body.naturalWidth&&body.naturalHeight){
       const bodyWidth=Math.min(nw,body.naturalWidth*layout.scale),bx=col.center-bodyWidth/2;
       ctx.save();ctx.beginPath();ctx.rect(col.x,0,col.width,ctx.canvas.height);ctx.clip();
-      ctx.drawImage(body,bx,top,bodyWidth,bottom-top);ctx.restore();skinDrawStats.maniaBodies++;
+      // mania-noteN L is the hold body texture: stretch its middle scanline only.
+      // This prevents rounded source-image caps from becoming a giant capsule.
+      const sourceY=Math.max(0,Math.min(body.naturalHeight-1,Math.floor(body.naturalHeight/2)));
+      ctx.drawImage(body,0,sourceY,body.naturalWidth,1,bx,top,bodyWidth,bottom-top);
+      ctx.restore();skinDrawStats.maniaBodies++;
      }else{
       ctx.fillStyle='rgba(87,201,232,.62)';ctx.fillRect(x,top,nw,bottom-top);
       ctx.strokeStyle='#a9e7ff';ctx.strokeRect(x,top,nw,bottom-top);
