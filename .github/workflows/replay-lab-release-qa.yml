@@ -68,6 +68,7 @@ jobs:
           set -euxo pipefail
           mkdir -p www/ci-fixtures
           cp "../test-fixtures/replays/solo-replay-mania_429549_7779890059.osr" www/ci-fixtures/
+          cp "../test-fixtures/replays/tupoieblan228_playing_HyuN_Encounter_FAMoss_Rendezvous_Point_2026.osr" www/ci-fixtures/
           cp "../test-fixtures/replays/176446 High Speed Music Team Sharpnel - M.A.M.A..osz" www/ci-fixtures/
           cp "../test-fixtures/skins/百鬼あやめ.osk.zip" www/ci-fixtures/
           sed -i 's|href="./replay.html"|href="./replay.html?ciReplaySkin=1"|g' www/index.html
