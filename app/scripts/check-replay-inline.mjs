@@ -90,8 +90,8 @@ if (html.includes("ctx.fillText(r.judgement||'MISS',col.center,layout.scoreY-15)
 if (html.includes('function maniaJudgementLabel(')) {
   throw new Error('Mania judgement feedback must use skin artwork, not named text labels');
 }
-if (!html.includes("ManiaSkinResolver.hit(isMiss?'MISS':recent.judgement||'MISS')")) {
-  throw new Error('The latest mania judgement must use the active skin image in the shared score area');
+if (!html.includes("effect=ManiaSkinResolver.hit(tier)") || !html.includes("else if(effect?.complete&&effect.naturalWidth&&effect.naturalHeight)")) {
+  throw new Error('Custom Mania skins must render their own judgement artwork in the shared score area');
 }
 if (!html.includes("labels={MAX:'Marvelous','300':'Perfect','200':'Great','100':'Good','50':'Bad',MISS:'Miss'}")) {
   throw new Error('Built-in Mania skin must show named judgement labels');
