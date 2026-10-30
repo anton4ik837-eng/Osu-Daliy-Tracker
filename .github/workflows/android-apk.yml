@@ -176,7 +176,7 @@ jobs:
             echo "::error::sdkmanager --licenses failed with exit code $license_status"
             exit "$license_status"
           fi
-          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install --verbose "platform-tools" "emulator" "system-images;android-34;google_apis;x86_64"
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install --verbose "platform-tools" "emulator" "system-images;android-34;default;x86_64"
           adb version
           emulator -version
 
@@ -190,7 +190,7 @@ jobs:
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
           AVD_PATH="$ANDROID_AVD_HOME/ci-smoke.avd"
-          timeout 45s avdmanager create avd --force --name ci-smoke --package "system-images;android-34;google_apis;x86_64" --device "pixel_2" --path "$AVD_PATH" <<< "no"
+          timeout 45s avdmanager create avd --force --name ci-smoke --package "system-images;android-34;default;x86_64" --device "pixel_2" --path "$AVD_PATH" <<< "no"
           test -f "$ANDROID_AVD_HOME/ci-smoke.ini"
           timeout 15s emulator -list-avds | tee emulator-results/available-avds.txt
           grep -Fxq "ci-smoke" emulator-results/available-avds.txt
@@ -254,7 +254,6 @@ jobs:
           adb -e exec-out screencap -p > emulator-results/home-screen.png
           # Open Replay Lab through the dedicated top navigation link (href="#replay").
           # This avoids a brittle tap on a page section whose position changes with viewport and keyboard state.
-          adb -e shell input keyevent 4
           sleep 2
           adb -e shell input tap 735 70
           sleep 3
@@ -263,16 +262,36 @@ jobs:
           # ADB reports the Pixel 2 AVD at 1080x1920; screenshot preview is scaled down.
           # The CTA center in device coordinates is approximately (545, 1565).
           adb -e shell input tap 545 1565
-          sleep 7
+          # The Replay Lab query harness loads the real replay, matching map and nested skin.
+          # Poll its explicit PASS/FAIL banner instead of assuming seven seconds is sufficient.
+          ci_result=waiting
+          deadline=$((SECONDS + 90))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            if ! adb -e shell pidof com.osudailytracker.app >/dev/null 2>&1; then
+              echo "::error::App process exited while Replay Lab was running."
+              ci_result=process_exit
+              break
+            fi
+            adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
+            tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null > emulator-results/replay-lab-ocr.txt || true
+            if grep -Eqi 'CI TEST PASS' emulator-results/replay-lab-ocr.txt; then
+              ci_result=pass
+              break
+            fi
+            if grep -Eqi 'CI TEST FAIL' emulator-results/replay-lab-ocr.txt; then
+              ci_result=fail
+              break
+            fi
+            sleep 3
+          done
           adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
-          # Require controls that exist only inside replay.html, not merely the home-page card.
-          tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-lab-ocr.txt
-          if ! grep -Eqi 'Скин|Просмотр рана|Загрузи реплей|Реплей' emulator-results/replay-lab-ocr.txt; then
-            echo "::error::Replay Lab itself did not open; replay.html controls were not detected."
+          tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-lab-ocr.txt || true
+          adb -e logcat -d -v threadtime > emulator-results/logcat.txt
+          if [ "$ci_result" != pass ]; then
+            echo "::error::Replay Lab integration test did not pass (result=$ci_result)."
             cat emulator-results/replay-lab-ocr.txt
             exit 1
           fi
-          adb -e logcat -d -v threadtime > emulator-results/logcat.txt
           test -s emulator-results/home-screen.png
           test -s emulator-results/replay-lab-screen.png
           if grep -E 'FATAL EXCEPTION|Fatal signal [0-9]+ \\(SIG' emulator-results/logcat.txt; then
