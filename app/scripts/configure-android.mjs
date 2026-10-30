@@ -60,7 +60,7 @@ const foreground=[
 '<path android:fillColor="#FFFFFF" android:pathData="M207,192 C219,181 241,184 252,194 L243,210 C235,204 223,203 219,211 C214,220 248,221 254,238 C261,258 242,274 223,271 C210,270 200,264 193,256 L205,240 C214,249 227,255 235,247 C242,238 210,236 204,223 C199,212 200,200 207,192 Z"/>',
 '<path android:fillColor="#FFFFFF" android:pathData="M270,196 L288,196 L288,242 C288,255 294,262 304,262 C315,262 321,254 321,241 L321,196 L339,196 L339,277 L322,277 L322,267 C315,275 306,280 295,279 C277,279 270,266 270,248 Z"/>',
 '<path android:fillColor="#9C31FF" android:pathData="M126,365 L180,365 L180,405 L126,405 Z M190,337 L244,337 L244,405 L190,405 Z M254,309 L308,309 L308,405 L254,405 Z M318,281 L372,281 L372,405 L318,405 Z"/>',
-'<path android:strokeColor="#43D9FF" android:strokeWidth="11" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" android:pathData="M115,350 C166,336 190,300 239,313 S313,273 385,232"/>'
+'<path android:strokeColor="#43D9FF" android:strokeWidth="11" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" android:pathData="M115,350 C166,336 190,300 239,313 S313,273 385,232"/>',
 '</vector>'
 ].join('\n');
 const monochrome=[
