@@ -134,12 +134,12 @@ jobs:
           - Перед публикацией APK проходит автоматическую проверку и запуск в Android-эмуляторе.
           EOF
           )"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" --prerelease
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES" --prerelease
           else
-            gh release create "$TAG" --target "$GITHUB_SHA" --title "$TITLE" --notes "$NOTES" --prerelease
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TITLE" --notes "$NOTES" --prerelease
           fi
-          gh release upload "$TAG" "$APK" --clobber
+          gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
 
 
   emulator-smoke-test:
