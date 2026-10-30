@@ -81,13 +81,13 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
-      - name: Name APK 1.10.0
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.10.0-beta.apk
+      - name: Name APK 1.10.1
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.10.1-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.10.0-beta
-          path: osu-daily-tracker-v1.10.0-beta.apk
+          name: osu-daily-tracker-v1.10.1-beta
+          path: osu-daily-tracker-v1.10.1-beta.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -118,7 +118,7 @@ jobs:
       # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
   publish-release:
-    name: Publish osu! Daily Tracker 1.10.0 Beta
+    name: Publish osu! Daily Tracker 1.10.1 Beta
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
@@ -127,18 +127,18 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.10.0-beta
+          name: osu-daily-tracker-v1.10.1-beta
           path: dist
-      - name: Опубликовать бета-релиз 1.10.0
+      - name: Опубликовать бета-релиз 1.10.1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="v1.10.0-beta"
-          APK="dist/osu-daily-tracker-v1.10.0-beta.apk"
-          TITLE="osu! Daily Tracker 1.10.0 Beta"
+          TAG="v1.10.1-beta"
+          APK="dist/osu-daily-tracker-v1.10.1-beta.apk"
+          TITLE="osu! Daily Tracker 1.10.1 Beta"
           NOTES="$(cat <<'EOF'
-          Экспериментальный тестовый релиз osu! Daily Tracker 1.10.0-beta.
+          Экспериментальный тестовый релиз osu! Daily Tracker 1.10.1-beta.
           - Добавлен переключатель JS renderer на базе replayviewer-js. Это предварительная интеграция для ручного тестирования; старый рендерер остаётся доступен.
           - Включён отдельный regression test адаптера replayviewer-js перед Android-сборкой.
           - Восстановлен Android APK workflow; сборка запускается при изменениях app/**, test-fixtures/** и самого workflow.
@@ -321,7 +321,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.10.0-beta
+          name: android-emulator-diagnostics-v1.10.1-beta
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
