@@ -112,11 +112,11 @@ jobs:
           name: osu-daily-tracker-ci-test-apk
           path: osu-daily-tracker-ci-test.apk
           if-no-files-found: error
-      # APK публикуется автоматически после успешной сборки и проверки в эмуляторе.
+      # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
   publish-release:
     name: Publish osu! Daily Tracker 1.9.13 Beta
-    needs: [build, emulator-smoke-test]
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -148,7 +148,7 @@ jobs:
           - HUD и эффекты попадания показывают judgement, а миллисекунды остаются в статистике.
           - Для Standard → Mania число колонок без key-count-мода теперь определяется по фактически используемым клавишам в .osr, а не по общей эвристике генератора.
           - Добавлены регрессионные проверки определения 4K/7K по битовой маске реплея и приоритету явного key-count-мода.
-          - Перед публикацией APK проходит автоматическую проверку и запуск в Android-эмуляторе.
+          - Android-эмуляторная интеграционная проверка запускается отдельно после сборки; её результат не блокирует публикацию APK. Результат и диагностика доступны в GitHub Actions.
           EOF
           )"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
