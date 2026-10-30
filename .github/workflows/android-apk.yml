@@ -73,12 +73,12 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
       - name: Name APK 1.9.11
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.11-beta-beta.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.11-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.11-beta-beta
-          path: osu-daily-tracker-v1.9.11-beta-beta.apk
+          name: osu-daily-tracker-v1.9.11-beta
+          path: osu-daily-tracker-v1.9.11-beta.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -108,7 +108,7 @@ jobs:
       # APK публикуется автоматически после успешной сборки и проверки в эмуляторе.
 
   publish-release:
-    name: Publish osu! Daily Tracker 1.9.11
+    name: Publish osu! Daily Tracker 1.9.11 Beta
     needs: [build, emulator-smoke-test]
     runs-on: ubuntu-latest
     permissions:
@@ -117,15 +117,15 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.11-beta-beta
+          name: osu-daily-tracker-v1.9.11-beta
           path: dist
-      - name: Опубликовать релиз 1.9.11
+      - name: Опубликовать бета-релиз 1.9.11
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           TAG="v1.9.11-beta"
-          APK="dist/osu-daily-tracker-v1.9.11-beta-beta.apk"
+          APK="dist/osu-daily-tracker-v1.9.11-beta.apk"
           TITLE="osu! Daily Tracker 1.9.11 Beta"
           NOTES="$(cat <<'EOF'
           Бета-обновление osu! Daily Tracker 1.9.11.
