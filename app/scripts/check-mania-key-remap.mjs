@@ -50,6 +50,12 @@ for (let keys = 1; keys <= 10; keys++) {
   assert.equal(resolved.keys, keys, keys + 'K mod bit resolution');
   assert.equal(resolved.source, 'mod', keys + 'K mod source');
 }
+// Switching target counts must still remap from the untouched source lanes.
+const sequential = { keys: 7, objects: Array.from({ length: 7 }, (_, lane) => ({ x: (lane + 0.5) * 512 / 7 })) };
+context.applyManiaKeyCount(sequential, 4);
+context.applyManiaKeyCount(sequential, 6);
+assert.deepEqual(Array.from(sequential.objects, object => object.column), [0, 0, 1, 2, 3, 4, 5]);
+assert.equal(sequential.originalKeys, 7);
 const tenthLaneFallback = context.resolveManiaKeyCount(0, [{ x: 1 << 9 }], 7);
 assert.equal(tenthLaneFallback.keys, 10, '10K fallback from tenth-lane input');
 console.log('Mania key remap matrix OK: ' + matrixCases + ' source/target pairs, repeated application; all 10 key-mod bits verified');
