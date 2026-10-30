@@ -129,11 +129,14 @@ if (!html.includes("audioEnabled=true") ||
     !html.includes("Музыка включится автоматически при запуске реплея")) {
   throw new Error('Audio from a loaded beatmap archive must be enabled by default');
 }
-if (!html.includes('async function resumePlaybackAfterForeground()') ||
-    !html.includes("document.addEventListener('visibilitychange'") ||
-    !html.includes("window.NativeApp?.addListener?.('appStateChange'") ||
-    !html.includes('document.hidden||appIsBackgrounded||resumeAudioPending')) {
-  throw new Error('Replay playback must survive app backgrounding and resume when the app returns');
+if (!html.includes('function pausePlaybackForBackground(') ||
+    !html.includes("if(appIsBackgrounded)pausePlaybackForBackground('document.visibilitychange')") ||
+    !html.includes("if(!state.isActive)pausePlaybackForBackground('capacitor.appStateChange')") ||
+    !html.includes("'replay.paused_background'")) {
+  throw new Error('Replay and audio must pause on Android app background events');
+}
+if (html.includes('async function resumePlaybackAfterForeground()')) {
+  throw new Error('Playback must not automatically resume when the app returns to foreground');
 }
 const stageClose = html.indexOf('</div></div><div class="hud-stats">');
 if (stageClose < 0) {
