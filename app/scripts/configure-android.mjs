@@ -13,7 +13,7 @@ try {
 // Force Android to use the custom launcher artwork, including the round-icon slot.
 xml = xml.replace(/<application\b([^>]*)>/, (match, attrs) => {
   let updated = attrs.replace(/\sandroid:icon="[^"]*"/, '').replace(/\sandroid:roundIcon="[^"]*"/, '');
-  return '<application' + updated + ' android:icon="@mipmap/ic_launcher_v11102" android:roundIcon="@mipmap/ic_launcher_v11102_round_v11102"' + '>';
+  return '<application' + updated + ' android:icon="@mipmap/ic_launcher_v11102" android:roundIcon="@mipmap/ic_launcher_round_v11102"' + '>';
 });
 if (!/android:scheme="osudailytracker"/.test(xml)) {
   const activityStart = xml.search(/<activity\b[^>]*android:name="[^"]*MainActivity"[^>]*>/);
