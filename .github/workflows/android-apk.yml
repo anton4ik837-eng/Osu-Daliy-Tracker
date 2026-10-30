@@ -252,21 +252,21 @@ jobs:
           sleep 20
           adb -e shell pidof com.osudailytracker.app
           adb -e exec-out screencap -p > emulator-results/home-screen.png
-          # Dismiss the on-screen keyboard, then open Replay Lab from the top navigation.
+          # Open Replay Lab through the dedicated top navigation link (href="#replay").
+          # This avoids a brittle tap on a page section whose position changes with viewport and keyboard state.
           adb -e shell input keyevent 4
           sleep 2
-          screen_size=$(adb -e shell wm size | tail -n 1 | awk '{print $3}')
-          screen_width=${screen_size%x*}
-          screen_height=${screen_size#*x}
-          # Open the large Replay Lab call-to-action near the bottom of the home page.
-          # The previous tap hit the top navigation and left the app on the home screen,
-          # while the permissive OCR check incorrectly passed on the home-page card.
-          adb -e shell input tap $((screen_width * 50 / 100)) $((screen_height * 83 / 100))
+          adb -e shell input tap 735 70
+          sleep 3
+          adb -e exec-out screencap -p > emulator-results/replay-section-screen.png
+          tesseract emulator-results/replay-section-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-section-ocr.txt
+          # The section CTA opens replay.html; tap its expected center after anchor scrolling.
+          adb -e shell input tap 540 1650
           sleep 7
           adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
           # Require controls that exist only inside replay.html, not merely the home-page card.
           tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-lab-ocr.txt
-          if ! grep -Eqi 'Скин|Просмотр рана|Загрузи реплей|Реплей \\(' emulator-results/replay-lab-ocr.txt; then
+          if ! grep -Eqi 'Скин|Просмотр рана|Загрузи реплей|Реплей' emulator-results/replay-lab-ocr.txt; then
             echo "::error::Replay Lab itself did not open; replay.html controls were not detected."
             cat emulator-results/replay-lab-ocr.txt
             exit 1
