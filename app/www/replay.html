@@ -55,18 +55,18 @@ async function loadOsuSkin(file){
  try{
   const scoreArchive=archive=>{
    const files=Object.entries(archive).filter(([path,bytes])=>!path.endsWith('/')&&bytes?.length);
-   const names=files.map(([path])=>path.replace(/\\\\/g,'/').split('/').pop().toLowerCase());
+   const names=files.map(([path])=>path.replace(/\\/g,'/').split('/').pop().toLowerCase());
    const hasIni=names.includes('skin.ini');
-   const mania=names.filter(name=>/^(mania-(note|key)\\d+|note(ht|h|l)?\\d+|key\\d+d?)\\.(png|jpe?g|webp|gif|bmp)$/i.test(name)).length;
+   const mania=names.filter(name=>/^(mania-(note|key)\d+|note(ht|h|l)?\d+|key\d+d?)\.(png|jpe?g|webp|gif|bmp)$/i.test(name)).length;
    const standard=names.filter(name=>/^(hitcircle|hitcircleoverlay|approachcircle|cursor|sliderb|spinner)/i.test(name)).length;
-   const images=files.filter(([path])=>/\\.(png|jpe?g|webp|gif|bmp)$/i.test(path)).length;
+   const images=files.filter(([path])=>/\.(png|jpe?g|webp|gif|bmp)$/i.test(path)).length;
    return (hasIni?10000:0)+(mania?5000+Math.min(mania,500):0)+(standard?1000+Math.min(standard,500):0)+Math.min(images,500);
   };
   const inspectArchive=(archive,depth=0)=>{
    let best={entries:archive,score:scoreArchive(archive),nestedPath:null};
    if(depth>=4)return best;
    for(const [path,bytes] of Object.entries(archive)){
-    if(!/\\.(osk|zip)$/i.test(path)||!bytes?.length)continue;
+    if(!/\.(osk|zip)$/i.test(path)||!bytes?.length)continue;
     try{
      const child=window.fflate.unzipSync(bytes);
      const candidate=inspectArchive(child,depth+1);
