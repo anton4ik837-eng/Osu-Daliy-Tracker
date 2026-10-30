@@ -87,17 +87,26 @@ if (!html.includes("label.textContent=current.kind+'  '+current.judgement")) {
 if (html.includes("ctx.fillText(r.judgement||'MISS',col.center,layout.scoreY-15)")) {
   throw new Error('Judgement labels must not be duplicated above individual lanes');
 }
-if (!html.includes("MAX:'Marvelous',300:'Perfect',200:'Great',100:'Good',50:'Bad',MISS:'Miss'")) {
-  throw new Error('Mania judgement codes must be presented as named judgements');
+if (html.includes('function maniaJudgementLabel(')) {
+  throw new Error('Mania judgement feedback must use skin artwork, not named text labels');
 }
-if (!html.includes('ctx.strokeText(label,w/2,h/2)') || !html.includes('ctx.fillText(label,w/2,h/2)')) {
-  throw new Error('Only the latest mania judgement must be shown at the playfield centre');
+if (!html.includes("ManiaSkinResolver.hit(isMiss?'MISS':recent.judgement||'MISS')")) {
+  throw new Error('The latest mania judgement must use the active skin image in the shared score area');
+}
+if (html.includes('ctx.strokeText(label,w/2,h/2)') || html.includes('ctx.fillText(label,w/2,h/2)')) {
+  throw new Error('Mania judgement feedback must not be rendered as separate text labels');
+}
+if (html.includes('ctx.arc(col.center,layout.scoreY')) {
+  throw new Error('Missing judgement textures must not be replaced with synthetic circles');
+}
+if (!html.includes('maniaMode?320:384') || !html.includes('.playfield-stage.mania-stage{aspect-ratio:16/10}')) {
+  throw new Error('Mania playfield must use the compact skin-aligned stage dimensions');
 }
 if (!html.includes('legacy .osr Mania replays, x stores the Mania key bitfield')) {
   throw new Error('Mania replay input must decode the key bitfield from the x field');
 }
-if (!html.includes('osu!-style judgement feedback is shared and centered')) {
-  throw new Error('Mania judgement feedback must be centered instead of repeated per lane');
+if (!html.includes('The latest hit replaces the previous one; use the judgement sprite supplied by the active skin.')) {
+  throw new Error('Mania judgement artwork must be shared and replaced by the latest hit');
 }
 
 
