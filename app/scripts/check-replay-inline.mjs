@@ -120,6 +120,21 @@ if (!html.includes('rendererJsSession.setSkin(file)') || !html.includes('rendere
 if (!html.includes("classList.add('js-renderer-active')") || !html.includes("classList.remove('js-renderer-active')")) {
   throw new Error('JS renderer HUD visibility class must be toggled with renderer mode');
 }
+
+if (!html.includes('async function enableDefaultRenderer()') ||
+    (html.match(/await enableDefaultRenderer\(\);/g) || []).length !== 2) {
+  throw new Error('The JS renderer must enable itself by default for both Standard and Mania maps');
+}
+if (!html.includes("audioEnabled=true") ||
+    !html.includes("Музыка включится автоматически при запуске реплея")) {
+  throw new Error('Audio from a loaded beatmap archive must be enabled by default');
+}
+if (!html.includes('async function resumePlaybackAfterForeground()') ||
+    !html.includes("document.addEventListener('visibilitychange'") ||
+    !html.includes("window.NativeApp?.addListener?.('appStateChange'") ||
+    !html.includes('document.hidden||appIsBackgrounded||resumeAudioPending')) {
+  throw new Error('Replay playback must survive app backgrounding and resume when the app returns');
+}
 const stageClose = html.indexOf('</div></div><div class="hud-stats">');
 if (stageClose < 0) {
   throw new Error('Replay statistics must be placed below the playfield, not over it');
