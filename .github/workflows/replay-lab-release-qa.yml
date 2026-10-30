@@ -46,6 +46,22 @@ jobs:
       - name: Replay, beatmap and skin fixture regression
         run: node app/scripts/check-replay-fixtures.mjs
 
+      - name: Download the exact APK published in this release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          mkdir -p qa-results/release
+          gh release download "$QA_TAG" --pattern '*.apk' --dir qa-results/release
+          test "$(find qa-results/release -maxdepth 1 -name '*.apk' | wc -l)" -eq 1
+          cp "$(find qa-results/release -maxdepth 1 -name '*.apk' -print -quit)" qa-results/release-apk.apk
+
+      - name: Set up Java for Android build
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Build fixture-enabled QA APK
         working-directory: app
         run: |
@@ -108,6 +124,14 @@ jobs:
         id: replay-test
         run: |
           set -euxo pipefail
+          # First verify the actual APK attached to the published GitHub Release.
+          adb install -r qa-results/release-apk.apk
+          adb shell monkey -p com.osudailytracker.app 1
+          sleep 12
+          adb shell pidof com.osudailytracker.app
+          adb exec-out screencap -p > qa-results/release-apk-home.png
+          adb uninstall com.osudailytracker.app
+          # Then install the fixture-enabled build of the same tagged source.
           adb install -r qa-results/replay-lab-qa.apk
           adb logcat -c
           adb shell monkey -p com.osudailytracker.app 1
