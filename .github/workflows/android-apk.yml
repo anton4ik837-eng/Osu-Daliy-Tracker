@@ -1,0 +1,333 @@
+name: Build Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [app-foundation, alpha-1.0.0-work]
+    paths:
+      - 'app/**'
+      - 'test-fixtures/**'
+      - '.github/workflows/android-apk.yml'
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: app
+        run: npm install
+      - name: Validate Replay Lab JavaScript syntax
+        working-directory: app
+        run: npm run test:replay-inline
+      - name: Validate supplied replay, exact beatmap and nested mania skin fixtures
+        working-directory: .
+        run: node app/scripts/check-replay-fixtures.mjs
+      - name: Build native JavaScript bridge
+        working-directory: app
+        run: npm run build
+      - name: Add Android platform
+        working-directory: app
+        run: npx cap add android
+      - name: Verify stable signing key is configured
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || (echo "::error::Missing ANDROID_KEYSTORE_BASE64 secret" && exit 1)
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || (echo "::error::Missing ANDROID_KEYSTORE_PASSWORD secret" && exit 1)
+          test -n "$ANDROID_KEY_ALIAS" || (echo "::error::Missing ANDROID_KEY_ALIAS secret" && exit 1)
+          test -n "$ANDROID_KEY_PASSWORD" || (echo "::error::Missing ANDROID_KEY_PASSWORD secret" && exit 1)
+      - name: Register OAuth deep link, icon and signing
+        working-directory: app
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: npm run configure:android
+      - name: Sync web assets
+        working-directory: app
+        run: npx cap sync android
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build APK with persistent signature
+        working-directory: app/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleDebug
+      - name: Name APK 1.9.12
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.12-beta.apk
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: osu-daily-tracker-v1.9.12-beta
+          path: osu-daily-tracker-v1.9.12-beta.apk
+          if-no-files-found: error
+      - name: Build fixture-enabled APK for emulator integration tests
+        working-directory: .
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euxo pipefail
+          mkdir -p app/www/ci-fixtures
+          cp "test-fixtures/replays/solo-replay-mania_429549_7779890059.osr" app/www/ci-fixtures/
+          cp "test-fixtures/replays/176446 High Speed Music Team Sharpnel - M.A.M.A..osz" app/www/ci-fixtures/
+          cp "test-fixtures/skins/百鬼あやめ.osk.zip" app/www/ci-fixtures/
+          # Enable the test only in this temporary APK; the release APK above stays fixture-free.
+          sed -i 's|href="./replay.html"|href="./replay.html?ciReplaySkin=1"|g' app/www/index.html
+          cd app
+          npx cap sync android
+          cd android
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../../osu-daily-tracker-ci-test.apk
+      - name: Upload fixture-enabled test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: osu-daily-tracker-ci-test-apk
+          path: osu-daily-tracker-ci-test.apk
+          if-no-files-found: error
+      # APK публикуется автоматически после успешной сборки и проверки в эмуляторе.
+
+  publish-release:
+    name: Publish osu! Daily Tracker 1.9.12 Beta
+    needs: [build, emulator-smoke-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: osu-daily-tracker-v1.9.12-beta
+          path: dist
+      - name: Опубликовать бета-релиз 1.9.12
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="v1.9.12-beta"
+          APK="dist/osu-daily-tracker-v1.9.12-beta.apk"
+          TITLE="osu! Daily Tracker 1.9.12 Beta"
+          NOTES="$(cat <<'EOF'
+          Бета-обновление osu! Daily Tracker 1.9.12.
+          - Восстановлен Android APK workflow; сборка запускается при изменениях app/**, test-fixtures/** и самого workflow.
+          - Область просмотра реплея ограничена шириной родительской панели, без выхода за края экрана.
+          - Ошибки разбора карты больше не маскируются сообщением об успешной загрузке.
+          - Judgement-оценки отображаются изображениями из активного скина, без отдельных текстовых надписей.
+          - Последняя оценка заменяет предыдущую; при отсутствии текстуры не рисуются искусственные круги.
+          - Поле osu!mania стало компактнее, а позиция области оценок привязана к HitPosition с учётом ScorePosition из скина.
+          - Исправлен выбор judgement-текстур osu!mania: MAX использует mania-hit300g, 300 — mania-hit300.
+          - Добавлены OD-зависимые окна MAX/300/200/100/50/MISS.
+          - Убраны синтетические пронумерованные рецепторы: используются KeyImage/KeyImageD из скина.
+          - HUD и эффекты попадания показывают judgement, а миллисекунды остаются в статистике.
+          - Перед публикацией APK проходит автоматическую проверку и запуск в Android-эмуляторе.
+          EOF
+          )"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES" --prerelease
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TITLE" --notes "$NOTES" --prerelease
+          fi
+          gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
+
+
+  emulator-smoke-test:
+    name: Android emulator smoke test
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download APK from build
+        uses: actions/download-artifact@v4
+        with:
+          name: osu-daily-tracker-ci-test-apk
+          path: dist
+
+      - name: Install emulator and system image
+        run: |
+          set -euxo pipefail
+          # Android Emulator QEMU requires PulseAudio runtime libraries on Ubuntu.
+          sudo apt-get update
+          sudo apt-get install -y libpulse0 tesseract-ocr tesseract-ocr-rus
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
+          # GITHUB_PATH only affects later steps; export paths for this shell too.
+          export PATH="$SDK_ROOT/platform-tools:$SDK_ROOT/emulator:$PATH"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          # avdmanager lives beside sdkmanager under cmdline-tools/<version>/bin.
+          CMDLINE_TOOLS_BIN="$(dirname "$SDKMANAGER")"
+          echo "$CMDLINE_TOOLS_BIN" >> "$GITHUB_PATH"
+          export PATH="$CMDLINE_TOOLS_BIN:$PATH"
+          # Use a real read-only command as the smoke check; --help may exit 1 on some SDK tools builds.
+          avdmanager list avd >/dev/null
+          # sdkmanager exits after accepting licenses, which closes the pipe;
+          # with pipefail enabled, `yes` can exit 141 and falsely fail the step.
+          set +e
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null
+          license_status=${PIPESTATUS[1]}
+          set -e
+          if [ "$license_status" -ne 0 ]; then
+            echo "::error::sdkmanager --licenses failed with exit code $license_status"
+            exit "$license_status"
+          fi
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install --verbose "platform-tools" "emulator" "system-images;android-34;default;x86_64"
+          adb version
+          emulator -version
+
+      - name: Create and start emulator with bounded startup
+        timeout-minutes: 7
+        run: |
+          set -euxo pipefail
+          mkdir -p emulator-results
+          # Keep AVD creation and emulator lookup on the same explicit directory.
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          AVD_PATH="$ANDROID_AVD_HOME/ci-smoke.avd"
+          timeout 45s avdmanager create avd --force --name ci-smoke --package "system-images;android-34;default;x86_64" --device "pixel_2" --path "$AVD_PATH" <<< "no"
+          test -f "$ANDROID_AVD_HOME/ci-smoke.ini"
+          timeout 15s emulator -list-avds | tee emulator-results/available-avds.txt
+          grep -Fxq "ci-smoke" emulator-results/available-avds.txt
+          # Hosted Ubuntu runners may expose /dev/kvm without granting the runner user access.
+          # x86_64 Android images cannot boot without KVM acceleration on current Emulator builds.
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            ls -l /dev/kvm
+          else
+            echo "::error::/dev/kvm is missing; x86_64 Android emulator requires KVM on this runner."
+            exit 1
+          fi
+          nohup emulator -avd ci-smoke -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -wipe-data > emulator-results/emulator.log 2>&1 &
+          echo $! > emulator-results/emulator.pid
+
+          # Do not call adb wait-for-device without a timeout: if the emulator
+          # fails before registering, that command can otherwise hang forever.
+          ready=0
+          for i in $(seq 1 90); do
+            if timeout 10s adb devices | grep -qE '^emulator-[0-9]+[[:space:]]+device$'; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "::error::Emulator never registered with ADB."
+            adb devices -l || true
+            tail -n 250 emulator-results/emulator.log || true
+            exit 1
+          fi
+
+          booted=0
+          for i in $(seq 1 120); do
+            state="$(timeout 10s adb -e shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [ "$state" = "1" ]; then
+              booted=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$booted" -ne 1 ]; then
+            echo "::error::Emulator connected to ADB but Android did not finish booting."
+            adb devices -l || true
+            adb -e logcat -d -t 500 || true
+            tail -n 250 emulator-results/emulator.log || true
+            exit 1
+          fi
+          timeout 15s adb -e shell settings put global window_animation_scale 0
+          timeout 15s adb -e shell settings put global transition_animation_scale 0
+          timeout 15s adb -e shell settings put global animator_duration_scale 0
+
+      - name: Install, launch and capture app
+        run: |
+          set -euxo pipefail
+          adb -e install -r dist/osu-daily-tracker-ci-test.apk
+          adb -e logcat -c
+          adb -e shell monkey -p com.osudailytracker.app 1
+          sleep 20
+          adb -e shell pidof com.osudailytracker.app
+          adb -e exec-out screencap -p > emulator-results/home-screen.png
+          # Open Replay Lab through the dedicated top navigation link (href="#replay").
+          # This avoids a brittle tap on a page section whose position changes with viewport and keyboard state.
+          sleep 2
+          adb -e shell input tap 735 70
+          sleep 3
+          adb -e exec-out screencap -p > emulator-results/replay-section-screen.png
+          tesseract emulator-results/replay-section-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-section-ocr.txt
+          # ADB reports the Pixel 2 AVD at 1080x1920; screenshot preview is scaled down.
+          # The CTA center in device coordinates is approximately (545, 1565).
+          adb -e shell input tap 545 1565
+          # The Replay Lab query harness loads the real replay, matching map and nested skin.
+          # Poll its explicit PASS/FAIL banner instead of assuming seven seconds is sufficient.
+          ci_result=waiting
+          deadline=$((SECONDS + 90))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            if ! adb -e shell pidof com.osudailytracker.app >/dev/null 2>&1; then
+              echo "::error::App process exited while Replay Lab was running."
+              ci_result=process_exit
+              break
+            fi
+            adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
+            tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null > emulator-results/replay-lab-ocr.txt || true
+            if grep -Eqi 'CI TEST PASS' emulator-results/replay-lab-ocr.txt; then
+              ci_result=pass
+              break
+            fi
+            if grep -Eqi 'CI TEST FAIL' emulator-results/replay-lab-ocr.txt; then
+              ci_result=fail
+              break
+            fi
+            sleep 3
+          done
+          adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
+          tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-lab-ocr.txt || true
+          adb -e logcat -d -v threadtime > emulator-results/logcat.txt
+          if [ "$ci_result" != pass ]; then
+            echo "::error::Replay Lab integration test did not pass (result=$ci_result)."
+            cat emulator-results/replay-lab-ocr.txt
+            exit 1
+          fi
+          test -s emulator-results/home-screen.png
+          test -s emulator-results/replay-lab-screen.png
+          if grep -E 'FATAL EXCEPTION|Fatal signal [0-9]+ \\(SIG' emulator-results/logcat.txt; then
+            echo "::error::Fatal Android crash detected; see logcat artifact."
+            exit 1
+          fi
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: |
+          mkdir -p emulator-results
+          timeout 15s adb devices -l > emulator-results/adb-devices.txt 2>&1 || true
+          timeout 15s adb -e logcat -d -v threadtime > emulator-results/logcat-failure.txt 2>&1 || true
+          tail -n 400 emulator-results/emulator.log > emulator-results/emulator-tail.log 2>&1 || true
+
+      - name: Upload emulator diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-diagnostics-v1.9.12-beta
+          path: emulator-results/
+          if-no-files-found: warn
+          retention-days: 14

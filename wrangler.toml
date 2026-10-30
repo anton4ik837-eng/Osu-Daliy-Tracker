@@ -1,0 +1,8 @@
+name = "osu-daily-tracker-oauth"
+main = "server/worker.js"
+compatibility_date = "2026-10-28"
+keep_vars = true
+
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "89a74d5d7e684075b84796503d1827c6"

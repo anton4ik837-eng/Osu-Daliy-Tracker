@@ -1,0 +1,23 @@
+{
+  "name": "osu-daily-tracker-app",
+  "version": "1.9.12-beta",
+  "private": true,
+  "description": "Android shell for osu! Daily Tracker",
+  "scripts": {
+    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js",
+    "test:replay-inline": "node scripts/check-replay-inline.mjs",
+    "configure:android": "node scripts/configure-android.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/browser": "^7.0.0",
+    "@capacitor/filesystem": "^7.1.4",
+    "@capacitor/share": "^7.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
+    "esbuild": "^0.25.0"
+  }
+}

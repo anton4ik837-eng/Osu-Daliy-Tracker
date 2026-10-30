@@ -1,0 +1,25 @@
+name: Deploy Cloudflare Worker
+on:
+  workflow_dispatch:
+  push:
+    branches: [alpha-1.0.0-work]
+    paths:
+      - 'server/worker.js'
+      - 'wrangler.toml'
+      - '.github/workflows/deploy-worker.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config wrangler.toml
