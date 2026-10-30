@@ -109,7 +109,16 @@ if (!/width:100%/.test(playfieldCss) || !/max-width:920px/.test(playfieldCss) ||
 }
 
 if (html.includes('id="hitbar"') || html.includes('function drawHitbar')) {
-  throw new Error('The custom hitbar must be removed from the replay player');
+  throw new Error('Legacy duplicate hitbar canvas must not return');
+}
+if (!html.includes('class="hud-meter-wrap"') || !html.includes('.js-renderer-active .hud-meter-wrap')) {
+  throw new Error('Timing hitbar must remain in the old renderer and be hidden only in JS renderer mode');
+}
+if (!html.includes('rendererJsSession.setSkin(file)') || !html.includes('rendererJsSession.setSkin(null)')) {
+  throw new Error('Skin changes and reset must refresh the active JS renderer session');
+}
+if (!html.includes("classList.add('js-renderer-active')") || !html.includes("classList.remove('js-renderer-active')")) {
+  throw new Error('JS renderer HUD visibility class must be toggled with renderer mode');
 }
 const stageClose = html.indexOf('</div></div><div class="hud-stats">');
 if (stageClose < 0) {
