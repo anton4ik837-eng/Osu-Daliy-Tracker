@@ -96,6 +96,7 @@ jobs:
           set -euxo pipefail
           mkdir -p app/www/ci-fixtures
           cp "test-fixtures/replays/solo-replay-mania_429549_7779890059.osr" app/www/ci-fixtures/
+          cp "test-fixtures/replays/tupoieblan228_playing_HyuN_Encounter_FAMoss_Rendezvous_Point_2026.osr" app/www/ci-fixtures/
           cp "test-fixtures/replays/176446 High Speed Music Team Sharpnel - M.A.M.A..osz" app/www/ci-fixtures/
           cp "test-fixtures/skins/百鬼あやめ.osk.zip" app/www/ci-fixtures/
           # Enable the test only in this temporary APK; the release APK above stays fixture-free.
