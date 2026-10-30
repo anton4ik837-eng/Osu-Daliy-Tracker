@@ -138,6 +138,45 @@ public class NativeLogsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void exportFile(PluginCall call) {
+        Uri uri = null;
+        try {
+            if (Build.VERSION.SDK_INT < 29) throw new IllegalStateException("Для сохранения в Downloads требуется Android 10 или новее");
+            String requested = call.getString("filename", "osu-daily-tracker-export.json");
+            if (requested == null) requested = "osu-daily-tracker-export.json";
+            String name = requested.replaceAll("[^A-Za-z0-9._-]", "_");
+            if (name.isEmpty()) name = "osu-daily-tracker-export.json";
+            if (!name.toLowerCase(Locale.ROOT).endsWith(".json")) name += ".json";
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+            values.put(MediaStore.MediaColumns.MIME_TYPE, "application/json");
+            values.put(MediaStore.MediaColumns.RELATIVE_PATH, FOLDER);
+            values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+            uri = getContext().getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+            if (uri == null) throw new IllegalStateException("MediaStore не создал JSON-файл");
+            String content = call.getString("content", "");
+            if (content == null) content = "";
+            try (OutputStream stream = getContext().getContentResolver().openOutputStream(uri, "w")) {
+                if (stream == null) throw new IllegalStateException("Android не открыл JSON-файл");
+                stream.write(content.getBytes("UTF-8"));
+                stream.flush();
+            }
+            ContentValues ready = new ContentValues();
+            ready.put(MediaStore.MediaColumns.IS_PENDING, 0);
+            getContext().getContentResolver().update(uri, ready, null, null);
+            JSObject result = new JSObject();
+            result.put("fileName", name);
+            result.put("folder", "Downloads/OsuDailyTracker");
+            call.resolve(result);
+        } catch (Exception e) {
+            if (uri != null) {
+                try { getContext().getContentResolver().delete(uri, null, null); } catch (Exception ignored) { }
+            }
+            call.reject("Не удалось сохранить JSON в Downloads/OsuDailyTracker: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
     public void append(PluginCall call) {
         String line = call.getString("line", "");
         if (line == null || line.isEmpty()) { call.resolve(); return; }
