@@ -491,6 +491,7 @@ function drawPlayfield(){const c=$('playfield');if(!c||!playMap)return;const ctx
  const keys=Math.max(1,Number(playMap.keys)||4);
  const cfg=ManiaSkinParser.select(activeSkin.maniaSections,keys);
  const layout=ManiaPlayfieldLayout.create(w,h,keys,cfg);
+ const scale=Number(layout.scale)||1; // Shared scale for mania hit markers; the standard renderer has its own local scale.
  const effectiveScrollSpeed=Math.max(0.5,Math.min(5,Number(maniaScrollSpeed)||1));
  // Keep scroll-speed control linear: 0.5x is half the 1.0x pixel velocity,
  // 5.0x is five times it. Do not invert this factor through approach time.
@@ -520,6 +521,7 @@ function drawPlayfield(){const c=$('playfield');if(!c||!playMap)return;const ctx
   
  }
  $('playerTime').textContent=fmtTime(playerNow);$('seek').value=Math.round(playerNow/Math.max(1,analysis.duration)*1000);
+ updateReplayHud();
  if(!window.__skinRenderDiagLast||performance.now()-window.__skinRenderDiagLast>3000){
   window.__skinRenderDiagLast=performance.now();
   diagLog('mania.skin_render',{skin:activeSkin.name,keys,scrollSpeed:effectiveScrollSpeed,scrollPixelsPerSecond:scrollScale*1000,playbackSpeed,activeSkinTextureCount:Object.keys(activeSkin.images||{}).length,columnColours:Array.from({length:keys},(_,i)=>cfg['colour'+(i+1)]??cfg['colour'+i]??null),stageTextures:{hint:!!ManiaSkinResolver.image([cfg.stagehint,'mania-stage-hint']),left:!!ManiaSkinResolver.image([cfg.stageleft,'mania-stage-left']),right:!!ManiaSkinResolver.image([cfg.stageright,'mania-stage-right']),bottom:!!ManiaSkinResolver.image([cfg.stagebottom,'mania-stage-bottom'])},objectCount:visible.length,loadedImages:Object.keys(activeSkin.images||{}).length,maniaImages:Object.keys(activeSkin.images||{}).filter(n=>n.startsWith('mania-')).length,layout:{scale:layout.scale,columns:layout.columns,hitY:layout.hitY,rawHitPosition:layout.rawHitPosition,normalizedHitPosition:layout.hitPosition},skinDrawStats:{stretch:skinDrawStats.stretch,center:skinDrawStats.center,misses:skinDrawStats.misses,lastMissing:skinDrawStats.lastMissing.slice(-12)},canvas:{width:w,height:h}});
