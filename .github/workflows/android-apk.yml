@@ -80,6 +80,27 @@ jobs:
           name: osu-daily-tracker-v1.9.7
           path: osu-daily-tracker-v1.9.7.apk
           if-no-files-found: error
+      - name: Build fixture-enabled APK for emulator integration tests
+        working-directory: .
+        run: |
+          set -euxo pipefail
+          mkdir -p app/www/ci-fixtures
+          cp "test-fixtures/replays/solo-replay-mania_429549_7779890059.osr" app/www/ci-fixtures/
+          cp "test-fixtures/replays/176446 High Speed Music Team Sharpnel - M.A.M.A..osz" app/www/ci-fixtures/
+          cp "test-fixtures/skins/百鬼あやめ.osk.zip" app/www/ci-fixtures/
+          # Enable the test only in this temporary APK; the release APK above stays fixture-free.
+          sed -i 's|href="./replay.html"|href="./replay.html?ciReplaySkin=1"|g' app/www/index.html
+          cd app
+          npx cap sync android
+          cd android
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../../osu-daily-tracker-ci-test.apk
+      - name: Upload fixture-enabled test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: osu-daily-tracker-ci-test-apk
+          path: osu-daily-tracker-ci-test.apk
+          if-no-files-found: error
       # APK публикуется автоматически после успешной сборки и проверки в эмуляторе.
 
   publish-release:
@@ -92,7 +113,7 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.7
+          name: osu-daily-tracker-ci-test-apk
           path: dist
       - name: Опубликовать релиз 1.9.7
         uses: softprops/action-gh-release@v2
