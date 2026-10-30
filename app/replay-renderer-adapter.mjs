@@ -162,6 +162,7 @@ export async function createReplayRendererSession({
   let destroyed = false;
   let rendererRunning = false;
   let currentMapTimeMs = 0;
+  let maniaScrollMultiplier = 1;
   return {
     session,
     mode: replay.mode,
@@ -199,6 +200,7 @@ export async function createReplayRendererSession({
       const nextSession = await createReplaySession({ ...sessionInputs, skin: nextSkin });
       const presentationMs = (currentMapTimeMs - nextSession.timeMapper.introOffsetMs) / nextSession.timeMapper.speed;
       nextSession.player.seek(Math.max(0, Math.min(nextSession.player.durationMs, presentationMs)));
+      if (nextSession.mode === 3) nextSession.renderer.options.maniaScrollSpeed = Math.max(1, Math.min(40, Math.round(20 * maniaScrollMultiplier)));
       const previousSession = session;
       session = nextSession;
       previousSession.destroy();
@@ -208,6 +210,7 @@ export async function createReplayRendererSession({
     setManiaScrollSpeed(multiplier) {
       if (destroyed || session.mode !== 3) return;
       const factor = Math.max(0.5, Math.min(2, Number(multiplier) || 1));
+      maniaScrollMultiplier = factor;
       session.renderer.options.maniaScrollSpeed = Math.max(1, Math.min(40, Math.round(20 * factor)));
       const mapTimeMs = session.timeMapper.toMapTime(session.player.currentTimeMs);
       session.renderer.renderFrameAt(mapTimeMs);
