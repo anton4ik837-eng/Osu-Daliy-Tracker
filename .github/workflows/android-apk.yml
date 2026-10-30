@@ -139,7 +139,7 @@ jobs:
       - name: Download APK from build
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.7
+          name: osu-daily-tracker-ci-test-apk
           path: dist
 
       - name: Install emulator and system image
