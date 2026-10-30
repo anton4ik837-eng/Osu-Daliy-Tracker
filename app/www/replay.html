@@ -358,14 +358,18 @@ const ManiaPlayfieldLayout={
   const rawGaps=Array.from({length:Math.max(0,keys-1)},(_,i)=>Math.max(0,Number(cfg.columnspacing?.[i]??cfg.columnspacing?.[0]??0)));
   const contentWidth=rawWidths.reduce((a,b)=>a+b,0)+rawGaps.reduce((a,b)=>a+b,0);
   const stageBaseWidth=384;
+  // Keep vertical skin geometry tied to the 480-unit Mania playfield, but
+  // scale lane widths independently so the columns use a readable share
+  // of the available screen width instead of becoming unnaturally narrow.
   const scale=Math.min(height/480,width/Math.max(stageBaseWidth,contentWidth));
-  const stageWidth=Math.max(stageBaseWidth,contentWidth)*scale,stageLeft=(width-stageWidth)/2;
-  const widths=rawWidths.map(value=>Math.max(1,value*scale));
-  const gaps=rawGaps.map(value=>Math.max(0,value*scale));
+  const horizontalScale=width/Math.max(stageBaseWidth,contentWidth);
+  const stageWidth=Math.max(stageBaseWidth,contentWidth)*horizontalScale,stageLeft=(width-stageWidth)/2;
+  const widths=rawWidths.map(value=>Math.max(1,value*horizontalScale));
+  const gaps=rawGaps.map(value=>Math.max(0,value*horizontalScale));
   const total=widths.reduce((a,b)=>a+b,0)+gaps.reduce((a,b)=>a+b,0);
   const configured=Number.isFinite(cfg.columnstart)?cfg.columnstart:NaN;
   const configuredFits=Number.isFinite(configured)&&configured>0&&configured+contentWidth<=Math.max(stageBaseWidth,contentWidth);
-  const configuredStart=configuredFits?configured*scale:(stageWidth-total)/2;
+  const configuredStart=configuredFits?configured*horizontalScale:(stageWidth-total)/2;
   const origin=stageLeft+configuredStart;
   const columns=[];let x=origin;
   for(let i=0;i<keys;i++){columns.push({x,width:widths[i],center:x+widths[i]/2});x+=widths[i]+(gaps[i]||0);}
@@ -376,7 +380,7 @@ const ManiaPlayfieldLayout={
   const hitPosition=Number.isFinite(rawHitPosition)&&rawHitPosition>=0&&rawHitPosition<=480?rawHitPosition:402;
   const rawScorePosition=Number(cfg.scoreposition),scorePosition=Number.isFinite(rawScorePosition)&&rawScorePosition>=0&&rawScorePosition<=480?rawScorePosition:Math.max(0,hitPosition-72);
   const rawLightPosition=Number(cfg.lightposition),lightPosition=Number.isFinite(rawLightPosition)&&rawLightPosition>=0&&rawLightPosition<=480?rawLightPosition:413;
-  return {keys,scale,stageLeft,stageWidth,columns,left:columns[0].x,right:columns[columns.length-1].x+columns[columns.length-1].width,hitY:Math.max(0,Math.min(height,height-(480-hitPosition)*scale)),scoreY:Math.max(0,Math.min(height,height-(480-scorePosition)*scale)),lightY:Math.max(0,Math.min(height,height-(480-lightPosition)*scale)),rawHitPosition,hitPosition,scorePosition,lightPosition,stageTop:height-480*scale,stageBottom:height};
+  return {keys,scale,horizontalScale,stageLeft,stageWidth,columns,left:columns[0].x,right:columns[columns.length-1].x+columns[columns.length-1].width,hitY:Math.max(0,Math.min(height,height-(480-hitPosition)*scale)),scoreY:Math.max(0,Math.min(height,height-(480-scorePosition)*scale)),lightY:Math.max(0,Math.min(height,height-(480-lightPosition)*scale)),rawHitPosition,hitPosition,scorePosition,lightPosition,stageTop:height-480*scale,stageBottom:height};
  }
 };
 const ManiaStageRenderer={
@@ -525,7 +529,7 @@ function drawPlayfield(){const c=$('playfield');if(!c||!playMap)return;const man
  }
  /* The latest hit replaces the previous one; use the judgement sprite supplied by the active skin. */
  const recent=(analysis?.rows||[]).filter(r=>(r.press&&r.press.time<=playerNow&&playerNow-r.press.time<700)||(!r.press&&r.miss&&playerNow>=r.time&&playerNow-r.time<700)).sort((a,b)=>((b.press?.time??b.time)-(a.press?.time??a.time)))[0];
- if(recent){const isMiss=!!recent.miss,age=playerNow-(recent.press?.time??recent.time),alpha=Math.max(0,1-age/700),effect=ManiaSkinResolver.hit(isMiss?'MISS':recent.judgement||'MISS');if(effect?.complete&&effect.naturalWidth&&effect.naturalHeight){const maxWidth=Math.max(1,layout.stageWidth*.62),drawWidth=Math.min(maxWidth,Math.max(64*scale,layout.stageWidth*.48)),drawHeight=drawWidth*effect.naturalHeight/effect.naturalWidth;ctx.save();ctx.globalAlpha=alpha;ctx.drawImage(effect,(w-drawWidth)/2,layout.scoreY-drawHeight/2,drawWidth,drawHeight);ctx.restore();}}
+ if(recent){const isMiss=!!recent.miss,age=playerNow-(recent.press?.time??recent.time),alpha=Math.max(0,1-age/700),tier=isMiss?'MISS':recent.judgement||'MISS',effect=ManiaSkinResolver.hit(tier);if(activeSkin.name==='Встроенный вид'){const labels={MAX:'Marvelous','300':'Perfect','200':'Great','100':'Good','50':'Bad',MISS:'Miss'};const label=labels[tier]||'Miss';ctx.save();ctx.globalAlpha=alpha;ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 '+Math.max(20,Math.min(34,layout.stageWidth*.075))+'px system-ui,sans-serif';ctx.lineWidth=4;ctx.strokeStyle='#071522';ctx.fillStyle=tier==='MISS'?'#ff637d':tier==='MAX'?'#8fffe0':'#f0f6ff';ctx.shadowColor='#000';ctx.shadowBlur=8;ctx.strokeText(label,w/2,layout.scoreY);ctx.fillText(label,w/2,layout.scoreY);ctx.restore();}else if(effect?.complete&&effect.naturalWidth&&effect.naturalHeight){const maxWidth=Math.max(1,layout.stageWidth*.62),drawWidth=Math.min(maxWidth,Math.max(64*scale,layout.stageWidth*.48)),drawHeight=drawWidth*effect.naturalHeight/effect.naturalWidth;ctx.save();ctx.globalAlpha=alpha;ctx.drawImage(effect,(w-drawWidth)/2,layout.scoreY-drawHeight/2,drawWidth,drawHeight);ctx.restore();}}
  $('playerTime').textContent=fmtTime(playerNow);$('seek').value=Math.round(playerNow/Math.max(1,analysis.duration)*1000);
  updateReplayHud();
  if(!window.__skinRenderDiagLast||performance.now()-window.__skinRenderDiagLast>3000){

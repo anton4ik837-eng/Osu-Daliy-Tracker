@@ -93,14 +93,17 @@ if (html.includes('function maniaJudgementLabel(')) {
 if (!html.includes("ManiaSkinResolver.hit(isMiss?'MISS':recent.judgement||'MISS')")) {
   throw new Error('The latest mania judgement must use the active skin image in the shared score area');
 }
-if (html.includes('ctx.strokeText(label,w/2,h/2)') || html.includes('ctx.fillText(label,w/2,h/2)')) {
-  throw new Error('Mania judgement feedback must not be rendered as separate text labels');
+if (!html.includes("labels={MAX:'Marvelous','300':'Perfect','200':'Great','100':'Good','50':'Bad',MISS:'Miss'}")) {
+  throw new Error('Built-in Mania skin must show named judgement labels');
+}
+if (!html.includes("activeSkin.name==='Встроенный вид'")) {
+  throw new Error('Named judgement labels must be limited to the built-in skin');
 }
 if (html.includes('ctx.arc(col.center,layout.scoreY')) {
   throw new Error('Missing judgement textures must not be replaced with synthetic circles');
 }
-if (!html.includes('maniaMode?320:384') || !html.includes('.playfield-stage.mania-stage{aspect-ratio:16/10}')) {
-  throw new Error('Mania playfield must use the compact skin-aligned stage dimensions');
+if (!html.includes('maniaMode?320:384') || !html.includes('horizontalScale=width/Math.max(stageBaseWidth,contentWidth)') || !html.includes('value*horizontalScale')) {
+  throw new Error('Mania playfield must keep compact height while widening lane geometry to screen width');
 }
 if (!html.includes('legacy .osr Mania replays, x stores the Mania key bitfield')) {
   throw new Error('Mania replay input must decode the key bitfield from the x field');
