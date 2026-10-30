@@ -92,3 +92,107 @@ if(!gradle.includes('signingConfig signingConfigs.stable')) {
 if(!gradle.includes('signingConfig signingConfigs.stable')) throw Error('Could not configure stable APK signing in generated Gradle file.');
 await writeFile(gradlePath,gradle,'utf8');
 console.log('Set Alpha version code/name and configured persistent APK signing.');
+
+
+// Register a MediaStore-backed Capacitor plugin for public Downloads on Android 10+.
+const mainActivityPath = 'android/app/src/main/java/com/osudailytracker/app/MainActivity.java';
+let mainActivity = await readFile(mainActivityPath, 'utf8');
+const packageMatch = mainActivity.match(/^package\s+([\w.]+);/m);
+if (!packageMatch) throw new Error('Could not determine Android application package.');
+const javaPackage = packageMatch[1];
+const javaDir = 'android/app/src/main/java/' + javaPackage.replace(/\./g, '/');
+await mkdir(javaDir, { recursive: true });
+const pluginSource = \`package \${javaPackage};
+
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.MediaStore;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+@CapacitorPlugin(name = "NativeLogs")
+public class NativeLogsPlugin extends Plugin {
+    private static final String PREFS = "osu_daily_tracker_logs";
+    private static final String URI_KEY = "active_log_uri";
+    private static final String FOLDER = "Download/OsuDailyTracker/";
+
+    @PluginMethod
+    public void start(PluginCall call) {
+        try {
+            Uri uri = getActiveUri();
+            if (uri == null) uri = createLogFile();
+            JSObject result = new JSObject();
+            result.put("fileName", getDisplayName(uri));
+            result.put("folder", "Downloads/OsuDailyTracker");
+            call.resolve(result);
+        } catch (Exception e) { call.reject("Не удалось создать файл логов в Downloads: " + e.getMessage(), e); }
+    }
+
+    @PluginMethod
+    public void append(PluginCall call) {
+        String line = call.getString("line", "");
+        if (line == null || line.isEmpty()) { call.resolve(); return; }
+        try {
+            Uri uri = getActiveUri();
+            if (uri == null) uri = createLogFile();
+            try (OutputStream stream = getContext().getContentResolver().openOutputStream(uri, "wa")) {
+                if (stream == null) throw new IllegalStateException("Android не открыл файл логов");
+                stream.write(line.getBytes("UTF-8"));
+                stream.flush();
+            }
+            call.resolve();
+        } catch (Exception e) { call.reject("Не удалось записать лог в Downloads: " + e.getMessage(), e); }
+    }
+
+    private Uri getActiveUri() {
+        String value = getContext().getSharedPreferences(PREFS, 0).getString(URI_KEY, null);
+        if (value == null) return null;
+        try { return Uri.parse(value); } catch (Exception ignored) { return null; }
+    }
+
+    private Uri createLogFile() throws Exception {
+        if (Build.VERSION.SDK_INT < 29) throw new IllegalStateException("Для общей папки Downloads требуется Android 10 или новее");
+        String stamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
+        String name = "osu-daily-tracker-" + stamp + ".jsonl";
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+        values.put(MediaStore.MediaColumns.MIME_TYPE, "application/x-ndjson");
+        values.put(MediaStore.MediaColumns.RELATIVE_PATH, FOLDER);
+        values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+        Uri uri = getContext().getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+        if (uri == null) throw new IllegalStateException("MediaStore не создал файл");
+        ContentValues ready = new ContentValues();
+        ready.put(MediaStore.MediaColumns.IS_PENDING, 0);
+        getContext().getContentResolver().update(uri, ready, null, null);
+        getContext().getSharedPreferences(PREFS, 0).edit().putString(URI_KEY, uri.toString()).apply();
+        return uri;
+    }
+
+    private String getDisplayName(Uri uri) {
+        try (Cursor cursor = getContext().getContentResolver().query(uri,
+                new String[]{MediaStore.MediaColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
+        } catch (Exception ignored) { }
+        return "osu-daily-tracker-log.jsonl";
+    }
+}
+\`;
+await writeFile(javaDir + '/NativeLogsPlugin.java', pluginSource, 'utf8');
+if (!mainActivity.includes('NativeLogsPlugin')) {
+  mainActivity = mainActivity.replace('import com.getcapacitor.BridgeActivity;',
+    'import com.getcapacitor.BridgeActivity;\nimport ' + javaPackage + '.NativeLogsPlugin;');
+  mainActivity = mainActivity.replace('public class MainActivity extends BridgeActivity {',
+    'public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(NativeLogsPlugin.class);\n        super.onCreate(savedInstanceState);\n    }');
+  if (!mainActivity.includes('registerPlugin(NativeLogsPlugin.class)')) throw new Error('Could not register NativeLogsPlugin.');
+  await writeFile(mainActivityPath, mainActivity, 'utf8');
+}
+console.log('Installed NativeLogsPlugin for Downloads/OsuDailyTracker.');
