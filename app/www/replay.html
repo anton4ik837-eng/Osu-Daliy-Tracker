@@ -82,7 +82,7 @@ async function loadOsuSkin(file){
   if(!Object.keys(entries).length)throw new Error('Архив пустой');
  }catch(e){status.textContent='Файл не похож на корректный .osk/ZIP: '+(e?.message||String(e));return}
  const images=Object.create(null),urls=[];
- const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp|gif)$/i.test(path)&&bytes?.length);
+ const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp|gif|bmp)$/i.test(path)&&bytes?.length);
  const loadedNames=[],pending=[];
  const skinIniEntry=Object.entries(entries).filter(([path])=>path.split('/').pop().toLowerCase()==='skin.ini').sort((a,b)=>a[0].split('/').length-b[0].split('/').length)[0];
  const skinRoot=skinIniEntry?skinIniEntry[0].replace(/\\/g,'/').replace(/[^/]+$/,''):'';
