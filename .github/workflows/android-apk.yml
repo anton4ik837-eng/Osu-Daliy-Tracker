@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-beta-${{ github.ref }}
+  group: android-release-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build:
@@ -72,20 +72,20 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
-      - name: Name Beta APK
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.6-beta.apk
+      - name: Name APK 1.9.7
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.7.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.6-beta
-          path: osu-daily-tracker-v1.9.6-beta.apk
+          name: osu-daily-tracker-v1.9.7
+          path: osu-daily-tracker-v1.9.7.apk
           if-no-files-found: error
-      # Publish only the explicitly marked 1.9.6 beta build after emulator verification.
-      # CI APKs stay in the workflow artifact; release publishing is deliberately separate.
+      # Публикация запускается только отдельным коммитом с отметкой [publish],
+      # после сборки APK и успешной проверки в эмуляторе.
 
-  publish-beta-release:
-    name: Publish osu! Daily Tracker 1.9.6 beta
-    if: contains(github.event.head_commit.message, '[publish-beta]')
+  publish-release:
+    name: Publish osu! Daily Tracker 1.9.7
+    if: contains(github.event.head_commit.message, '[publish]')
     needs: [build, emulator-smoke-test]
     runs-on: ubuntu-latest
     permissions:
@@ -94,22 +94,21 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.6-beta
+          name: osu-daily-tracker-v1.9.7
           path: dist
-      - name: Publish test prerelease
+      - name: Опубликовать релиз 1.9.7
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.9.6-beta.${{ github.run_number }}
-          name: osu! Daily Tracker 1.9.6 Beta ${{ github.run_number }}
-          prerelease: true
+          tag_name: v1.9.7
+          name: osu! Daily Tracker 1.9.7
+          prerelease: false
           generate_release_notes: false
           body: |
             Beta build of osu! Daily Tracker 1.9.6.
-            - Includes Replay Lab skin archive and extracted-folder import.
-            - Includes in-app skin diagnostics export and GIF texture support.
-            - Replay/beatmap fixtures and Android emulator smoke test are run before publishing.
-            - Actual texture appearance should still be checked on a physical device.
-          files: dist/osu-daily-tracker-v1.9.6-beta.apk
+            - Улучшена загрузка скинов из архивов и папок.
+            - Добавлена обработка вложенных архивов и BMP-текстур.
+            - Перед публикацией APK проходит автоматическую проверку и запуск в Android-эмуляторе.
+          files: dist/osu-daily-tracker-v1.9.7.apk
 
 
   emulator-smoke-test:
@@ -121,7 +120,7 @@ jobs:
       - name: Download APK from build
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.6-beta
+          name: osu-daily-tracker-v1.9.7
           path: dist
 
       - name: Install emulator and system image
@@ -224,7 +223,7 @@ jobs:
       - name: Install, launch and capture app
         run: |
           set -euxo pipefail
-          adb -e install -r dist/osu-daily-tracker-v1.9.6-beta.apk
+          adb -e install -r dist/osu-daily-tracker-v1.9.7.apk
           adb -e logcat -c
           adb -e shell monkey -p com.osudailytracker.app 1
           sleep 20
@@ -266,7 +265,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.9.6-beta
+          name: android-emulator-diagnostics-v1.9.7
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
