@@ -74,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -Eq 'android:icon="@mipmap/ic_launcher_v11102_v11102"' android/app/src/main/AndroidManifest.xml
-          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_v11102_round_v11102_v11102"' android/app/src/main/AndroidManifest.xml
+          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_round_v11102"' android/app/src/main/AndroidManifest.xml
           test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_v11102.xml
           test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round_v11102.xml
       - name: Setup Java
@@ -109,7 +109,7 @@ jobs:
           grep -Eq "^application-icon-[0-9]+:.*ic_launcher" /tmp/osu-apk-badging.txt
           "$AAPT" dump xmltree "$APK" AndroidManifest.xml > /tmp/osu-apk-manifest.txt
           grep -Fq 'mipmap/ic_launcher_v11102' /tmp/osu-apk-manifest.txt
-          grep -Fq 'mipmap/ic_launcher_v11102_round_v11102' /tmp/osu-apk-manifest.txt
+          grep -Fq 'mipmap/ic_launcher_round_v11102' /tmp/osu-apk-manifest.txt
       - name: Name APK 1.11.2
         run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.11.2-beta.apk
       - name: Upload APK artifact
