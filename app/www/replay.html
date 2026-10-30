@@ -53,27 +53,33 @@ async function loadOsuSkin(file){
  status.textContent='Распаковываю скин…';
  let entries;
  try{
-  entries=window.fflate.unzipSync(new Uint8Array(await file.arrayBuffer()));
-  // Prefer the real .osk when the user selects a wrapper ZIP. Some wrapper
-  // ZIPs also contain thumbnails or other PNGs, so checking only for top-level
-  // images would incorrectly treat the wrapper itself as the skin.
-  const hasTextures=archive=>Object.entries(archive).some(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp|gif|bmp)$/i.test(path)&&bytes?.length);
-  const nested=Object.entries(entries).filter(([path,bytes])=>/\.osk$/i.test(path)&&bytes?.length);
-  for(const [nestedPath,nestedBytes] of nested){
-   try{
-    const unpacked=window.fflate.unzipSync(nestedBytes);
-    if(hasTextures(unpacked)){entries=unpacked;diagLog('skin.nested_archive_opened',{file:file.name,archive:nestedPath});break;}
-   }catch(e){diagLog('skin.nested_archive_skipped',{file:file.name,archive:nestedPath,error:e?.message||String(e)});}
-  }
-  if(!hasTextures(entries)){
-   const nestedZips=Object.entries(entries).filter(([path,bytes])=>/\.zip$/i.test(path)&&bytes?.length);
-   for(const [nestedPath,nestedBytes] of nestedZips){
+  const scoreArchive=archive=>{
+   const files=Object.entries(archive).filter(([path,bytes])=>!path.endsWith('/')&&bytes?.length);
+   const names=files.map(([path])=>path.replace(/\\\\/g,'/').split('/').pop().toLowerCase());
+   const hasIni=names.includes('skin.ini');
+   const mania=names.filter(name=>/^(mania-(note|key)\\d+|note(ht|h|l)?\\d+|key\\d+d?)\\.(png|jpe?g|webp|gif|bmp)$/i.test(name)).length;
+   const standard=names.filter(name=>/^(hitcircle|hitcircleoverlay|approachcircle|cursor|sliderb|spinner)/i.test(name)).length;
+   const images=files.filter(([path])=>/\\.(png|jpe?g|webp|gif|bmp)$/i.test(path)).length;
+   return (hasIni?10000:0)+(mania?5000+Math.min(mania,500):0)+(standard?1000+Math.min(standard,500):0)+Math.min(images,500);
+  };
+  const inspectArchive=(archive,depth=0)=>{
+   let best={entries:archive,score:scoreArchive(archive),nestedPath:null};
+   if(depth>=4)return best;
+   for(const [path,bytes] of Object.entries(archive)){
+    if(!/\\.(osk|zip)$/i.test(path)||!bytes?.length)continue;
     try{
-     const unpacked=window.fflate.unzipSync(nestedBytes);
-     if(hasTextures(unpacked)){entries=unpacked;diagLog('skin.nested_archive_opened',{file:file.name,archive:nestedPath});break;}
-    }catch(e){diagLog('skin.nested_archive_skipped',{file:file.name,archive:nestedPath,error:e?.message||String(e)});}
+     const child=window.fflate.unzipSync(bytes);
+     const candidate=inspectArchive(child,depth+1);
+     if(candidate.score>best.score)best={...candidate,nestedPath:path};
+    }catch(error){diagLog('skin.nested_archive_skipped',{file:file.name,archive:path,error:error?.message||String(error)});}
    }
-  }
+   return best;
+  };
+  const outer=window.fflate.unzipSync(new Uint8Array(await file.arrayBuffer()));
+  const selected=inspectArchive(outer);
+  entries=selected.entries;
+  if(selected.nestedPath)diagLog('skin.nested_archive_opened',{file:file.name,archive:selected.nestedPath,score:selected.score});
+  if(!Object.keys(entries).length)throw new Error('Архив пустой');
  }catch(e){status.textContent='Файл не похож на корректный .osk/ZIP: '+(e?.message||String(e));return}
  const images=Object.create(null),urls=[];
  const imageFiles=Object.entries(entries).filter(([path,bytes])=>!path.endsWith('/')&&/\.(png|jpe?g|webp|gif)$/i.test(path)&&bytes?.length);
