@@ -143,6 +143,23 @@ if (remapped.keys !== 4 || remapped.originalKeys !== 7 ||
   throw new Error('Mania note columns must be remapped from source X positions to the modded key count');
 }
 
+const layoutStart = html.indexOf('const ManiaPlayfieldLayout={');
+const layoutEnd = html.indexOf('\\n};', layoutStart) + 3;
+if (layoutStart < 0 || layoutEnd <= layoutStart) {
+  throw new Error('Mania playfield layout implementation must be available for execution tests');
+}
+const layoutContext = vm.createContext({});
+vm.runInContext(html.slice(layoutStart, layoutEnd), layoutContext);
+const configuredLayout = layoutContext.ManiaPlayfieldLayout.create(512, 640, 4, {
+  columnwidth: [30], columnspacing: [4], columnstart: 120,
+  hitposition: 402, scoreposition: 330, lightposition: 413
+});
+if (configuredLayout.columns.length !== 4 ||
+    configuredLayout.columns.some(column => !Number.isFinite(column.x) || !Number.isFinite(column.width)) ||
+    configuredLayout.columns[0].x <= configuredLayout.stageLeft) {
+  throw new Error('Mania renderer must calculate configured columnstart using the shared scale');
+}
+
 for (let index = 0; index < scripts.length; index += 1) {
   new vm.Script(scripts[index], { filename: 'replay.html:inline-script-' + (index + 1) });
 }

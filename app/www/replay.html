@@ -391,7 +391,7 @@ const ManiaPlayfieldLayout={
   const total=widths.reduce((a,b)=>a+b,0)+gaps.reduce((a,b)=>a+b,0);
   const configured=Number.isFinite(cfg.columnstart)?cfg.columnstart:NaN;
   const configuredFits=Number.isFinite(configured)&&configured>0&&configured+contentWidth<=Math.max(stageBaseWidth,contentWidth);
-  const configuredStart=configuredFits?configured*horizontalScale:(stageWidth-total)/2;
+  const configuredStart=configuredFits?configured*scale:(stageWidth-total)/2;
   const origin=stageLeft+configuredStart;
   const columns=[];let x=origin;
   for(let i=0;i<keys;i++){columns.push({x,width:widths[i],center:x+widths[i]/2});x+=widths[i]+(gaps[i]||0);}
