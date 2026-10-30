@@ -61,6 +61,8 @@ assert.ok(!replayLabSource.includes('standardManiaTargetColumns'),
   'Replay Lab must not reference the removed standardManiaTargetColumns helper');
 assert.ok(replayLabSource.includes('convertStandardToMania(mapText,undefined,map)'),
   'Replay Lab must derive the default Mania key count from the conversion engine');
-assert.match(replayLabSource, /let map=parseMap\(mapText\)/,\n  'Replay Lab map binding must be mutable because Standard -> Mania replaces the parsed map');\nassert.ok(replayLabSource.includes('defaultConvertedMap.keys'),
+assert.match(replayLabSource, /let map=parseMap\(mapText\)/,
+  'Replay Lab map binding must be mutable because Standard -> Mania replaces the parsed map');
+assert.ok(replayLabSource.includes('defaultConvertedMap.keys'),
   'Replay Lab must use the engine-generated default column count before resolving key mods');
 console.log('Standard -> Mania converter OK: 1K–10K, deterministic patterns, sliders, repeats, spinner, timing points and SV.');
