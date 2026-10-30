@@ -241,7 +241,7 @@ function resolveManiaKeyCount(mods,frames,originalKeys){
  return{keys:Math.max(1,Math.min(10,Math.round(Number(originalKeys)||4))),source:'map',label:null};
 }
 function applyManiaKeyCount(map,keyCount){
- const originalKeys=Math.max(1,Math.min(10,Math.round(Number(map.keys)||4)));
+ const originalKeys=Math.max(1,Math.min(10,Math.round(Number(map.originalKeys)||Number(map.keys)||4)));
  const keys=Math.max(1,Math.min(10,Math.round(Number(keyCount)||originalKeys)));
  map.originalKeys=originalKeys;
  map.keys=keys;
