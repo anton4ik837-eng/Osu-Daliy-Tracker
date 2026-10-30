@@ -72,13 +72,13 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
-      - name: Name APK 1.9.7
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.7.apk
+      - name: Name APK 1.9.8-beta
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.9.8-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.7
-          path: osu-daily-tracker-v1.9.7.apk
+          name: osu-daily-tracker-v1.9.8-beta
+          path: osu-daily-tracker-v1.9.8-beta.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -108,7 +108,7 @@ jobs:
       # APK публикуется автоматически после успешной сборки и проверки в эмуляторе.
 
   publish-release:
-    name: Publish osu! Daily Tracker 1.9.7
+    name: Publish osu! Daily Tracker Beta 1.9.8
     needs: [build, emulator-smoke-test]
     runs-on: ubuntu-latest
     permissions:
@@ -117,21 +117,21 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.9.7
+          name: osu-daily-tracker-v1.9.8-beta
           path: dist
-      - name: Опубликовать релиз 1.9.7
+      - name: Опубликовать beta-релиз 1.9.8
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.9.7
-          name: osu! Daily Tracker 1.9.7
-          prerelease: false
+          tag_name: v1.9.8-beta
+          name: osu! Daily Tracker Beta 1.9.8
+          prerelease: true
           generate_release_notes: false
           body: |
-            Обновление osu! Daily Tracker 1.9.7.
+            Обновление osu! Daily Tracker 1.9.8-beta.
             - Улучшена загрузка скинов из архивов и папок.
             - Добавлена обработка вложенных архивов и BMP-текстур.
             - Перед публикацией APK проходит автоматическую проверку и запуск в Android-эмуляторе.
-          files: dist/osu-daily-tracker-v1.9.7.apk
+          files: dist/osu-daily-tracker-v1.9.8-beta.apk
 
 
   emulator-smoke-test:
@@ -311,7 +311,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.9.7
+          name: android-emulator-diagnostics-v1.9.8-beta
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
