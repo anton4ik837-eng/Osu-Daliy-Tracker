@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { convertStandardToMania } from '../mania-converter.js';
+import { convertStandardToMania } from '../mania-converter.mjs';
 
 const beatmap = `osu file format v14
 
