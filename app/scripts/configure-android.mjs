@@ -183,19 +183,47 @@ public class NativeLogsPlugin extends Plugin {
         try {
             Uri uri = getActiveUri();
             if (uri == null) uri = createLogFile();
-            try (OutputStream stream = getContext().getContentResolver().openOutputStream(uri, "wa")) {
-                if (stream == null) throw new IllegalStateException("Android не открыл файл логов");
-                stream.write(line.getBytes("UTF-8"));
-                stream.flush();
+            try {
+                appendToUri(uri, line);
+            } catch (Exception firstError) {
+                // MediaStore URIs can become stale after cleanup, restore, or provider-side row removal.
+                clearActiveUri();
+                Uri replacement = createLogFile();
+                try {
+                    appendToUri(replacement, line);
+                } catch (Exception retryError) {
+                    retryError.addSuppressed(firstError);
+                    throw retryError;
+                }
             }
             call.resolve();
         } catch (Exception e) { call.reject("Не удалось записать лог в Downloads: " + e.getMessage(), e); }
     }
 
+    private void appendToUri(Uri uri, String line) throws Exception {
+        try (OutputStream stream = getContext().getContentResolver().openOutputStream(uri, "wa")) {
+            if (stream == null) throw new IllegalStateException("Android не открыл файл логов: " + uri);
+            stream.write(line.getBytes("UTF-8"));
+            stream.flush();
+        }
+    }
+
+    private void clearActiveUri() {
+        getContext().getSharedPreferences(PREFS, 0).edit().remove(URI_KEY).apply();
+    }
+
     private Uri getActiveUri() {
         String value = getContext().getSharedPreferences(PREFS, 0).getString(URI_KEY, null);
         if (value == null) return null;
-        try { return Uri.parse(value); } catch (Exception ignored) { return null; }
+        try {
+            Uri uri = Uri.parse(value);
+            try (Cursor cursor = getContext().getContentResolver().query(uri,
+                    new String[]{MediaStore.MediaColumns._ID}, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) return uri;
+            }
+        } catch (Exception ignored) { }
+        clearActiveUri();
+        return null;
     }
 
     private Uri createLogFile() throws Exception {
