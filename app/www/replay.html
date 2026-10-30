@@ -3,7 +3,7 @@
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--panel:#141b28;--line:#2d4054;--ice:#a9e7ff;--cyan:#57c9e8;--text:#f0f6ff;--muted:#91a3b9;--green:#42d392;--yellow:#f5c451;--red:#ff637d}*{box-sizing:border-box}body{margin:0;padding-top:env(safe-area-inset-top,0px);background:radial-gradient(ellipse at 80% 0%,#24384d 0,transparent 40%),var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}.wrap{max-width:1100px;margin:auto;padding:12px 22px 22px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;padding:4px 0 10px;color:var(--muted);font-size:11px;letter-spacing:.16em}.top a{color:var(--ice);text-decoration:none}.hero,.panel{background:#141b28eF;border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:16px}.eyebrow{color:var(--cyan);font-size:10px;letter-spacing:.22em}.hero h1{font-size:clamp(30px,5vw,48px);line-height:1;margin:12px 0}.muted,.hint{color:var(--muted);font-size:13px}.uploads{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.upload{border:1px dashed #4b6b82;border-radius:14px;padding:16px;background:#101722}.upload label{display:block;font-weight:700;margin-bottom:8px}.upload input{max-width:100%;width:100%;color:var(--muted)}input[type=file]{display:block;min-height:48px;padding:10px;border:1px solid #4b6b82;border-radius:10px;background:#0b111b;cursor:pointer;touch-action:manipulation}input[type=file]::file-selector-button{margin-right:10px;border:1px solid #4e7189;border-radius:8px;background:#183043;color:var(--ice);padding:8px 10px;font:inherit;cursor:pointer}button{border:1px solid #4e7189;border-radius:10px;background:#183043;color:var(--ice);font:inherit;font-weight:700;padding:10px 14px;cursor:pointer}button:disabled{opacity:.5;cursor:wait}button:focus,button:focus-visible,button:active{outline:none;box-shadow:none}button{-webkit-tap-highlight-color:transparent}a{-webkit-tap-highlight-color:transparent}.status{margin-top:14px;padding:12px 14px;background:#101722;border-radius:10px;color:var(--muted);white-space:pre-wrap}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
  .playfield-stage{position:relative;width:100vw;aspect-ratio:4/3;max-width:none;margin-left:calc(50% - 50vw);overflow:hidden;background:#071522;isolation:isolate}
- .playfield-stage.mania-stage{aspect-ratio:16/10}
+ .playfield-stage.mania-stage{aspect-ratio:4/5;max-width:640px;margin-left:auto;margin-right:auto}
 .playfield-stage #playfield{display:block;width:100%;height:100%;max-width:none;max-height:none;margin:0;aspect-ratio:auto;border:0;border-radius:0}
 .replay-hud{position:absolute;inset:0;pointer-events:none;z-index:5;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px #000}
 .hud-stats{position:absolute;right:12px;top:12px;display:grid;grid-template-columns:repeat(2,minmax(62px,auto));gap:5px 12px;padding:9px 11px;border:1px solid #ffffff26;border-radius:10px;background:#07111dcc;backdrop-filter:blur(5px);text-align:right}
@@ -357,15 +357,14 @@ const ManiaPlayfieldLayout={
   const rawWidths=Array.from({length:keys},(_,i)=>Math.max(1,Number(cfg.columnwidth?.[i]??cfg.columnwidth?.[0]??30)));
   const rawGaps=Array.from({length:Math.max(0,keys-1)},(_,i)=>Math.max(0,Number(cfg.columnspacing?.[i]??cfg.columnspacing?.[0]??0)));
   const contentWidth=rawWidths.reduce((a,b)=>a+b,0)+rawGaps.reduce((a,b)=>a+b,0);
-  const stageBaseWidth=384;
-  // Keep vertical skin geometry tied to the 480-unit Mania playfield, but
-  // scale lane widths independently so the columns use a readable share
-  // of the available screen width instead of becoming unnaturally narrow.
-  const scale=Math.min(height/480,width/Math.max(stageBaseWidth,contentWidth));
-  const horizontalScale=width/Math.max(stageBaseWidth,contentWidth);
-  const stageWidth=Math.max(stageBaseWidth,contentWidth)*horizontalScale,stageLeft=(width-stageWidth)/2;
-  const widths=rawWidths.map(value=>Math.max(1,value*horizontalScale));
-  const gaps=rawGaps.map(value=>Math.max(0,value*horizontalScale));
+  const stageBaseWidth=Math.max(384,contentWidth);
+  // osu!mania uses a tall playfield. Fit the 384x480 logical field into the
+  // available canvas with ONE uniform scale so lanes, gaps, notes and skin
+  // artwork keep their original proportions on narrow phone screens.
+  const scale=Math.min(width/stageBaseWidth,height/480);
+  const stageWidth=stageBaseWidth*scale,stageLeft=(width-stageWidth)/2;
+  const widths=rawWidths.map(value=>Math.max(1,value*scale));
+  const gaps=rawGaps.map(value=>Math.max(0,value*scale));
   const total=widths.reduce((a,b)=>a+b,0)+gaps.reduce((a,b)=>a+b,0);
   const configured=Number.isFinite(cfg.columnstart)?cfg.columnstart:NaN;
   const configuredFits=Number.isFinite(configured)&&configured>0&&configured+contentWidth<=Math.max(stageBaseWidth,contentWidth);
@@ -380,7 +379,7 @@ const ManiaPlayfieldLayout={
   const hitPosition=Number.isFinite(rawHitPosition)&&rawHitPosition>=0&&rawHitPosition<=480?rawHitPosition:402;
   const rawScorePosition=Number(cfg.scoreposition),scorePosition=Number.isFinite(rawScorePosition)&&rawScorePosition>=0&&rawScorePosition<=480?rawScorePosition:Math.max(0,hitPosition-72);
   const rawLightPosition=Number(cfg.lightposition),lightPosition=Number.isFinite(rawLightPosition)&&rawLightPosition>=0&&rawLightPosition<=480?rawLightPosition:413;
-  return {keys,scale,horizontalScale,stageLeft,stageWidth,columns,left:columns[0].x,right:columns[columns.length-1].x+columns[columns.length-1].width,hitY:Math.max(0,Math.min(height,height-(480-hitPosition)*scale)),scoreY:Math.max(0,Math.min(height,height-(480-scorePosition)*scale)),lightY:Math.max(0,Math.min(height,height-(480-lightPosition)*scale)),rawHitPosition,hitPosition,scorePosition,lightPosition,stageTop:height-480*scale,stageBottom:height};
+  return {keys,scale,horizontalScale:scale,stageLeft,stageWidth,columns,left:columns[0].x,right:columns[columns.length-1].x+columns[columns.length-1].width,hitY:Math.max(0,Math.min(height,height-(480-hitPosition)*scale)),scoreY:Math.max(0,Math.min(height,height-(480-scorePosition)*scale)),lightY:Math.max(0,Math.min(height,height-(480-lightPosition)*scale)),rawHitPosition,hitPosition,scorePosition,lightPosition,stageTop:height-480*scale,stageBottom:height};
  }
 };
 const ManiaStageRenderer={
@@ -499,7 +498,7 @@ function updateReplayHud(){
  if(current){const off=Math.max(-150,Math.min(150,current.offset));marker.hidden=false;marker.style.top=(50+off/300*100)+'%';marker.style.borderColor=off<0?'#a9e7ff':off>0?'#ffcf70':'#42d392';label.textContent=current.kind+'  '+current.judgement;}
  else{marker.hidden=true;label.textContent='Ожидание попадания';}
 }
-function drawPlayfield(){const c=$('playfield');if(!c||!playMap)return;const maniaMode=playMap.mode===3,stage=$('playfieldStage');if(stage)stage.classList.toggle('mania-stage',maniaMode);const targetHeight=maniaMode?320:384;if(c.height!==targetHeight)c.height=targetHeight;const ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#0a1019';ctx.fillRect(0,0,w,h);if(playMap.mode===3){
+function drawPlayfield(){const c=$('playfield');if(!c||!playMap)return;const maniaMode=playMap.mode===3,stage=$('playfieldStage');if(stage)stage.classList.toggle('mania-stage',maniaMode);const targetHeight=maniaMode?640:384;if(c.height!==targetHeight)c.height=targetHeight;const ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#0a1019';ctx.fillRect(0,0,w,h);if(playMap.mode===3){
  const keys=Math.max(1,Number(playMap.keys)||4);
  const cfg=ManiaSkinParser.select(activeSkin.maniaSections,keys);
  const layout=ManiaPlayfieldLayout.create(w,h,keys,cfg);

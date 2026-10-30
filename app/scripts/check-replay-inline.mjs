@@ -102,8 +102,8 @@ if (!html.includes("activeSkin.name==='Встроенный вид'")) {
 if (html.includes('ctx.arc(col.center,layout.scoreY')) {
   throw new Error('Missing judgement textures must not be replaced with synthetic circles');
 }
-if (!html.includes('maniaMode?320:384') || !html.includes('horizontalScale=width/Math.max(stageBaseWidth,contentWidth)') || !html.includes('value*horizontalScale')) {
-  throw new Error('Mania playfield must keep compact height while widening lane geometry to screen width');
+if (!html.includes('maniaMode?640:384') || !html.includes('const scale=Math.min(width/stageBaseWidth,height/480)') || !html.includes('value*scale') || !html.includes('aspect-ratio:4/5')) {
+  throw new Error('Mania playfield must use a tall phone-friendly viewport and preserve the original osu!mania aspect ratio with uniform scaling');
 }
 if (!html.includes('legacy .osr Mania replays, x stores the Mania key bitfield')) {
   throw new Error('Mania replay input must decode the key bitfield from the x field');
