@@ -58,5 +58,16 @@ assert.deepEqual(Array.from(sequential.objects, object => object.column), [0, 0,
 assert.equal(sequential.originalKeys, 7);
 const tenthLaneFallback = context.resolveManiaKeyCount(0, [{ x: 1 << 9 }], 7);
 assert.equal(tenthLaneFallback.keys, 10, '10K fallback from tenth-lane input');
+const fourKeyReplay = context.resolveManiaKeyCount(0, [
+  { x: 1 << 0 }, { x: 1 << 2 }, { x: (1 << 0) | (1 << 3) },
+], 7);
+assert.equal(fourKeyReplay.keys, 4, '4K replay input must override generic 7K conversion heuristic');
+assert.equal(fourKeyReplay.source, 'replay-input');
+const sevenKeyReplay = context.resolveManiaKeyCount(0, [
+  { x: 1 << 0 }, { x: 1 << 4 }, { x: (1 << 1) | (1 << 6) },
+], 4);
+assert.equal(sevenKeyReplay.keys, 7, '7K replay input must be inferred from the highest active lane');
+const modWinsOverObservedInput = context.resolveManiaKeyCount(1 << 15, [{ x: 1 << 6 }], 7);
+assert.equal(modWinsOverObservedInput.keys, 4, 'explicit key-count mod must take precedence over observed replay lanes');
 
 console.log('Mania key remap OK: ' + matrixCases + ' source/target pairs, repeated application; all 10 key-mod bits verified');
