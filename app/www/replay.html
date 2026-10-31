@@ -881,9 +881,10 @@ if(!new URLSearchParams(location.search).has('ciReplayEncoder')){
   check('standard_to_mania_conversion',playMap?.mode===3&&playMap.keys>=1&&playMap.keys<=10&&playMap.objects.length>0,{convertedMode:playMap?.mode,keys:playMap?.keys,objects:playMap?.objects?.length||0});
   check('replay_lane_count_inferred',window.currentManiaKeyCountSource==='replay-input'&&Number(window.currentManiaObservedLaneMask)>0,{source:window.currentManiaKeyCountSource,observedLaneMask:window.currentManiaObservedLaneMask,keys:playMap?.keys});
   check('replay_clicks_compared',analysis.objects.length>0&&analysis.rows.length>0&&Array.isArray(analysis.matched),{objects:analysis.objects.length,matched:analysis.matched.length,rows:analysis.rows.length,unmatchedPresses:analysis.unmatchedPresses});
-  report.autoBeatmap={player:parsedReplay.player,checksum:parsedReplay.beatmapMd5,sourceMode:window.currentSourceMapMode,convertedMode:playMap.mode,keys:playMap.keys,keyCountSource:window.currentManiaKeyCountSource,observedLaneMask:window.currentManiaObservedLaneMask,objects:analysis.objects.length,matched:analysis.matched.length,unmatchedPresses:analysis.unmatchedPresses,archiveBytes:window.currentMapArchiveBlob.size,audioBytes:window.currentAudioBlob.size};\n  }
+  report.autoBeatmap={player:parsedReplay.player,checksum:parsedReplay.beatmapMd5,sourceMode:window.currentSourceMapMode,convertedMode:playMap.mode,keys:playMap.keys,keyCountSource:window.currentManiaKeyCountSource,observedLaneMask:window.currentManiaObservedLaneMask,objects:analysis.objects.length,matched:analysis.matched.length,unmatchedPresses:analysis.unmatchedPresses,archiveBytes:window.currentMapArchiveBlob.size,audioBytes:window.currentAudioBlob.size};
+  }
   report.customSkin=customResult;report.finishedAt=new Date().toISOString();window.__CI_REPLAY_SKIN_RESULT__=report;
-  status.textContent='CI TEST PASS · SKIN + AUTO MAP + STANDARD → MANIA + ANALYSIS';
+  status.textContent=new URLSearchParams(location.search).has('ciReplayEncoder')?'CI TEST PASS · NEURAL ENCODER + SKIN + MANIA':'CI TEST PASS · SKIN + AUTO MAP + STANDARD → MANIA + ANALYSIS';
   diagLog('ci.replay_skin_test_pass',report);
  }catch(error){
   report.errors.push(String(error?.stack||error));report.finishedAt=new Date().toISOString();window.__CI_REPLAY_SKIN_RESULT__=report;
