@@ -192,7 +192,7 @@ if (!html.includes("setStatus('Не удалось разобрать карту
   throw new Error('Map parsing failures must propagate to automatic loading instead of being overwritten by a success status');
 }
 
-if (!html.includes('legacy .osr Mania replays, x stores the Mania key bitfield')) {
+if (!analysisModule.includes('const raw=Number(frame.x)')) {
   throw new Error('Mania replay input must decode the key bitfield from the x field');
 }
 if (!html.includes('The latest hit replaces the previous one; use the judgement sprite supplied by the active skin.')) {
