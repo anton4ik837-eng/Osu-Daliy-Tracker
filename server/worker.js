@@ -116,6 +116,35 @@ async function uploadAnonymizedReplay(env, path, bytes) {
   return { sha: payload.content.sha, path: payload.content.path || path };
 }
 
+// Continue the existing six-digit sequence in the private dataset folder.
+// UUID-named legacy files are ignored; the highest numeric filename is authoritative.
+async function getNextReplaySequence(env, directory, prefix) {
+  const token = typeof env.DATASET_GITHUB_TOKEN === "string" ? env.DATASET_GITHUB_TOKEN.trim() : "";
+  if (!token) throw new Error("dataset_upload_not_configured");
+  const endpoint = "https://api.github.com/repos/anton4ik837-eng/Osu-Replay-Dataset/contents/"
+    + directory.split("/").map(encodeURIComponent).join("/") + "?ref=main";
+  const response = await fetch(endpoint, {
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: "Bearer " + token,
+      "user-agent": "OsuDailyTracker-ReplaySync",
+      "x-github-api-version": "2022-11-28"
+    }
+  });
+  const entries = await response.json().catch(() => null);
+  if (!response.ok || !Array.isArray(entries)) {
+    throw new Error("dataset_sequence_lookup_failed_" + response.status);
+  }
+  const pattern = new RegExp("^" + prefix + "(\\d+)\\.osr$", "i");
+  let highest = 0;
+  for (const entry of entries) {
+    if (entry?.type !== "file" || typeof entry.name !== "string") continue;
+    const match = entry.name.match(pattern);
+    if (match) highest = Math.max(highest, Number(match[1]) || 0);
+  }
+  return highest + 1;
+}
+
 function validMode(value) {
   return ["osu", "taiko", "fruits", "mania"].includes(value) ? value : null;
 }
@@ -410,6 +439,13 @@ export default {
       const skipped = { already_present: 0, unavailable: 0 };
       let apiCalls = 1;
       for (const mode of ["osu", "mania"]) {
+        const prefix = mode === "osu" ? "standard" : "mania";
+        const filePrefix = mode === "osu" ? "std_" : "mania_";
+        let nextReplayNumber;
+        try { nextReplayNumber = await getNextReplaySequence(env, "replays/" + prefix, filePrefix); }
+        catch (error) {
+          return apiJson({ error: error.message || "dataset_sequence_lookup_failed", uploaded: uploaded.length }, 502);
+        }
         await waitForApiBudget();
         const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(userId) + "/scores/recent");
         scoresUrl.searchParams.set("mode", mode);
@@ -451,9 +487,7 @@ export default {
           let clean;
           try { clean = anonymizeOsr(raw, participantId, mode); }
           catch { return apiJson({ error: "replay_anonymization_failed", uploaded: uploaded.length }, 422); }
-          const fileId = crypto.randomUUID().replace(/-/g, "");
-          const prefix = mode === "osu" ? "standard" : "mania";
-          const fileName = (mode === "osu" ? "std_" : "mania_") + fileId + ".osr";
+          const fileName = filePrefix + String(nextReplayNumber).padStart(6, "0") + ".osr";
           const path = "replays/" + prefix + "/" + fileName;
           let result;
           try { result = await uploadAnonymizedReplay(env, path, clean); }
@@ -464,6 +498,7 @@ export default {
           await env.OAUTH_KV.put(uploadedKey, JSON.stringify({ path: result.path, sha: result.sha, uploaded_at: new Date().toISOString() }));
           await env.OAUTH_KV.put(consentKey, JSON.stringify(consent));
           uploaded.push({ mode, file: fileName });
+          nextReplayNumber++;
           modeUploads++;
         }
       }
