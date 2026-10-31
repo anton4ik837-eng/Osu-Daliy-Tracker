@@ -2,6 +2,39 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('../www/replay.html', import.meta.url), 'utf8');
+const positions = ['playerPanel', 'summary', 'replaySettings', 'skinUploadPanel', 'eventsPanel', 'critiquePanel']
+  .map(id => html.indexOf('id="' + id + '"'));
+if (positions.some(position => position < 0) ||
+    positions.some((position, index) => index > 0 && position <= positions[index - 1])) {
+  throw new Error('Replay Lab sections must follow: player, replay data, speed settings, skin upload, click table, recommendations');
+}
+const playerPanelPosition = html.indexOf('<section class="panel" id="playerPanel"');
+const playerPanelEnd = html.indexOf('</section>', playerPanelPosition);
+if (playerPanelPosition < 0 || playerPanelEnd < playerPanelPosition ||
+    html.slice(playerPanelPosition, playerPanelEnd).includes('id="skinPanel"') ||
+    html.slice(playerPanelPosition, playerPanelEnd).includes('id="playbackSpeedControl"')) {
+  throw new Error('Skin upload and speed settings must remain outside the replay player panel');
+}
+const replaySettingsPosition = html.indexOf('<section class="panel" id="replaySettings"');
+const skinUploadPosition = html.indexOf('<section class="panel" id="skinUploadPanel"');
+const replaySettings = html.slice(replaySettingsPosition, skinUploadPosition);
+for (const settingId of ['arControl', 'speedControl', 'playbackSpeedControl', 'audioToggle', 'audioOffset']) {
+  if (!replaySettings.includes('id="' + settingId + '"')) {
+    throw new Error('Replay speed settings panel is missing ' + settingId);
+  }
+}
+const skinUpload = html.slice(skinUploadPosition, html.indexOf('id="eventsPanel"', skinUploadPosition));
+if (!skinUpload.includes('id="skinPanel"') ||
+    !skinUpload.includes('id="skinFile"') ||
+    !skinUpload.includes('id="toggleSkinPreview"') ||
+    !skinUpload.includes('id="skinPreview" hidden')) {
+  throw new Error('Skin upload and its independently collapsible image gallery must have their own panel');
+}
+if (!html.includes('<details class="panel compact-details" id="critiquePanel" hidden>') ||
+    !html.includes('<summary>Рекомендации по игре</summary>')) {
+  throw new Error('Gameplay recommendations must be collapsible');
+}
+
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
   .map(match => match[1])
   .filter(script => script.trim());
@@ -78,8 +111,9 @@ if (!html.includes("cfg['hit'+tier]")) {
 if (!html.includes('function maniaJudgement(offset,od=5)')) {
   throw new Error('Mania judgements must use beatmap OD hit windows');
 }
-if (!html.includes("judgement:maniaJudgement(delta,map.od)")) {
-  throw new Error('Matched Mania replay events must store their calculated judgement');
+const analysisModule = readFileSync(new URL('../replay-analysis.mjs', import.meta.url), 'utf8');
+if (!html.includes('./replay-analysis.bundle.js') || !analysisModule.includes('judgement:maniaJudgement(offset,map.od)')) {
+  throw new Error('Matched Mania replay events must use the separately tested analysis module and store their calculated judgement');
 }
 if (!html.includes("label.textContent=current.kind+'  '+current.judgement")) {
   throw new Error('Replay HUD must show judgement instead of milliseconds');
@@ -158,7 +192,7 @@ if (!html.includes("setStatus('Не удалось разобрать карту
   throw new Error('Map parsing failures must propagate to automatic loading instead of being overwritten by a success status');
 }
 
-if (!html.includes('legacy .osr Mania replays, x stores the Mania key bitfield')) {
+if (!analysisModule.includes('const raw=Number(frame.x)')) {
   throw new Error('Mania replay input must decode the key bitfield from the x field');
 }
 if (!html.includes('The latest hit replaces the previous one; use the judgement sprite supplied by the active skin.')) {
