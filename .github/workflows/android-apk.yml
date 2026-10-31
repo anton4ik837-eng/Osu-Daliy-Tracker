@@ -389,7 +389,7 @@ jobs:
           fi
           test -s emulator-results/home-screen.png
           test -s emulator-results/replay-lab-screen.png
-          if grep -E 'FATAL EXCEPTION|Fatal signal [0-9]+ \\(SIG' emulator-results/logcat.txt; then
+          if grep -E 'FATAL EXCEPTION|Fatal signal' emulator-results/logcat.txt; then
             echo "::error::Fatal Android crash detected; see logcat artifact."
             exit 1
           fi
