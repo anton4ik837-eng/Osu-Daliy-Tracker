@@ -137,6 +137,8 @@ function initThemeSettings(){
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setStatus(message,kind='info'){$('status').textContent=message;$('status').dataset.kind=kind}
 function setAuthStatus(message,kind='info'){$('authStatus').textContent=message;$('authStatus').dataset.kind=kind}
+const REPLAY_CONSENT_VERSION='replay-dataset-v2';
+function replayConsentSession(){const s=window.__osuOAuthSession;return s?.accessToken&&s.expiresAt>Date.now()+5000?s:null}
   function showReplayConsentPrompt(show){$('replayConsentPrompt').classList.toggle('hidden',!show)}
   async function runReplayCollection(){
    const s=replayConsentSession(),button=$('collectReplayNowButton');if(!s)return;
