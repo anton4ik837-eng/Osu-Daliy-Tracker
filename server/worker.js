@@ -338,7 +338,7 @@ export default {
     // Explicit opt-in registry. Consent is tied to the osu! account returned by OAuth.
     if (url.pathname === "/api/me/replay-consent" && (request.method === "GET" || request.method === "POST")) {
       const auth = request.headers.get("authorization") || "";
-      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      const match = auth.match(/^Bearer\s+(.+)$/i);
       if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
       if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
       const profileResponse = await fetch("https://osu.ppy.sh/api/v2/me/osu", { headers: { accept: "application/json", authorization: "Bearer " + match[1] } });
@@ -380,7 +380,7 @@ export default {
     // Sync is triggered by app login/restore, capped to once per 24 hours and a small batch.
     if (url.pathname === "/api/me/replay-sync" && request.method === "POST") {
       const auth = request.headers.get("authorization") || "";
-      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      const match = auth.match(/^Bearer\s+(.+)$/i);
       if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
       if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
       if (!env.DATASET_GITHUB_TOKEN) return apiJson({ error: "dataset_upload_not_configured" }, 503);
