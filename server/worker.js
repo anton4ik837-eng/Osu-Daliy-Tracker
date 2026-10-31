@@ -423,10 +423,21 @@ export default {
           const uploadedKey = "replay-uploaded:" + userId + ":" + mode + ":" + scoreId;
           if (await env.OAUTH_KV.get(uploadedKey)) { skipped.already_present++; continue; }
           await waitForApiBudget();
-          const replayResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", {
-            headers: { ...userHeaders, accept: "application/octet-stream" }
+          const replayHeaders = { ...userHeaders, accept: "application/octet-stream" };
+          // Match the already-validated download route above: the generic score endpoint
+          // is the documented route; keep the ruleset-qualified path only as a fallback.
+          let replayResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId) + "/download", {
+            headers: replayHeaders
           });
           apiCalls++;
+          if (replayResponse.status === 404) {
+            await replayResponse.arrayBuffer().catch(() => new ArrayBuffer(0));
+            await waitForApiBudget();
+            replayResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", {
+              headers: replayHeaders
+            });
+            apiCalls++;
+          }
           if (!replayResponse.ok) {
             if (replayResponse.status === 404) { skipped.unavailable++; continue; }
             return apiJson({ error: "osu_replay_download_failed", upstream_status: replayResponse.status, uploaded: uploaded.length }, replayResponse.status === 401 ? 401 : 502);
