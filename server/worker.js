@@ -158,7 +158,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 2, deploy_marker: "replay-cors-fix-2026-10-29" });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 2, deploy_marker: "replay-dataset-token-check-2026-10-31", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV) });
     }
 
     // Download the complete public beatmapset archive by the replay checksum.
