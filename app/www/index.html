@@ -137,18 +137,6 @@ function initThemeSettings(){
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setStatus(message,kind='info'){$('status').textContent=message;$('status').dataset.kind=kind}
 function setAuthStatus(message,kind='info'){$('authStatus').textContent=message;$('authStatus').dataset.kind=kind}
- const REPLAY_CONSENT_VERSION='replay-dataset-v2';
- function replayConsentSession(){const s=window.__osuOAuthSession;return s?.accessToken&&s.expiresAt>Date.now()+5000?s:null}
- async function runReplayCollection(){
-  const s=replayConsentSession(),button=$('collectReplayNowButton');if(!s)return;
-  button.disabled=true;$('replayConsentStatus').textContent='Проверяем новые реплеи и отправляем их в закрытый датасет…';
-  try{const r=await fetch(API_BASE+'/api/me/replay-sync',{method:'POST',headers:{Accept:'application/json',Authorization:'Bearer '+s.accessToken}});const d=await r.json();if(!r.ok)throw Error(d.error==='dataset_upload_not_configured'?'На сервере ещё не настроен доступ к приватному датасету.':d.error||'Не удалось собрать реплеи');
-   if(d.skipped==='daily_limit'){$('replayConsentStatus').textContent='Проверка на сегодня уже выполнена. Следующая: '+new Date(d.next_sync_at).toLocaleString('ru-RU');}
-   else $('replayConsentStatus').textContent='Готово: загружено '+d.uploaded+', уже были в датасете '+(d.skipped?.already_present||0)+', без реплея '+(d.skipped?.unavailable||0)+'.';
-  }catch(e){$('replayConsentStatus').textContent='Сбор не выполнен: '+(e.message||String(e))}
-  finally{button.disabled=false}
- }
- 
   function showReplayConsentPrompt(show){$('replayConsentPrompt').classList.toggle('hidden',!show)}
   async function runReplayCollection(){
    const s=replayConsentSession(),button=$('collectReplayNowButton');if(!s)return;
