@@ -76,10 +76,10 @@ jobs:
         working-directory: app
         run: |
           set -euo pipefail
-          grep -Eq 'android:icon="@mipmap/ic_launcher_v11102"' android/app/src/main/AndroidManifest.xml
-          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_round_v11102"' android/app/src/main/AndroidManifest.xml
-          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_v11102.xml
-          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round_v11102.xml
+          grep -Eq 'android:icon="@mipmap/ic_launcher_v11200"' android/app/src/main/AndroidManifest.xml
+          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_round_v11200"' android/app/src/main/AndroidManifest.xml
+          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_v11200.xml
+          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round_v11200.xml
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -98,22 +98,22 @@ jobs:
           set -euo pipefail
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-mdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-hdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xhdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxhdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxxhdpi-v4/ic_launcher_v11102.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_v11102.xml'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round_v11102.xml'
-          unzip -Z1 "$APK" | grep -Fq 'ic_launcher_foreground_art_v11102.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-mdpi-v4/ic_launcher_v11200.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-hdpi-v4/ic_launcher_v11200.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xhdpi-v4/ic_launcher_v11200.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxhdpi-v4/ic_launcher_v11200.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxxhdpi-v4/ic_launcher_v11200.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_v11200.xml'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round_v11200.xml'
+          unzip -Z1 "$APK" | grep -Fq 'ic_launcher_foreground_art_v11200.png'
           AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
           test -x "$AAPT"
           "$AAPT" dump badging "$APK" > /tmp/osu-apk-badging.txt
           grep -Eq "^application-icon-[0-9]+:.*ic_launcher" /tmp/osu-apk-badging.txt
           "$AAPT" dump resources "$APK" > /tmp/osu-apk-resources.txt
-          grep -Fq 'mipmap/ic_launcher_v11102' /tmp/osu-apk-resources.txt
-          grep -Fq 'mipmap/ic_launcher_round_v11102' /tmp/osu-apk-resources.txt
-          grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11102" /tmp/osu-apk-badging.txt
+          grep -Fq 'mipmap/ic_launcher_v11200' /tmp/osu-apk-resources.txt
+          grep -Fq 'mipmap/ic_launcher_round_v11200' /tmp/osu-apk-resources.txt
+          grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11200" /tmp/osu-apk-badging.txt
       - name: Name APK 1.12.0
         run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.12.0-beta.apk
       - name: Upload APK artifact
