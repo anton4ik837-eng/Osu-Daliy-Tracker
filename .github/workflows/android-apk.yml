@@ -138,7 +138,7 @@ jobs:
           cp "test-fixtures/replays/176446 High Speed Music Team Sharpnel - M.A.M.A..osz" app/www/ci-fixtures/
           cp "test-fixtures/skins/百鬼あやめ.osk.zip" app/www/ci-fixtures/
           # Enable the test only in this temporary APK; the release APK above stays fixture-free.
-          sed -i 's|href="./replay.html"|href="./replay.html?ciReplaySkin=1"|g' app/www/index.html
+          sed -i 's|href="./replay.html"|href="./replay.html?ciReplaySkin=1\&ciReplayEncoder=1"|g' app/www/index.html
           cd app
           npx cap sync android
           cd android
@@ -343,7 +343,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v2.0.0
+          name: android-emulator-diagnostics-v2.1.0-beta
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
