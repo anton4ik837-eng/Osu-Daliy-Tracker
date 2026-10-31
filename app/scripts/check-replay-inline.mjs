@@ -202,6 +202,9 @@ if (!html.includes('The latest hit replaces the previous one; use the judgement 
 const drawStart = html.indexOf('function drawPlayfield(){');
 const drawEnd = html.indexOf('\nfunction tickPlayer(now){', drawStart);
 const drawSource = html.slice(drawStart, drawEnd);
+if (!html.includes('const rowsByTime=rows.map(row=>({time:Number(row.time)||0,row})).sort((a,b)=>a.time-b.time);') || !html.includes('rowsByTime,missEntries,pressEntries')) {
+  throw new Error('Replay cache must keep the time-sorted analysis rows index used by frame parsing');
+}
 if (!html.includes('function ensurePlaybackCache()') ||
     !drawSource.includes('const cache=ensurePlaybackCache()') ||
     drawSource.includes('playMap.objects.filter(') ||
