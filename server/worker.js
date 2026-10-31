@@ -370,6 +370,11 @@ export default {
         return apiJson({ enabled: false, deleted_files: deleted, pending_deletions: pending.length });
       }
       if (body?.enabled !== true || body?.consent !== true || body?.consent_version !== "replay-dataset-v2") return apiJson({ error: "explicit_consent_required" }, 400);
+      // Re-saving an already active consent must not replace its participant ID or
+      // clear the uploaded-file registry; those records are required for dedupe/revocation.
+      if (consent?.consent === true && consent?.consent_version === "replay-dataset-v2") {
+        return apiJson({ enabled: true, consent_version: consent.consent_version, accepted_at: consent.accepted_at || null, unchanged: true });
+      }
       if (consent?.consent === false && Array.isArray(consent.files) && consent.files.length) return apiJson({ error: "previous_replay_deletion_pending" }, 409);
       const record = { user_id: String(profile.id), consent: true, consent_version: "replay-dataset-v2", accepted_at: new Date().toISOString(), participant_id: crypto.randomUUID().replace(/-/g, "").slice(0, 12), consent_scope: "own_replays_private_dataset_anonymized_filename_and_player_name_ai_training", modes: ["osu", "mania"], files: [] };
       await env.OAUTH_KV.put(key, JSON.stringify(record));
