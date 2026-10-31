@@ -61,6 +61,7 @@ async function enforceRateLimit(env, key, limit) {
 }
 
 async function callGemini(env, system, messages, context) {
+  const startedAt = Date.now();
   const apiKey = typeof env.GEMINI_API_KEY === "string" ? env.GEMINI_API_KEY.trim() : "";
   if (!apiKey) return { error: "ai_provider_not_configured", status: 503 };
   let model = typeof env.GEMINI_MODEL === "string" && /^[a-zA-Z0-9._-]{3,80}$/.test(env.GEMINI_MODEL)
@@ -72,6 +73,8 @@ async function callGemini(env, system, messages, context) {
     const last = contents[contents.length - 1];
     last.parts[0].text += contextText;
   }
+  const promptChars = contents.reduce((total, item) => total + item.parts.reduce((sum, part) => sum + String(part.text || "").length, 0), 0);
+  const contextChars = contextText.length;
   const requestModel = async (modelName) => fetch("https://generativelanguage.googleapis.com/v1beta/models/" +
     encodeURIComponent(modelName) + ":generateContent", {
     method: "POST",
@@ -102,6 +105,10 @@ async function callGemini(env, system, messages, context) {
       error: timedOut ? "ai_provider_timeout" : "ai_provider_unavailable",
       status: timedOut ? 504 : 502,
       provider_reason: timedOut ? "TIMEOUT" : (typeof error?.name === "string" ? error.name.slice(0, 48) : "NETWORK_ERROR"),
+      provider_model: model,
+      provider_elapsed_ms: Date.now() - startedAt,
+      provider_prompt_chars: promptChars,
+      provider_context_chars: contextChars,
     };
   }
   const payload = await upstream.json().catch(() => null);
@@ -154,7 +161,7 @@ export async function handleAiChat(request, env) {
   const quota = await enforceRateLimit(env, "chat:" + String(profile.id), CHAT_LIMIT_PER_HOUR);
   if (!quota.ok) return response({ error: quota.error }, quota.error === "rate_limit_exceeded" ? 429 : 503);
   const result = await callGemini(env, CHAT_SYSTEM, messages, context);
-  if (result.error) return response({ error: result.error, provider_status: result.provider_status ?? null, provider_reason: result.provider_reason ?? null }, result.status);
+  if (result.error) return response({ error: result.error, provider_status: result.provider_status ?? null, provider_reason: result.provider_reason ?? null, provider_model: result.provider_model ?? null, provider_elapsed_ms: result.provider_elapsed_ms ?? null, provider_prompt_chars: result.provider_prompt_chars ?? null, provider_context_chars: result.provider_context_chars ?? null }, result.status);
   return response({ ok: true, reply: result.text, provider: "gemini", model: result.model, usage: result.usage, rate_limit_remaining: quota.remaining });
 }
 
