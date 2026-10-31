@@ -251,4 +251,22 @@ for (let index = 0; index < scripts.length; index += 1) {
   new vm.Script(scripts[index], { filename: 'replay.html:inline-script-' + (index + 1) });
 }
 
+
+const chatStart = html.indexOf("const messages=[];");
+const chatEnd = html.indexOf("</script>", chatStart);
+if (chatStart < 0 || chatEnd <= chatStart) {
+  throw new Error('Gemini chat script must remain available for responsiveness checks');
+}
+const chatScript = html.slice(chatStart, chatEnd);
+if (html.includes("const EVENT_ROWS_PAGE_SIZE=150;") === false ||
+    !html.includes("eventRowsPageInfo") ||
+    !html.includes("eventRowsPrev") ||
+    !html.includes("eventRowsNext") ||
+    !html.includes("eventRowsSource.slice(start,start+EVENT_ROWS_PAGE_SIZE)")) {
+  throw new Error('Replay event table must render in bounded 150-row pages');
+}
+if (chatScript.includes("input.disabled=true") || chatScript.includes("input.disabled=false")) {
+  throw new Error('Gemini chat input must remain editable while a request is pending');
+}
+
 console.log('Replay Lab inline JavaScript syntax OK (' + scripts.length + ' script block(s)).');
