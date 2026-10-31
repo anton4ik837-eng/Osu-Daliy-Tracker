@@ -128,7 +128,7 @@ export function analyze(map,presses) {
     const has=Number.isFinite(target.x)&&Number.isFinite(target.y)&&Number.isFinite(press.x)&&Number.isFinite(press.y);
     const distance=has?Math.hypot(press.x-target.x,press.y-target.y):0;
     return distance<=tolerance?(distance/tolerance)*35:Infinity;
-  }));
+  },null,object));
   const rows=objects.map((object,index)=>{
     const eventIndex=assignment.itemEvent[index];
     if(eventIndex<0)return{index:index+1,time:object.time,offset:null,type:object.type,miss:true,press:null};
