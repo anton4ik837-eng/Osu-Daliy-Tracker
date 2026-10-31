@@ -1,3 +1,5 @@
+import { handleAiChat, handleAiResearch } from "./ai-gateway.js";
+
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "cache-control": "no-store",
@@ -184,6 +186,15 @@ export default {
           "access-control-max-age": "600",
         },
       });
+    }
+
+    if (url.pathname === "/api/ai/chat" && request.method === "POST") {
+      return handleAiChat(request, env);
+    }
+
+    // Research access is server-admin only; never embed AI_RESEARCH_TOKEN in the app.
+    if (url.pathname === "/api/ai/research" && request.method === "POST") {
+      return handleAiResearch(request, env);
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
