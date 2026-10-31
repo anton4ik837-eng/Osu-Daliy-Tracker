@@ -268,5 +268,8 @@ if (html.includes("const EVENT_ROWS_PAGE_SIZE=150;") === false ||
 if (chatScript.includes("input.disabled=true") || chatScript.includes("input.disabled=false")) {
   throw new Error('Gemini chat input must remain editable while a request is pending');
 }
+if (!html.includes('id="aiChatStyle"') || !chatScript.includes("osu-ai-coach-style-v1") || !chatScript.includes("style:styleSelect.value")) {
+  throw new Error("Gemini chat must expose and persist beginner/advanced response presets");
+}
 
 console.log('Replay Lab inline JavaScript syntax OK (' + scripts.length + ' script block(s)).');
