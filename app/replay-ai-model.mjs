@@ -20,6 +20,72 @@ const fmtTime = ms => {
   return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
 };
 
+
+const median = values => {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+};
+const percentile = (values, p) => {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1)];
+};
+function extractTrainingFeatures(analysis) {
+  const rows = Array.isArray(analysis?.rows) ? analysis.rows : [];
+  const valid = rows.filter(row => !row.miss && Number.isFinite(row.offset));
+  const offsets = valid.map(row => Number(row.offset));
+  const absOffsets = offsets.map(Math.abs);
+  const early = offsets.filter(value => value < 0).length;
+  const late = offsets.filter(value => value > 0).length;
+  const ordered = [...valid].sort((a, b) => a.time - b.time);
+  const denseDeltas = [], streamRuns = [], burstRuns = [];
+  let run = [];
+  for (let i = 0; i < ordered.length; i++) {
+    if (!run.length) { run = [ordered[i]]; continue; }
+    const gap = ordered[i].time - run[run.length - 1].time;
+    if (gap >= 75 && gap <= 250) run.push(ordered[i]);
+    else {
+      if (run.length >= 4) streamRuns.push(run);
+      else if (run.length >= 2) burstRuns.push(run);
+      run = [ordered[i]];
+    }
+    if (i > 0 && gap > 0 && gap <= 125)
+      denseDeltas.push(ordered[i].offset - ordered[i - 1].offset);
+  }
+  if (run.length >= 4) streamRuns.push(run);
+  else if (run.length >= 2) burstRuns.push(run);
+  const streamRows = streamRuns.flat(), burstRows = burstRuns.flat();
+  const denseJitter = denseDeltas.length ? Math.sqrt(mean(denseDeltas.map(value => value * value))) : null;
+  const holds = rows.filter(row => /hold/i.test(String(row.type || '')));
+  const releaseMisses = rows.filter(row => row.releaseMiss).length;
+  const aimErrors = valid.map(row => row.aimErrorPx).filter(Number.isFinite);
+  const totalPresses = Math.max(0, Number(analysis.totalPresses) || 0);
+  const unmatched = Math.max(0, Number(analysis.unmatchedPresses) || 0);
+  return {
+    object_count: rows.length, matched_count: valid.length,
+    miss_count: rows.filter(row => row.miss).length,
+    median_abs_offset_ms: median(absOffsets),
+    mean_offset_ms: offsets.length ? mean(offsets) : null,
+    offset_stddev_ms: offsets.length ? stddev(offsets) : null,
+    early_ratio: offsets.length ? early / offsets.length : null,
+    late_ratio: offsets.length ? late / offsets.length : null,
+    dense_pair_count: denseDeltas.length, dense_jitter_ms: denseJitter,
+    unmatched_press_ratio: totalPresses ? unmatched / totalPresses : null,
+    hold_count: holds.length,
+    release_miss_ratio: holds.length ? releaseMisses / holds.length : null,
+    stream_count: streamRuns.length, stream_note_count: streamRows.length,
+    stream_offset_stddev_ms: streamRows.length ? stddev(streamRows.map(row => row.offset)) : null,
+    burst_count: burstRuns.length,
+    burst_offset_stddev_ms: burstRows.length ? stddev(burstRows.map(row => row.offset)) : null,
+    mean_aim_error_px: aimErrors.length ? mean(aimErrors) : null,
+    p95_aim_error_px: percentile(aimErrors, 0.95),
+    high_density_hit_rate: null, low_density_hit_rate: null,
+    approach_rate: null, overall_difficulty: null, circle_size: null,
+    bpm_estimate: Number.isFinite(analysis.bpm) ? analysis.bpm : null,
+  };
+}
+
 const HIDDEN_WEIGHTS = [
   [ 2.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0],
   [ 0.0,  1.8,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0],
@@ -211,6 +277,38 @@ function renderModelPanel() {
     scores.append(card);
   }
   panel.append(scores);
+  const exportNote = element('p', 'muted', 'Экспорт числовых признаков для обучающего набора. Никнейм и MD5 карты не сохраняются.');
+  exportNote.style.margin = '12px 0 6px';
+  panel.append(exportNote);
+  const exportButton = element('button', '', 'Экспорт признаков для обучения');
+  exportButton.type = 'button';
+  exportButton.style.cssText = 'padding:9px 12px;border:1px solid #4a7692;border-radius:8px;background:#17354b;color:#d9f3ff;font-weight:700;cursor:pointer';
+  exportButton.addEventListener('click', () => {
+    const source = typeof window !== 'undefined' ? window.replayAnalysis : null;
+    if (!source?.rows?.length) { alert('Сначала полностью проанализируй реплей.'); return; }
+    const mode = Number(window.replayHeader?.mode ?? source.mode) === 3 ? 'mania' : 'standard';
+    const prefix = mode === 'mania' ? 'mania' : 'std';
+    const selected = document.getElementById('replayFile')?.files?.[0];
+    const match = String(selected?.name || '').match(/(?:std|mania)_\d{6}/i);
+    const suggested = match ? match[0].toLowerCase() : '';
+    const replayId = window.prompt('Введи анонимный ID из датасета (например, ' + prefix + '_000001):', suggested);
+    if (!replayId || !new RegExp('^' + prefix + '_\\d{6}$').test(replayId.trim())) {
+      alert('ID должен иметь формат ' + prefix + '_000001.');
+      return;
+    }
+    const doc = {
+      schema_version: 1, replay_id: replayId.trim(), mode,
+      parser_version: 'replay-lab-2.2.0-beta.1',
+      features: extractTrainingFeatures(source),
+    };
+    const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = replayId.trim() + '.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  panel.append(exportButton);
+
   const recTitle = element('h3', '', 'Что модель предлагает улучшить');
   recTitle.style.cssText = 'font-size:14px;margin:14px 0 6px';
   panel.append(recTitle);
