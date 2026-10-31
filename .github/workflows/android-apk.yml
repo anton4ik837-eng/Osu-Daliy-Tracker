@@ -2,7 +2,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/2.3.0-replay-collector, feature/2.3.0-replay-collector]
+    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/2.3.0-replay-collector]
     paths:
       - 'app/**'
       - 'test-fixtures/**'
