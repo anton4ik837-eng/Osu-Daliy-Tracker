@@ -354,6 +354,7 @@ export default {
       if (body?.enabled === false) {
         const files = Array.isArray(consent?.files) ? consent.files : [];
         const pending = []; let deleted = 0;
+        await env.OAUTH_KV.delete("replay-sync-last:" + String(profile.id));
         for (const file of files) {
           if (!env.DATASET_GITHUB_TOKEN) { pending.push(file); continue; }
           const removed = await fetch("https://api.github.com/repos/anton4ik837-eng/Osu-Replay-Dataset/contents/" + file.path.split("/").map(encodeURIComponent).join("/"), {
