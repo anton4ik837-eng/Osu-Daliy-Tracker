@@ -148,25 +148,49 @@ function setAuthStatus(message,kind='info'){$('authStatus').textContent=message;
   }catch(e){$('replayConsentStatus').textContent='Сбор не выполнен: '+(e.message||String(e))}
   finally{button.disabled=false}
  }
- async function loadReplayConsent(){
-  const session=replayConsentSession(),toggle=$('replayConsentToggle'),button=$('saveReplayConsentButton'),collect=$('collectReplayNowButton'),panel=$('replayConsentPanel');
-  if(!session){panel.style.display='none';toggle.checked=false;toggle.disabled=true;button.disabled=true;collect.disabled=true;return}
-  panel.style.display='block';toggle.disabled=false;button.disabled=false;collect.disabled=false;
-  try{const r=await fetch(API_BASE+'/api/me/replay-consent',{headers:{Accept:'application/json',Authorization:'Bearer '+session.accessToken}});const d=await r.json();if(!r.ok)throw Error(d.error||'Ошибка чтения');toggle.checked=d.enabled===true;
-   if(d.enabled){$('replayConsentStatus').textContent='Согласие активно. Автосбор запускается при входе, не чаще раза в сутки.';await runReplayCollection();}
-   else $('replayConsentStatus').textContent='Сбор выключен. После согласия начнётся первая загрузка.';
-  }catch(e){$('replayConsentStatus').textContent='Не удалось загрузить статус: '+(e.message||String(e))}
- }
- async function saveReplayConsent(){
-  const s=replayConsentSession();if(!s)return;const enabled=$('replayConsentToggle').checked,b=$('saveReplayConsentButton');b.disabled=true;
-  try{const r=await fetch(API_BASE+'/api/me/replay-consent',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:'Bearer '+s.accessToken},body:JSON.stringify({enabled,consent:enabled,consent_version:REPLAY_CONSENT_VERSION})});const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось сохранить');
-   if(enabled){$('replayConsentStatus').textContent='Согласие сохранено. Запускаем сбор…';await runReplayCollection();}
-   else $('replayConsentStatus').textContent=d.pending_deletions?'Сбор остановлен. Не удалось удалить '+d.pending_deletions+' файлов; удаление нужно будет повторить.':'Согласие отозвано. Удалено файлов: '+d.deleted_files+'.';
-  }catch(e){$('replayConsentStatus').textContent='Ошибка: '+(e.message||String(e));await loadReplayConsent()}finally{b.disabled=false}
- }
- $('saveReplayConsentButton').addEventListener('click',saveReplayConsent);
- $('collectReplayNowButton').addEventListener('click',runReplayCollection);
-
+ 
+  function showReplayConsentPrompt(show){$('replayConsentPrompt').classList.toggle('hidden',!show)}
+  async function runReplayCollection(){
+   const s=replayConsentSession(),button=$('collectReplayNowButton');if(!s)return;
+   button.disabled=true;$('replayConsentStatus').textContent='Проверяем новые реплеи и отправляем обезличенные файлы в закрытый датасет…';
+   try{
+    const r=await fetch(API_BASE+'/api/me/replay-sync',{method:'POST',headers:{Accept:'application/json',Authorization:'Bearer '+s.accessToken}});
+    const d=await r.json();if(!r.ok)throw Error(d.error==='dataset_upload_not_configured'?'На сервере ещё не настроен доступ к приватному датасету.':d.error||'Не удалось собрать реплеи');
+    if(d.skipped==='daily_limit')$('replayConsentStatus').textContent='Проверка на сегодня уже выполнена. Следующая: '+new Date(d.next_sync_at).toLocaleString('ru-RU');
+    else $('replayConsentStatus').textContent='Готово: загружено '+Number(d.uploaded||0)+', дубликатов '+Number(d.skipped?.already_present||0)+', недоступных '+Number(d.skipped?.unavailable||0)+'.';
+   }catch(e){$('replayConsentStatus').textContent='Сбор не выполнен: '+(e.message||String(e))}
+   finally{button.disabled=false}
+  }
+  async function loadReplayConsent(){
+   const s=replayConsentSession(),toggle=$('replayConsentToggle'),save=$('saveReplayConsentButton'),collect=$('collectReplayNowButton'),panel=$('replayConsentPanel');
+   if(!s){panel.style.display='none';toggle.checked=false;toggle.disabled=true;save.disabled=true;collect.disabled=true;showReplayConsentPrompt(false);return}
+   panel.style.display='block';toggle.disabled=false;save.disabled=false;collect.disabled=false;
+   try{
+    const r=await fetch(API_BASE+'/api/me/replay-consent',{headers:{Accept:'application/json',Authorization:'Bearer '+s.accessToken}});
+    const d=await r.json();if(!r.ok)throw Error(d.error||'Ошибка чтения');
+    const enabled=d.enabled===true&&d.consent_version===REPLAY_CONSENT_VERSION;toggle.checked=enabled;
+    if(enabled){showReplayConsentPrompt(false);$('replayConsentStatus').textContent='Согласие активно. Автосбор запускается при входе, не чаще раза в сутки.';await runReplayCollection()}
+    else{
+     $('replayConsentStatus').textContent='Сбор выключен. После согласия начнётся первая загрузка.';
+     let dismissed=false;try{dismissed=sessionStorage.getItem('replay-consent-dismissed-'+window.__osuProfileId)==='1'}catch{}
+     showReplayConsentPrompt(!dismissed);
+    }
+   }catch(e){$('replayConsentStatus').textContent='Не удалось загрузить статус: '+(e.message||String(e));$('replayConsentPromptStatus').textContent='Не удалось проверить согласие. Сбор отключён.'}
+  }
+  async function saveReplayConsent(){
+   const s=replayConsentSession();if(!s)return;const enabled=$('replayConsentToggle').checked,button=$('saveReplayConsentButton');button.disabled=true;
+   try{
+    const r=await fetch(API_BASE+'/api/me/replay-consent',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:'Bearer '+s.accessToken},body:JSON.stringify({enabled,consent:enabled,consent_version:REPLAY_CONSENT_VERSION})});
+    const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось сохранить');
+    if(enabled){showReplayConsentPrompt(false);$('replayConsentStatus').textContent='Согласие сохранено. Запускаем сбор…';await runReplayCollection()}
+    else{$('replayConsentStatus').textContent=d.pending_deletions?'Сбор остановлен. Не удалось удалить '+d.pending_deletions+' файлов; удаление нужно будет повторить.':'Согласие отозвано. Удалено файлов: '+Number(d.deleted_files||0)+'.';showReplayConsentPrompt(false)}
+   }catch(e){$('replayConsentStatus').textContent='Ошибка: '+(e.message||String(e));await loadReplayConsent()}
+   finally{button.disabled=false}
+  }
+  $('saveReplayConsentButton').addEventListener('click',saveReplayConsent);
+  $('collectReplayNowButton').addEventListener('click',runReplayCollection);
+  $('acceptReplayConsentButton').addEventListener('click',async()=>{$('replayConsentToggle').checked=true;await saveReplayConsent()});
+  $('declineReplayConsentButton').addEventListener('click',()=>{showReplayConsentPrompt(false);try{sessionStorage.setItem('replay-consent-dismissed-'+window.__osuProfileId,'1')}catch{}$('replayConsentPromptStatus').textContent='Ты отказался. Сбор реплеев не включён.'});
 function profileUrl(user,mode=activeMode){return 'https://osu.ppy.sh/users/'+encodeURIComponent(String(user))+'/'+encodeURIComponent(mode)}
 function metric(label,value){return '<div class="stat"><small>'+esc(label)+'</small><b>'+esc(value)+'</b></div>'}
 let activeMode='osu';
