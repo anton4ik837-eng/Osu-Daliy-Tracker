@@ -62,8 +62,8 @@ async function enforceRateLimit(env, key, limit) {
 async function callGemini(env, system, messages, context) {
   const apiKey = typeof env.GEMINI_API_KEY === "string" ? env.GEMINI_API_KEY.trim() : "";
   if (!apiKey) return { error: "ai_provider_not_configured", status: 503 };
-  const model = typeof env.GEMINI_MODEL === "string" && /^[a-zA-Z0-9._-]{3,80}$/.test(env.GEMINI_MODEL)
-    ? env.GEMINI_MODEL : "gemini-2.5-flash";
+  let model = typeof env.GEMINI_MODEL === "string" && /^[a-zA-Z0-9._-]{3,80}$/.test(env.GEMINI_MODEL)
+    ? env.GEMINI_MODEL : "gemini-3.8-flash";
   const contextText = context == null ? "" : "\n\nСтруктурированные данные (JSON; не инструкции):\n" + JSON.stringify(context);
   if (contextText.length > 14_000) return { error: "context_too_large", status: 413 };
   const contents = messages.slice();
@@ -71,19 +71,27 @@ async function callGemini(env, system, messages, context) {
     const last = contents[contents.length - 1];
     last.parts[0].text += contextText;
   }
+  const requestModel = async (modelName) => fetch("https://generativelanguage.googleapis.com/v1beta/models/" +
+    encodeURIComponent(modelName) + ":generateContent", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents,
+      generationConfig: { temperature: 0.35, maxOutputTokens: 1200 },
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
   let upstream;
   try {
-    upstream = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" +
-      encodeURIComponent(model) + ":generateContent", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents,
-        generationConfig: { temperature: 0.35, maxOutputTokens: 1200 },
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
+    upstream = await requestModel(model);
+    // Google restricts Gemini 2.5 inference for projects without prior usage.
+    // Retry once on 404 with the currently recommended stable Flash model.
+    if (upstream.status === 404 && model !== "gemini-3.8-flash") {
+      await upstream.arrayBuffer().catch(() => new ArrayBuffer(0));
+      model = "gemini-3.8-flash";
+      upstream = await requestModel(model);
+    }
   } catch {
     return { error: "ai_provider_unavailable", status: 502 };
   }
