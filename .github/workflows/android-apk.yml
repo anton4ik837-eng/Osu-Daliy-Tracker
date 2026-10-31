@@ -2,7 +2,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/2.2.0-replay-encoder-integration]
+    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/2.2.0-replay-encoder-integration, feature/2.2.0-replay-coach]
     paths:
       - 'app/**'
       - 'test-fixtures/**'
@@ -41,6 +41,9 @@ jobs:
       - name: Validate trained replay encoder and reference index
         working-directory: app
         run: npm run test:replay-encoder
+      - name: Validate evidence-based replay coach
+        working-directory: app
+        run: npm run test:replay-coach
       - name: Validate supplied replay, exact beatmap and nested mania skin fixtures
         working-directory: .
         run: node app/scripts/check-replay-fixtures.mjs
@@ -109,7 +112,7 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
           test -x "$AAPT"
           "$AAPT" dump badging "$APK" > /tmp/osu-apk-badging.txt
-          grep -Fq "versionCode='20100' versionName='2.2.0-beta'" /tmp/osu-apk-badging.txt
+          grep -Fq "versionCode='20200' versionName='2.2.0-beta'" /tmp/osu-apk-badging.txt
           grep -Fq "package: name='com.osudailytracker.app'" /tmp/osu-apk-badging.txt
           grep -Eq "^application-icon-[0-9]+:.*ic_launcher" /tmp/osu-apk-badging.txt
           "$AAPT" dump resources "$APK" > /tmp/osu-apk-resources.txt
