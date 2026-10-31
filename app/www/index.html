@@ -36,6 +36,13 @@
 <section id="progressPanel" class="panel hidden" style="margin-top:16px"><div class="panel-head"><h2>История прогресса</h2><span class="pill" id="chartModeLabel">STD</span></div><div id="progress" class="progress-list"></div><div class="chart-grid"><div class="chart-card"><h3>Performance Points</h3><svg id="ppChart" class="chart" viewBox="0 0 600 220" role="img" aria-label="График истории PP"></svg></div><div class="chart-card"><h3>Глобальный ранг</h3><svg id="rankChart" class="chart" viewBox="0 0 600 220" role="img" aria-label="График истории глобального ранга"></svg></div></div></section>
 <div id="settingsOverlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle"><div class="settings-dialog"><div class="panel-head"><h2 id="settingsTitle">Настройки</h2><button id="settingsCloseButton" class="secondary settings-close" type="button" aria-label="Закрыть настройки">×</button></div><span class="pill">Внешний вид</span>
 <p class="fine">Настрой каждый цвет интерфейса. Изменения сохраняются на этом устройстве.</p>
+<div class="update-box" id="replayConsentPanel">
+ <div class="panel-head"><h3>Обучение Replay AI</h3><span class="pill">Добровольно</span></div>
+ <p class="fine">Разрешить сбор доступных реплеев твоего osu!-аккаунта для приватного датасета и обучения модели. Ник и OAuth-токены не добавляются в датасет. Согласие можно отозвать в любой момент.</p>
+ <label class="fine" style="display:flex;gap:10px;align-items:flex-start;margin:12px 0"><input id="replayConsentToggle" type="checkbox" style="width:auto;margin-top:3px"><span>Я согласен на загрузку, приватное хранение и использование моих реплеев для обучения Replay AI.</span></label>
+ <button id="saveReplayConsentButton" class="secondary" type="button" disabled>Сохранить согласие</button>
+ <div id="replayConsentStatus" class="status" role="status" aria-live="polite">Для настройки подключи аккаунт osu! через OAuth.</div>
+</div>
 <div class="palette-grid">
 <label class="palette-item">Фон страницы<input type="color" data-theme-color="--bg" value="#0b0f17"></label><label class="palette-item">Свечение фона<input type="color" data-theme-color="--bg-glow" value="#20364b"></label>
 <label class="palette-item">Панель<input type="color" data-theme-color="--panel-start" value="#182536"></label><label class="palette-item">Панель — тень<input type="color" data-theme-color="--panel-end" value="#141b28"></label>
@@ -114,7 +121,9 @@ function initThemeSettings(){
   current[input.dataset.themeColor]=input.value;applyTheme(current,true);
  }));
  $('resetThemeButton').addEventListener('click',()=>{applyTheme(THEME_DEFAULTS,true);$('settingsStatus').textContent='Стандартная палитра восстановлена.'});
- $('disconnectButton').addEventListener('click',()=>{
+ $('disconnectButton').addEventListener('click',async()=>{
+  const activeSession=window.__osuOAuthSession;
+  if(activeSession?.accessToken){try{await fetch(API_BASE+'/api/me/replay-consent',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+activeSession.accessToken},body:JSON.stringify({enabled:false})})}catch{}}
   window.__osuOAuthSession=null;try{localStorage.removeItem(OAUTH_SESSION_KEY);sessionStorage.removeItem(OAUTH_SESSION_KEY)}catch{}
   $('authBadge').textContent='Не подключён';$('authBadge').style.color='';
   setAuthStatus('Авторизация отключена. Публичный поиск профилей по-прежнему доступен.');
@@ -127,6 +136,22 @@ function initThemeSettings(){
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setStatus(message,kind='info'){$('status').textContent=message;$('status').dataset.kind=kind}
 function setAuthStatus(message,kind='info'){$('authStatus').textContent=message;$('authStatus').dataset.kind=kind}
+ const REPLAY_CONSENT_VERSION='replay-dataset-v1';
+ function replayConsentSession(){const s=window.__osuOAuthSession;return s?.accessToken&&s.expiresAt>Date.now()+5000?s:null}
+ async function loadReplayConsent(){
+  const session=replayConsentSession(),toggle=$('replayConsentToggle'),button=$('saveReplayConsentButton');
+  if(!session){toggle.checked=false;toggle.disabled=true;button.disabled=true;$('replayConsentStatus').textContent='Для настройки подключи аккаунт osu! через OAuth.';return}
+  toggle.disabled=false;button.disabled=false;
+  try{const r=await fetch(API_BASE+'/api/me/replay-consent',{headers:{Accept:'application/json',Authorization:'Bearer '+session.accessToken}});const d=await r.json();if(!r.ok)throw Error(d.error||'Ошибка чтения');toggle.checked=d.enabled===true;$('replayConsentStatus').textContent=d.enabled?'Согласие сохранено '+(d.accepted_at?new Date(d.accepted_at).toLocaleString('ru-RU'):'')+'.':'Сбор реплеев выключен.'}
+  catch(e){$('replayConsentStatus').textContent='Не удалось загрузить статус: '+(e.message||String(e))}
+ }
+ async function saveReplayConsent(){
+  const s=replayConsentSession();if(!s)return;const enabled=$('replayConsentToggle').checked,b=$('saveReplayConsentButton');b.disabled=true;
+  try{const r=await fetch(API_BASE+'/api/me/replay-consent',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:'Bearer '+s.accessToken},body:JSON.stringify({enabled,consent:enabled,consent_version:REPLAY_CONSENT_VERSION})});const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось сохранить');$('replayConsentStatus').textContent=d.enabled?'Согласие сохранено. Аккаунт добавлен в список участников.':'Согласие отозвано. Аккаунт удалён из списка участников.'}
+  catch(e){$('replayConsentStatus').textContent='Ошибка: '+(e.message||String(e));await loadReplayConsent()}finally{b.disabled=false}
+ }
+ $('saveReplayConsentButton').addEventListener('click',saveReplayConsent);
+
 function profileUrl(user,mode=activeMode){return 'https://osu.ppy.sh/users/'+encodeURIComponent(String(user))+'/'+encodeURIComponent(mode)}
 function metric(label,value){return '<div class="stat"><small>'+esc(label)+'</small><b>'+esc(value)+'</b></div>'}
 let activeMode='osu';
@@ -299,6 +324,7 @@ async function redeemHandoff(handoff){
   if(!profileResponse.ok)throw new Error('Не удалось загрузить статистику (HTTP '+profileResponse.status+'): '+(profileData.error_description||profileData.error||profileData.message||'ошибка osu! API'));
   if(!profileData||!profileData.id||!profileData.statistics)throw new Error('osu! API не вернул статистику аккаунта.');
   renderProfile(profileData);
+  await loadReplayConsent();
   $('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
   $('osuUser').value=profileData.username||String(profileData.id);
   setStatus('Авторизованный профиль загружен.','success');
@@ -324,7 +350,7 @@ async function restoreOAuthSession(){
   if(response.status===401){session=await refreshOAuthSession(session);window.__osuOAuthSession=session;persistOAuthSession();response=await fetch(API_BASE+'/api/me?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json',Authorization:'Bearer '+session.accessToken}})}
   const data=await response.json();if(!response.ok)throw new Error(data.error||'osu! API error');
   if(!data?.id||!data?.statistics)throw new Error('Профиль не вернулся');
-  renderProfile(data);$('osuUser').value=data.username||String(data.id);$('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
+  renderProfile(data);await loadReplayConsent();$('osuUser').value=data.username||String(data.id);$('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
   setStatus('Авторизованный профиль восстановлен.','success');setAuthStatus('Аккаунт подключён: '+(data.username||'osu!')+'. Сессия восстановлена.','success');
  }catch(error){setAuthStatus('Не удалось проверить сессию; сохранённые данные не удалены: '+(error?.message||String(error)),'error')}
 }
