@@ -869,7 +869,8 @@ refreshReplayLibrary();
   check('builtin_renderer_drawn',!!playMap&&$('playfield').width===512,{mode:playMap.mode,keys:playMap.keys});
   const playbackStart=playerNow;audioEnabled=false;playerRunning=true;lastFrame=performance.now()-50;tickPlayer(performance.now());playerRunning=false;cancelAnimationFrame(rafId);lastFrame=0;
   check('mania_playback_advances',playerNow>playbackStart,{before:playbackStart,after:playerNow,delta:playerNow-playbackStart,mode:playMap.mode});
-if(!new URLSearchParams(location.search).has('ciReplayEncoder')){\n  const autoReplay=await fixture('tupoieblan228_playing_HyuN_Encounter_FAMoss_Rendezvous_Point_2026.osr');
+if(!new URLSearchParams(location.search).has('ciReplayEncoder')){
+  const autoReplay=await fixture('tupoieblan228_playing_HyuN_Encounter_FAMoss_Rendezvous_Point_2026.osr');
   $('mapFile')._savedFile=null;$('mapFile')._savedResolved=false;$('mapFile').value='';
   window.currentMapArchiveBlob=null;window.currentAudioBlob=null;window.currentSourceMapMode=null;window.currentSourceMapMd5=null;
   await loadReplay(autoReplay);
