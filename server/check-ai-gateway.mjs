@@ -32,6 +32,7 @@ globalThis.fetch = async (url, options = {}) => {
     }
     const body = JSON.parse(options.body);
     assert.equal(body.systemInstruction.parts.length, 1);
+    assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "LOW");
     assert.ok(body.contents.length > 0);
     return new Response(JSON.stringify({
       candidates: [{ content: { parts: [{ text: "Тестовый ответ" }] } }],
