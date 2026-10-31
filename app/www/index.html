@@ -144,7 +144,7 @@ function replayConsentSession(){const s=window.__osuOAuthSession;return s?.acces
   function stopReplayCollectionTimer(){if(replayCollectionTimer!==null){clearInterval(replayCollectionTimer);replayCollectionTimer=null}}
   function startReplayCollectionTimer(){stopReplayCollectionTimer();if(!$('replayConsentToggle').checked||!replayConsentSession())return;replayCollectionTimer=setInterval(()=>{if(document.visibilityState==='visible'&&$('replayConsentToggle').checked)runReplayCollection({automatic:true})},30*60*1000)}
   async function runReplayCollection(options={}){
-    const s=replayConsentSession(),button=$('collectReplayNowButton');if(!s||replayCollectionInFlight||!$('replayConsentToggle').checked)return;
+    const currentSession=window.__osuOAuthSession,button=$('collectReplayNowButton');if(!currentSession?.refreshToken||replayCollectionInFlight||!$('replayConsentToggle').checked)return;
     replayCollectionInFlight=true;button.disabled=true;
     if(!options.automatic)$('replayConsentStatus').textContent='Проверяем новые реплеи и отправляем обезличенные файлы в закрытый датасет…';
     try{
