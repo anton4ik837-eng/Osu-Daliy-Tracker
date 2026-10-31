@@ -31,7 +31,7 @@ const percentile = (values, p) => {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1)];
 };
-function extractTrainingFeatures(analysis) {
+export function extractTrainingFeatures(analysis) {
   const rows = Array.isArray(analysis?.rows) ? analysis.rows : [];
   const valid = rows.filter(row => !row.miss && Number.isFinite(row.offset));
   const offsets = valid.map(row => Number(row.offset));
