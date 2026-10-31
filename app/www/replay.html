@@ -349,7 +349,7 @@ function renderRows(rows){$('eventRows').innerHTML=rows.map(r=>'<tr data-row="'+
 function renderEventSummary(a){const el=$('eventSummary');if(!el)return;const misses=a.missCount??countAnalysisMisses(a.rows),presses=a.totalPresses??0,matched=a.matchedPresses??Math.max(0,presses-(a.unmatchedPresses||0)),source=a.scoreCounts?'по счётчику результата .osr':'по сопоставлению событий';el.textContent='MISS: '+misses+' ('+source+') · нажатий: '+presses+' · сопоставлено нажатий: '+matched+' · без пары: '+(a.unmatchedPresses||0)+(a.scoreCounts&&countAnalysisMisses(a.rows)!==misses?' · MISS по строкам объектов: '+countAnalysisMisses(a.rows):'');}
 function renderCritique(a){
  const matched=a.matched||[],segs=a.segments||[],good=[...segs].sort((x,y)=>x.quality-y.quality),worst=[...segs].sort((x,y)=>y.quality-x.quality);
- const avg=a.mean,med=a.median,missCount=a.missCount??countAnalysisMisses(a.rows),n=a.scoreJudgementCount??(a.rows.length+a.rows.filter(r=>r.type==='hold').length);
+ const avg=a.mean,med=a.median,missCount=a.missCount??countAnalysisMisses(a.rows),n=a.rows.length,scoreTotal=a.scoreJudgementCount??(n+a.rows.filter(r=>r.type==='hold').length);
  const early=matched.filter(r=>r.offset<0),late=matched.filter(r=>r.offset>0),onTime=matched.filter(r=>r.offset===0);
  const meanSigned=matched.length?matched.reduce((s,r)=>s+r.offset,0)/matched.length:0;
  const absOffsets=matched.map(r=>Math.abs(r.offset)).sort((x,y)=>x-y);
@@ -377,7 +377,7 @@ function renderCritique(a){
   if(earlyPct-latePct>=15)details.push('Нажатия чаще ранние: '+earlyPct+'% ранних против '+latePct+'% поздних.');
   else if(latePct-earlyPct>=15)details.push('Нажатия чаще поздние: '+latePct+'% поздних против '+earlyPct+'% ранних.');
   else details.push('Ранние/поздние нажатия сбалансированы: '+earlyPct+'% ранних, '+latePct+'% поздних, '+onTime.length+' с нулевым отклонением.');
-  if(missCount>0){const missPct=Math.round(missCount/Math.max(1,n)*100);negatives.push('Не сопоставлено '+missCount+' объектов ('+missPct+'%). Это кандидаты на пропуски, но в standard часть может быть ошибкой упрощённого сопоставления, особенно на слайдерах и плотных паттернах.');}
+  if(missCount>0){const missPct=Math.round(missCount/Math.max(1,scoreTotal)*100);negatives.push(a.scoreCounts?'В результате .osr зафиксировано '+missCount+' MISS ('+missPct+'%).':'Не сопоставлено '+missCount+' объектов ('+missPct+'%). Это кандидаты на пропуски, но в Standard часть может быть ошибкой упрощённого сопоставления.');}
   else positives.push('Для всех объектов найдена пара в окне ±150 мс; это не доказывает идеальный hit judgement, но явных несопоставленных объектов нет.');
   if(a.unmatchedPresses>0)details.push(a.unmatchedPresses+' нажатий осталось без пары. Возможны лишние нажатия, но также ограничения алгоритма сопоставления.');
   if(med!=null)details.push('Медианное абсолютное отклонение — '+Math.round(med)+' мс; среднее — '+Math.round(avg)+' мс.');
@@ -595,7 +595,7 @@ const ManiaNoteRenderer={
 function renderReplayHudStats(){
  if(!analysis)return;
  const rows=analysis.rows||[],matched=rows.filter(r=>!r.miss),misses=analysis.missCount??countAnalysisMisses(rows),scoreHits=analysis.scoreJudgementCount==null?matched.length:Math.max(0,analysis.scoreJudgementCount-misses),stats=calcTimingStats(matched);
- let combo=0,maxCombo=0;for(const r of rows){if(r.miss)combo=0;else{combo++;maxCombo=Math.max(maxCombo,combo)}}
+ let combo=0,maxCombo=0;for(const r of rows){if(r.miss||r.releaseMiss)combo=0;else{combo++;maxCombo=Math.max(maxCombo,combo)}}
  const set=(id,value)=>{const el=$(id);if(el)el.textContent=value};
  set('hudAccuracy',analysis.objects.length?(matched.length/analysis.objects.length*100).toFixed(2)+'%':'—');
  set('hudCombo',String(maxCombo));
