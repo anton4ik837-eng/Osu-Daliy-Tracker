@@ -4,6 +4,8 @@ on:
     branches: [feature/2.1.0-compact-replay-ui, feature/2.2.0-replay-ai-beta]
     paths:
       - 'app/**'
+      - 'server/worker.js'
+      - 'wrangler.toml'
       - '.github/workflows/replay-ui-preview.yml'
   pull_request:
     branches: [renderer-js-releases]
@@ -25,6 +27,8 @@ jobs:
       - name: Install dependencies
         working-directory: app
         run: npm install
+      - name: Validate Cloudflare Worker syntax
+        run: node --check server/worker.js
       - name: Validate Replay Lab JavaScript and UI structure
         working-directory: app
         run: npm run test:replay-inline
@@ -59,7 +63,7 @@ jobs:
         run: npm run configure:android
       - name: Set Android beta version
         working-directory: app/android
-        run: sed -i 's/versionCode 20000/versionCode 20200/; s/versionName "2.0.0"/versionName "2.2.0 Beta"/' app/build.gradle
+        run: sed -i 's/versionCode 11200/versionCode 20200/; s/versionName "1.12.0 Beta"/versionName "2.2.0 Beta"/' app/build.gradle
       - name: Sync web assets
         working-directory: app
         run: npx cap sync android
@@ -78,6 +82,6 @@ jobs:
       - name: Upload UI preview APK
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-2.2.0-beta.1
+          name: osu-daily-tracker-1.12.0-beta.1
           path: app/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
