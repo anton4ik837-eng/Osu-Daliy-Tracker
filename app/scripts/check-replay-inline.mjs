@@ -2,27 +2,33 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('../www/replay.html', import.meta.url), 'utf8');
-const eventsPanelPosition = html.indexOf('<section class="panel" id="eventsPanel"');
-const replaySettingsPosition = html.indexOf('<details class="panel compact-details" id="replaySettings"');
+const positions = ['playerPanel', 'summary', 'replaySettings', 'skinUploadPanel', 'eventsPanel', 'critiquePanel']
+  .map(id => html.indexOf('id="' + id + '"'));
+if (positions.some(position => position < 0) ||
+    positions.some((position, index) => index > 0 && position <= positions[index - 1])) {
+  throw new Error('Replay Lab sections must follow: player, replay data, speed settings, skin upload, click table, recommendations');
+}
 const playerPanelPosition = html.indexOf('<section class="panel" id="playerPanel"');
 const playerPanelEnd = html.indexOf('</section>', playerPanelPosition);
-if (eventsPanelPosition < 0 || replaySettingsPosition <= eventsPanelPosition) {
-  throw new Error('Replay settings must be placed directly after the replay data table');
-}
 if (playerPanelPosition < 0 || playerPanelEnd < playerPanelPosition ||
-    html.slice(playerPanelPosition, playerPanelEnd).includes('id="skinPanel"')) {
-  throw new Error('Skin and replay settings must not take space inside the replay player panel');
+    html.slice(playerPanelPosition, playerPanelEnd).includes('id="skinPanel"') ||
+    html.slice(playerPanelPosition, playerPanelEnd).includes('id="playbackSpeedControl"')) {
+  throw new Error('Skin upload and speed settings must remain outside the replay player panel');
 }
-const replaySettings = html.slice(replaySettingsPosition, html.indexOf('</details>', replaySettingsPosition));
-for (const settingId of ['skinPanel', 'arControl', 'speedControl', 'playbackSpeedControl', 'audioToggle', 'audioOffset']) {
+const replaySettingsPosition = html.indexOf('<section class="panel" id="replaySettings"');
+const skinUploadPosition = html.indexOf('<section class="panel" id="skinUploadPanel"');
+const replaySettings = html.slice(replaySettingsPosition, skinUploadPosition);
+for (const settingId of ['arControl', 'speedControl', 'playbackSpeedControl', 'audioToggle', 'audioOffset']) {
   if (!replaySettings.includes('id="' + settingId + '"')) {
-    throw new Error('Replay settings panel is missing ' + settingId);
+    throw new Error('Replay speed settings panel is missing ' + settingId);
   }
 }
-if (!html.includes('id="toggleSkinPreview"') ||
-    !html.includes("preview.hidden=!show") ||
-    !html.includes("Показать изображения скина")) {
-  throw new Error('Skin image gallery must be independently collapsible');
+const skinUpload = html.slice(skinUploadPosition, html.indexOf('id="eventsPanel"', skinUploadPosition));
+if (!skinUpload.includes('id="skinPanel"') ||
+    !skinUpload.includes('id="skinFile"') ||
+    !skinUpload.includes('id="toggleSkinPreview"') ||
+    !skinUpload.includes('id="skinPreview" hidden')) {
+  throw new Error('Skin upload and its independently collapsible image gallery must have their own panel');
 }
 if (!html.includes('<details class="panel compact-details" id="critiquePanel" hidden>') ||
     !html.includes('<summary>Рекомендации по игре</summary>')) {
