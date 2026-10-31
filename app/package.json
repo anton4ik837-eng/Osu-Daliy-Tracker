@@ -1,16 +1,17 @@
 {
   "name": "osu-daily-tracker-app",
-  "version": "1.11.3-beta",
+  "version": "1.12.0-beta",
   "private": true,
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
-    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js && esbuild mania-converter.mjs --bundle --format=iife --outfile=www/mania-converter.bundle.js && esbuild replay-renderer-adapter.mjs --bundle --format=iife --global-name=OsuReplayRenderer --outfile=www/replay-renderer.bundle.js",
+    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js && esbuild mania-converter.mjs --bundle --format=iife --outfile=www/mania-converter.bundle.js && esbuild replay-renderer-adapter.mjs --bundle --format=iife --global-name=OsuReplayRenderer --outfile=www/replay-renderer.bundle.js && esbuild replay-neural-encoder.mjs --bundle --format=iife --global-name=OsuReplayNeuralEncoder --outfile=www/replay-neural-encoder.bundle.js",
     "test:replay-inline": "node scripts/check-replay-inline.mjs",
     "configure:android": "node scripts/configure-android.mjs",
     "test:mania-key-remap": "node scripts/check-mania-key-remap.mjs",
-    "test": "npm run test:replay-inline && npm run test:mania-key-remap && npm run test:standard-mania-conversion && npm run test:renderer-adapter && npm run test:renderer-adapter",
+    "test": "npm run test:replay-inline && npm run test:mania-key-remap && npm run test:standard-mania-conversion && npm run test:renderer-adapter && npm run test:renderer-adapter && npm run test:replay-neural",
     "test:standard-mania-conversion": "node scripts/check-standard-mania-conversion.mjs",
-    "test:renderer-adapter": "node --check replay-renderer-adapter.mjs && node scripts/check-replay-renderer-adapter.mjs"
+    "test:renderer-adapter": "node --check replay-renderer-adapter.mjs && node scripts/check-replay-renderer-adapter.mjs",
+    "test:replay-neural": "node scripts/check-replay-neural-encoder.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
