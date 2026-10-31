@@ -2,7 +2,7 @@ name: Deploy Cloudflare Worker
 on:
   workflow_dispatch:
   push:
-    branches: [alpha-1.0.0-work, feature/2.2.0-replay-ai-beta]
+    branches: [alpha-1.0.0-work, feature/2.2.0-replay-ai-beta, feature/2.3.0-replay-collector]
     paths:
       - 'server/worker.js'
       - 'wrangler.toml'
