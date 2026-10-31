@@ -16,12 +16,16 @@ const env = {
 };
 
 let geminiCalls = 0;
+let geminiFailure = false;
 globalThis.fetch = async (url, options = {}) => {
   if (String(url).startsWith("https://osu.ppy.sh/api/v2/me/osu")) {
     return new Response(JSON.stringify({ id: 12345 }), { status: 200 });
   }
   if (String(url).includes("generativelanguage.googleapis.com")) {
     geminiCalls++;
+    if (geminiFailure) {
+      return new Response(JSON.stringify({ error: { status: "INVALID_ARGUMENT", message: "Test failure" } }), { status: 400 });
+    }
     const body = JSON.parse(options.body);
     assert.equal(body.systemInstruction.parts.length, 1);
     assert.ok(body.contents.length > 0);
@@ -63,6 +67,20 @@ try {
   assert.equal(chatData.rate_limit_remaining, 19);
   assert.equal(geminiCalls, 1);
 
+  geminiFailure = true;
+  const providerFailure = await handleAiChat(new Request("https://worker.test/api/ai/chat", {
+    method: "POST",
+    headers: { authorization: "Bearer osu-token", "content-type": "application/json" },
+    body: JSON.stringify({ messages: [{ role: "user", content: "Проверка ошибки" }] }),
+  }), env);
+  assert.equal(providerFailure.status, 503);
+  const providerFailureData = await providerFailure.json();
+  assert.equal(providerFailureData.error, "ai_provider_request_failed");
+  assert.equal(providerFailureData.provider_status, 400);
+  assert.equal(providerFailureData.provider_reason, "INVALID_ARGUMENT");
+  geminiFailure = false;
+  assert.equal(geminiCalls, 2);
+
   const researchDenied = await handleAiResearch(new Request("https://worker.test/api/ai/research", {
     method: "POST",
     headers: { authorization: "Bearer wrong" },
@@ -80,7 +98,7 @@ try {
   }), env);
   assert.equal(research.status, 200);
   assert.equal((await research.json()).reply, "Тестовый ответ");
-  assert.equal(geminiCalls, 2);
+  assert.equal(geminiCalls, 3);
 
   console.log("AI Gateway tests passed: OAuth auth, payload validation, Gemini proxy, rate limits, research isolation.");
 } finally {
