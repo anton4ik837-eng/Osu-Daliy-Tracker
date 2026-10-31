@@ -140,3 +140,6 @@ export function analyze(map,presses) {
   const matchedPresses=assignment.itemEvent.filter(index=>index>=0).length;
   return{rows,objects,matched,unmatchedPresses:presses.length-matchedPresses,matchedPresses,totalPresses:presses.length,missCount:countMisses(rows),median,mean,accuracy:objects.length?matched.length/objects.length*100:0,duration:Math.max(1,...allObjects.map(o=>o.endTime||o.time),...presses.map(p=>p.time)),unsupportedObjects:allObjects.filter(o=>o.type==='spinner').length};
 }
+
+// Bundled side-effect: add the experimental Replay Lab 2.2.0 evaluator to the existing UI.
+import './replay-ai-model.mjs';
