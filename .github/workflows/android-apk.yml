@@ -2,7 +2,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases]
+    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/2.1.0-replay-encoder-integration]
     paths:
       - 'app/**'
       - 'test-fixtures/**'
@@ -38,6 +38,9 @@ jobs:
       - name: Validate experimental replayviewer adapter
         working-directory: app
         run: npm run test:renderer-adapter
+      - name: Validate trained replay encoder and reference index
+        working-directory: app
+        run: npm run test:replay-encoder
       - name: Validate supplied replay, exact beatmap and nested mania skin fixtures
         working-directory: .
         run: node app/scripts/check-replay-fixtures.mjs
@@ -112,12 +115,12 @@ jobs:
           grep -Fq 'mipmap/ic_launcher_round_v11103' /tmp/osu-apk-resources.txt
           grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11103" /tmp/osu-apk-badging.txt
       - name: Name APK 2.0.0
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v2.0.0.apk
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v2.1.0-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v2.0.0
-          path: osu-daily-tracker-v2.0.0.apk
+          name: osu-daily-tracker-v2.1.0-beta
+          path: osu-daily-tracker-v2.1.0-beta.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -148,8 +151,8 @@ jobs:
       # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
   publish-release:
-    name: Publish osu! Daily Tracker 2.0.0
-    needs: [build]
+    name: Publish osu! Daily Tracker 2.1.0-beta
+    needs: [build, emulator-smoke-test]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -157,18 +160,20 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v2.0.0
+          name: osu-daily-tracker-v2.1.0-beta
           path: dist
-      - name: Опубликовать глобальный релиз 2.0.0
+      - name: Опубликовать beta-релиз 2.1.0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="v2.0.0"
-          APK="dist/osu-daily-tracker-v2.0.0.apk"
-          TITLE="osu! Daily Tracker 2.0.0"
+          TAG="v2.1.0-beta"
+          APK="dist/osu-daily-tracker-v2.1.0-beta.apk"
+          TITLE="osu! Daily Tracker 2.1.0-beta"
           NOTES="$(cat <<'EOF'
-          Глобальный релиз osu! Daily Tracker 2.0.0.
+          Бета-релиз osu! Daily Tracker 2.1.0-beta.
+          - Добавлен локальный анализ сходства реплеев на основе обученного энкодера для Standard и Mania.
+          - Добавлен индекс из 37 обезличенных эталонных реплеев.
           - Добавлен Replay Lab с новым JS-рендерером и ручным переключением на старый.
           - Обновлено отображение Standard и Mania: judgement-эффекты, hit windows, текстуры и позиции элементов скина.
           - Улучшена конвертация Standard → Mania и определение 4K/7K по реплею.
