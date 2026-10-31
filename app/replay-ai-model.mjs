@@ -86,6 +86,50 @@ export function extractTrainingFeatures(analysis) {
   };
 }
 
+
+let trainedArtifact = null;
+const TRAINED_TARGET_LABELS = {
+  timing_level: 'Тайминг', rhythm_stability: 'Ритмическая стабильность',
+  aim_control: 'Контроль aim', reading_consistency: 'Чтение карты',
+  stream_stability: 'Стабильность стримов', burst_control: 'Контроль бурстов',
+};
+export function evaluateTrainedArtifact(features, artifact, mode = 'standard') {
+  if (!artifact?.trained || !Array.isArray(artifact.feature_names) || !Array.isArray(artifact.targets)) return null;
+  const norm = artifact.normalization, weights = artifact.weights;
+  if (!norm?.mean || !norm?.scale || !weights?.w1 || !weights?.w2 || !weights?.b1 || !weights?.b2) return null;
+  const names = artifact.feature_names, hiddenSize = weights.b1.length, outputSize = artifact.targets.length;
+  if (norm.mean.length !== names.length || norm.scale.length !== names.length ||
+      weights.w1.length !== names.length || weights.w2.length !== hiddenSize ||
+      weights.b2.length !== outputSize) return null;
+  const input = names.map((name, index) => {
+    let raw = name === '__mode_standard__' ? Number(mode === 'standard')
+      : name === '__mode_mania__' ? Number(mode === 'mania')
+      : features[name] ?? norm.median_imputation?.[name] ?? 0;
+    raw = Number(raw);
+    if (!Number.isFinite(raw)) raw = Number(norm.median_imputation?.[name]) || 0;
+    const scale = Number(norm.scale[index]) || 1;
+    return (raw - Number(norm.mean[index] || 0)) / scale;
+  });
+  const hidden = Array.from({length:hiddenSize}, (_,j) =>
+    Math.tanh(weights.b1[j] + input.reduce((sum,value,i) => sum + value * weights.w1[i][j], 0))
+  );
+  return artifact.targets.map((key,k) => {
+    const z = weights.b2[k] + hidden.reduce((sum,value,j) => sum + value * weights.w2[j][k], 0);
+    const value = 1 + (1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))))) * 4;
+    return {key, label: TRAINED_TARGET_LABELS[key] || key, score: Math.round(value * 10) / 10};
+  });
+}
+async function loadTrainedArtifact() {
+  if (typeof fetch !== 'function') return;
+  try {
+    const response = await fetch('./replay-ai-model.json', {cache:'no-store'});
+    if (!response.ok) return;
+    const candidate = await response.json();
+    if (candidate?.trained === true) trainedArtifact = candidate;
+  } catch {}
+  renderModelPanel();
+}
+
 const HIDDEN_WEIGHTS = [
   [ 2.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0],
   [ 0.0,  1.8,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0],
@@ -251,7 +295,10 @@ function renderModelPanel() {
     totalPresses: pressesMatch ? Number(pressesMatch[1]) : rows.length,
     totalObjects: objectMatch ? Number(objectMatch[1]) : rows.length,
   });
-  const signature = JSON.stringify([rows.length, result.sampleCount, result.scores.map(item => item.score), result.confidence]);
+  const mode = Number(window.replayHeader?.mode ?? window.replayAnalysis?.mode) === 3 ? 'mania' : 'standard';
+  const activeScores = evaluateTrainedArtifact(extractTrainingFeatures(window.replayAnalysis || {}), trainedArtifact, mode) || result.scores;
+  const isTrained = !!trainedArtifact && activeScores.length === 6;
+  const signature = JSON.stringify([rows.length, result.sampleCount, activeScores.map(item => item.score), result.confidence, isTrained]);
   const existing = host.querySelector('[data-replay-ai-model]');
   if (existing?.dataset.signature === signature) return;
   existing?.remove();
@@ -260,18 +307,18 @@ function renderModelPanel() {
   panel.dataset.replayAiModel = 'true';
   panel.dataset.signature = signature;
   panel.style.cssText = 'margin-top:14px;padding:14px;border:1px solid #45627a;border-radius:12px;background:linear-gradient(135deg,#17283a,#101722)';
-  const heading = element('div', '', 'Экспериментальная модель 2.2.0 Beta');
+  const heading = element('div', '', isTrained ? 'Обученная модель Replay Lab' : 'Экспериментальная модель 2.2.0 Beta');
   heading.style.cssText = 'font-weight:800;font-size:15px;color:#a9e7ff';
   panel.append(heading);
-  const note = element('p', 'muted', 'Не обучена на пользовательских реплеях · оценка только по доступным метрикам · уверенность: ' + result.confidence + '%');
+  const note = element('p', 'muted', (isTrained ? 'Обучена на размеченном датасете' : 'Не обучена на пользовательских реплеях') + ' · уверенность выборки: ' + result.confidence + '%');
   panel.append(note);
   const scores = element('div');
   scores.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px';
-  for (const item of result.scores) {
+  for (const item of activeScores) {
     const card = element('div');
     card.style.cssText = 'padding:10px;border:1px solid #2d4054;border-radius:9px;background:#0b111b';
     const label = element('small', 'muted', item.label);
-    const value = element('strong', '', item.score + '/100');
+    const value = element('strong', '', isTrained ? item.score.toFixed(1) + '/5' : item.score + '/100');
     value.style.cssText = 'display:block;font-size:22px;color:' + (item.score >= 70 ? '#42d392' : item.score >= 50 ? '#f5c451' : '#ff8797');
     card.append(label, value);
     scores.append(card);
@@ -346,6 +393,7 @@ if (typeof document !== 'undefined') {
       tableObserver.observe(table, { childList: true, subtree: true });
     }
     renderModelPanel();
+    loadTrainedArtifact();
     document.title = 'Replay Lab · Beta 2.2.0';
     const footer = document.querySelector('.foot');
     if (footer) footer.textContent = 'Replay Lab · Beta 2.2.0';
