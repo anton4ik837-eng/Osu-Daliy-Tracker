@@ -359,6 +359,7 @@ export default {
       const seen = new Set(Array.isArray(consent.seen_score_ids) ? consent.seen_score_ids.map(String) : []);
       let uploaded = 0, duplicates = 0, unavailable = 0, checked = 0, osuCalls = 0;
       const results = [];
+      await delay(1000);
       for (const mode of ["osu", "mania"]) {
         if (uploaded >= 5) break;
         if (osuCalls > 0) await delay(1000);
@@ -396,7 +397,7 @@ export default {
           for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + 0x8000, bytes.length)));
           const folder = mode === "osu" ? "standard" : "mania", prefix = mode === "osu" ? "std" : "mania";
           const filePath = "replays/" + folder + "/" + prefix + "_" + hash.slice(0, 16) + ".osr";
-          const uploadResponse = await fetch("https://api.github.com/repos/anton4ik-eng/Osu-Replay-Dataset/contents/" + filePath.split("/").map(encodeURIComponent).join("/"), {
+          const uploadResponse = await fetch("https://api.github.com/repos/anton4ik837-eng/Osu-Replay-Dataset/contents/" + filePath.split("/").map(encodeURIComponent).join("/"), {
             method: "PUT", headers: githubHeaders,
             body: JSON.stringify({ message: "Add consented " + mode + " replay " + hash.slice(0, 12), content: btoa(binary), branch: "main" })
           });
