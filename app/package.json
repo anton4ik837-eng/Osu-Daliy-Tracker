@@ -1,18 +1,19 @@
 {
   "name": "osu-daily-tracker-app",
-  "version": "2.2.0-beta.1",
+  "version": "2.1.0-beta",
   "private": true,
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
-    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js && esbuild mania-converter.mjs --bundle --format=iife --outfile=www/mania-converter.bundle.js && esbuild replay-analysis.mjs --bundle --format=iife --global-name=OsuReplayAnalysis --outfile=www/replay-analysis.bundle.js && esbuild replay-renderer-adapter.mjs --bundle --format=iife --global-name=OsuReplayRenderer --outfile=www/replay-renderer.bundle.js",
+    "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js && esbuild mania-converter.mjs --bundle --format=iife --outfile=www/mania-converter.bundle.js && esbuild replay-analysis.mjs --bundle --format=iife --global-name=OsuReplayAnalysis --outfile=www/replay-analysis.bundle.js && esbuild replay-renderer-adapter.mjs --bundle --format=iife --global-name=OsuReplayRenderer --outfile=www/replay-renderer.bundle.js && esbuild replay-encoder.mjs --bundle --format=iife --global-name=OsuReplayEncoder --outfile=www/replay-encoder.bundle.js",
     "test:replay-inline": "node scripts/check-replay-inline.mjs",
     "test:replay-counts": "node scripts/check-replay-counts.mjs",
     "configure:android": "node scripts/configure-android.mjs",
     "test:mania-key-remap": "node scripts/check-mania-key-remap.mjs",
-    "test": "npm run test:replay-inline && npm run test:replay-counts && npm run test:mania-key-remap && npm run test:standard-mania-conversion && npm run test:renderer-adapter && npm run test:replay-ai-model",
+    "test": "npm run test:replay-inline && npm run test:replay-counts && npm run test:mania-key-remap && npm run test:standard-mania-conversion && npm run test:renderer-adapter && npm run test:replay-ai-model && npm run test:replay-encoder",
     "test:standard-mania-conversion": "node scripts/check-standard-mania-conversion.mjs",
     "test:renderer-adapter": "node --check replay-renderer-adapter.mjs && node scripts/check-replay-renderer-adapter.mjs",
-    "test:replay-ai-model": "node scripts/check-replay-ai-model.mjs"
+    "test:replay-ai-model": "node scripts/check-replay-ai-model.mjs",
+    "test:replay-encoder": "node scripts/check-replay-encoder.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
