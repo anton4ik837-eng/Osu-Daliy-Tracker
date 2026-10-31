@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { handleAiChat, handleAiResearch } from "./ai-gateway.js";
+import { readFile } from "node:fs/promises";
+const gatewaySource = await readFile(new URL("./ai-gateway.js", import.meta.url), "utf8");
+const { handleAiChat, handleAiResearch } = await import("data:text/javascript;base64," + Buffer.from(gatewaySource).toString("base64"));
 
 const originalFetch = globalThis.fetch;
 const store = new Map();
