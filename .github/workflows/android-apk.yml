@@ -2,7 +2,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/1.12.0-beta-neural-encoder]
+    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/1.12.0-beta-neural-encoder, feature/1.12.1-beta-neural-emulator-check]
     paths:
       - 'app/**'
       - 'test-fixtures/**'
@@ -76,10 +76,10 @@ jobs:
         working-directory: app
         run: |
           set -euo pipefail
-          grep -Eq 'android:icon="@mipmap/ic_launcher_v11200"' android/app/src/main/AndroidManifest.xml
-          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_round_v11200"' android/app/src/main/AndroidManifest.xml
-          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_v11200.xml
-          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round_v11200.xml
+          grep -Eq 'android:icon="@mipmap/ic_launcher_v11201"' android/app/src/main/AndroidManifest.xml
+          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_round_v11201"' android/app/src/main/AndroidManifest.xml
+          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_v11201.xml
+          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round_v11201.xml
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -98,29 +98,29 @@ jobs:
           set -euo pipefail
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-mdpi-v4/ic_launcher_v11200.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-hdpi-v4/ic_launcher_v11200.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xhdpi-v4/ic_launcher_v11200.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxhdpi-v4/ic_launcher_v11200.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxxhdpi-v4/ic_launcher_v11200.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_v11200.xml'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round_v11200.xml'
-          unzip -Z1 "$APK" | grep -Fq 'ic_launcher_foreground_art_v11200.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-mdpi-v4/ic_launcher_v11201.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-hdpi-v4/ic_launcher_v11201.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xhdpi-v4/ic_launcher_v11201.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxhdpi-v4/ic_launcher_v11201.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxxhdpi-v4/ic_launcher_v11201.png'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_v11201.xml'
+          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round_v11201.xml'
+          unzip -Z1 "$APK" | grep -Fq 'ic_launcher_foreground_art_v11201.png'
           AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
           test -x "$AAPT"
           "$AAPT" dump badging "$APK" > /tmp/osu-apk-badging.txt
           grep -Eq "^application-icon-[0-9]+:.*ic_launcher" /tmp/osu-apk-badging.txt
           "$AAPT" dump resources "$APK" > /tmp/osu-apk-resources.txt
-          grep -Fq 'mipmap/ic_launcher_v11200' /tmp/osu-apk-resources.txt
-          grep -Fq 'mipmap/ic_launcher_round_v11200' /tmp/osu-apk-resources.txt
-          grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11200" /tmp/osu-apk-badging.txt
-      - name: Name APK 1.12.0
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.12.0-beta.apk
+          grep -Fq 'mipmap/ic_launcher_v11201' /tmp/osu-apk-resources.txt
+          grep -Fq 'mipmap/ic_launcher_round_v11201' /tmp/osu-apk-resources.txt
+          grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11201" /tmp/osu-apk-badging.txt
+      - name: Name APK 1.12.1
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v1.12.1-beta.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v1.12.0-beta
-          path: osu-daily-tracker-v1.12.0-beta.apk
+          name: osu-daily-tracker-v1.12.1-beta
+          path: osu-daily-tracker-v1.12.1-beta.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -136,7 +136,7 @@ jobs:
           cp "test-fixtures/replays/176446 High Speed Music Team Sharpnel - M.A.M.A..osz" app/www/ci-fixtures/
           cp "test-fixtures/skins/百鬼あやめ.osk.zip" app/www/ci-fixtures/
           # Enable the test only in this temporary APK; the release APK above stays fixture-free.
-          sed -i 's|href="./replay.html"|href="./replay.html?ciReplaySkin=1"|g' app/www/index.html
+          sed -i 's|href="./replay.html"|href="./replay.html?ciNeuralModel=1"|g' app/www/index.html
           cd app
           npx cap sync android
           cd android
@@ -151,7 +151,7 @@ jobs:
       # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
   publish-release:
-    name: Publish osu! Daily Tracker 1.12.0 Beta
+    name: Publish osu! Daily Tracker 1.12.1 Beta
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
@@ -160,20 +160,19 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: osu-daily-tracker-v1.12.0-beta
+          name: osu-daily-tracker-v1.12.1-beta
           path: dist
-      - name: Опубликовать бета-релиз 1.12.0
+      - name: Опубликовать бета-релиз 1.12.1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="v1.12.0-beta"
-          APK="dist/osu-daily-tracker-v1.12.0-beta.apk"
-          TITLE="osu! Daily Tracker 1.12.0 Beta"
+          TAG="v1.12.1-beta"
+          APK="dist/osu-daily-tracker-v1.12.1-beta.apk"
+          TITLE="osu! Daily Tracker 1.12.1 Beta"
           NOTES="$(cat <<'EOF'
-          Экспериментальный тестовый релиз osu! Daily Tracker 1.12.0-beta.
-          - В Replay Lab встроен обученный нейросетевой энкодер 0.1.0 и индекс из 37 реплеев для сравнения поведения в Standard и Mania.
-          - Анализ выполняется локально; сходство реплеев не является рейтингом навыков.
+          Экспериментальный тестовый релиз osu! Daily Tracker 1.12.1-beta.
+          - Исправлена автоматическая проверка работы нейросетевой модели в Android WebView для Standard и Mania.
 
           EOF
           )"
@@ -305,11 +304,11 @@ jobs:
             fi
             adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
             tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null > emulator-results/replay-lab-ocr.txt || true
-            if grep -Eqi 'CI TEST PASS' emulator-results/replay-lab-ocr.txt; then
+            if grep -Eqi 'CI NEURAL MODEL PASS' emulator-results/replay-lab-ocr.txt; then
               ci_result=pass
               break
             fi
-            if grep -Eqi 'CI TEST FAIL' emulator-results/replay-lab-ocr.txt; then
+            if grep -Eqi 'CI NEURAL MODEL FAIL' emulator-results/replay-lab-ocr.txt; then
               ci_result=fail
               break
             fi
@@ -319,7 +318,7 @@ jobs:
           tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-lab-ocr.txt || true
           adb -e logcat -d -v threadtime > emulator-results/logcat.txt
           if [ "$ci_result" != pass ]; then
-            echo "::error::Replay Lab integration test did not pass (result=$ci_result)."
+            echo "::error::Android neural model integration test did not pass (result=$ci_result)."
             cat emulator-results/replay-lab-ocr.txt
             exit 1
           fi
@@ -342,7 +341,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-emulator-diagnostics-v1.12.0-beta
+          name: android-emulator-diagnostics-v1.12.1-beta
           path: emulator-results/
           if-no-files-found: warn
           retention-days: 14
