@@ -798,6 +798,47 @@ async function accountReplayFetch(path,session,accept='application/json'){
  }
  return response
 }
+let replayCollectorTimer=null,replayCollectorBusy=false,replayCollectorLastRun=0;
+const replayCollectorStatus=document.createElement('div');
+replayCollectorStatus.className='status';
+replayCollectorStatus.id='autoReplayCollectorStatus';
+replayCollectorStatus.textContent='Проверка автоматического сбора реплеев…';
+document.querySelector('main')?.prepend(replayCollectorStatus);
+async function runReplayLabCollector(){
+ if(replayCollectorBusy||document.visibilityState!=='visible')return;
+ const saved=accountReplaySession();if(!saved)return;
+ replayCollectorBusy=true;
+ try{
+  const consentResponse=await accountReplayFetch('/api/me/replay-consent',saved);
+  const consent=await consentResponse.json().catch(()=>({}));
+  if(!consentResponse.ok)throw new Error(consent.error||'Не удалось проверить согласие на сбор');
+  if(consent.enabled!==true||consent.consent_version!=='replay-dataset-v2'){
+   if(replayCollectorTimer!==null){clearInterval(replayCollectorTimer);replayCollectorTimer=null}
+   replayCollectorStatus.textContent='Автосбор реплеев выключен: нет активного согласия.';
+   return;
+  }
+  if(replayCollectorTimer===null)replayCollectorTimer=setInterval(()=>{if(document.visibilityState==='visible')runReplayLabCollector()},30*60*1000);
+  let active=accountReplaySession();
+  if(!active?.refreshToken)throw new Error('OAuth-сессия не найдена');
+  if(!active.expiresAt||active.expiresAt<Date.now()+60000){
+   const refreshed=await fetch(REPLAY_API_BASE+'/oauth/refresh',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({refresh_token:active.refreshToken})});
+   const tokens=await refreshed.json().catch(()=>({}));
+   if(!refreshed.ok||!tokens.access_token||!tokens.refresh_token)throw new Error(tokens.error||'Не удалось обновить OAuth');
+   active={accessToken:tokens.access_token,refreshToken:tokens.refresh_token,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};
+   localStorage.setItem('osu-daily-tracker-oauth-session',JSON.stringify(active));
+  }
+  const response=await fetch(REPLAY_API_BASE+'/api/me/replay-sync',{method:'POST',headers:{Accept:'application/json',Authorization:'Bearer '+active.accessToken}});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'Сбор реплеев не выполнен');
+  replayCollectorLastRun=Date.now();
+  replayCollectorStatus.textContent=data.skipped==='daily_limit'
+   ?'Автосбор активен. Дневной лимит '+Number(data.daily_uploaded||100)+'/100 достигнут; продолжится после '+new Date(data.next_sync_at).toLocaleString('ru-RU')+'.'
+   :'Автосбор активен · загружено '+Number(data.uploaded||0)+' за запуск · '+Number(data.daily_uploaded||0)+'/100 за сегодня. Проверка каждые 30 минут.';
+ }catch(error){replayCollectorStatus.textContent='Автосбор: '+(error.message||String(error))}
+ finally{replayCollectorBusy=false}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&replayCollectorLastRun&&Date.now()-replayCollectorLastRun>=30*60*1000)runReplayLabCollector()});
+runReplayLabCollector();
 let accountScores=[];
 async function autoLoadBeatmapFromReplay(){
  const checksum=String(parsedReplay?.beatmapMd5||'').trim().toLowerCase();
