@@ -2,6 +2,33 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('../www/replay.html', import.meta.url), 'utf8');
+const eventsPanelPosition = html.indexOf('<section class="panel" id="eventsPanel"');
+const replaySettingsPosition = html.indexOf('<details class="panel compact-details" id="replaySettings"');
+const playerPanelPosition = html.indexOf('<section class="panel" id="playerPanel"');
+const playerPanelEnd = html.indexOf('</section>', playerPanelPosition);
+if (eventsPanelPosition < 0 || replaySettingsPosition <= eventsPanelPosition) {
+  throw new Error('Replay settings must be placed directly after the replay data table');
+}
+if (playerPanelPosition < 0 || playerPanelEnd < playerPanelPosition ||
+    html.slice(playerPanelPosition, playerPanelEnd).includes('id="skinPanel"')) {
+  throw new Error('Skin and replay settings must not take space inside the replay player panel');
+}
+const replaySettings = html.slice(replaySettingsPosition, html.indexOf('</details>', replaySettingsPosition));
+for (const settingId of ['skinPanel', 'arControl', 'speedControl', 'playbackSpeedControl', 'audioToggle', 'audioOffset']) {
+  if (!replaySettings.includes('id="' + settingId + '"')) {
+    throw new Error('Replay settings panel is missing ' + settingId);
+  }
+}
+if (!html.includes('id="toggleSkinPreview"') ||
+    !html.includes("preview.hidden=!show") ||
+    !html.includes("Показать изображения скина")) {
+  throw new Error('Skin image gallery must be independently collapsible');
+}
+if (!html.includes('<details class="panel compact-details" id="critiquePanel" hidden>') ||
+    !html.includes('<summary>Рекомендации по игре</summary>')) {
+  throw new Error('Gameplay recommendations must be collapsible');
+}
+
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
   .map(match => match[1])
   .filter(script => script.trim());
