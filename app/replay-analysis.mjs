@@ -131,9 +131,9 @@ export function analyze(map,presses) {
   },null,object));
   const rows=objects.map((object,index)=>{
     const eventIndex=assignment.itemEvent[index];
-    if(eventIndex<0)return{index:index+1,time:object.time,offset:null,type:object.type,miss:true,press:null};
+    if(eventIndex<0)return{index:index+1,time:object.time,offset:null,type:object.type,miss:true,press:null,objectX:object.x,objectY:object.y,aimErrorPx:null};
     const press=sortedPresses[eventIndex];
-    return{index:index+1,time:object.time,offset:Math.round(press.time-object.time),type:object.type,miss:false,press};
+    const aimErrorPx=Number.isFinite(press.x)&&Number.isFinite(press.y)&&Number.isFinite(object.x)&&Number.isFinite(object.y)?Math.hypot(press.x-object.x,press.y-object.y):null;return{index:index+1,time:object.time,offset:Math.round(press.time-object.time),type:object.type,miss:false,press,objectX:object.x,objectY:object.y,aimErrorPx};
   });
   const matched=rows.filter(row=>!row.miss),abs=matched.map(row=>Math.abs(row.offset)).sort((a,b)=>a-b);
   const median=abs.length?abs[Math.floor(abs.length/2)]:null,mean=abs.length?abs.reduce((s,x)=>s+x,0)/abs.length:null;
