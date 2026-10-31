@@ -260,6 +260,30 @@ export default {
       }});
     }
 
+
+    // Explicit opt-in registry. Only account ID and consent metadata are stored, never OAuth tokens.
+    if (url.pathname === "/api/me/replay-consent" && (request.method === "GET" || request.method === "POST")) {
+      const auth = request.headers.get("authorization") || "";
+      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
+      if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
+      const profileResponse = await fetch("https://osu.ppy.sh/api/v2/me/osu", { headers: { accept: "application/json", authorization: "Bearer " + match[1] } });
+      const profile = await profileResponse.json().catch(() => ({}));
+      if (!profileResponse.ok || !profile.id) return apiJson({ error: "osu_profile_request_failed" }, profileResponse.status === 401 ? 401 : 502);
+      const key = "replay-consent:" + String(profile.id);
+      if (request.method === "GET") {
+        const stored = await env.OAUTH_KV.get(key);
+        let consent = null; if (stored) { try { consent = JSON.parse(stored); } catch {} }
+        return apiJson({ enabled: consent?.consent === true, consent_version: consent?.consent_version || null, accepted_at: consent?.accepted_at || null });
+      }
+      let body; try { body = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      if (body?.enabled === false) { await env.OAUTH_KV.delete(key); return apiJson({ enabled: false }); }
+      if (body?.enabled !== true || body?.consent !== true || body?.consent_version !== "replay-dataset-v1") return apiJson({ error: "explicit_consent_required" }, 400);
+      const record = { user_id: String(profile.id), consent: true, consent_version: "replay-dataset-v1", accepted_at: new Date().toISOString(), modes: ["osu", "mania"] };
+      await env.OAUTH_KV.put(key, JSON.stringify(record));
+      return apiJson({ enabled: true, consent_version: record.consent_version, accepted_at: record.accepted_at });
+    }
+
     // Return the authenticated user's own profile using the short-lived OAuth access token.
     if (url.pathname === "/api/me" && request.method === "GET") {
       const auth = request.headers.get("authorization") || "";
