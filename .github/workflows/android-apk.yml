@@ -2,7 +2,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/2.2.0-replay-ai-beta]
+    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/2.3.0-replay-collector, feature/2.3.0-replay-collector]
     paths:
       - 'app/**'
       - 'test-fixtures/**'
@@ -116,16 +116,16 @@ jobs:
           grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11103" /tmp/osu-apk-badging.txt
       - name: Name APK for current branch
         run: |
-          if [ "$GITHUB_REF_NAME" = "feature/2.2.0-replay-ai-beta" ]; then
-            cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v2.2.0-beta.apk
+          if [ "$GITHUB_REF_NAME" = "feature/2.3.0-replay-collector" ]; then
+            cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v2.3.0-beta.apk
           else
             cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v2.0.0.apk
           fi
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.ref_name == 'feature/2.2.0-replay-ai-beta' && 'osu-daily-tracker-v2.2.0-beta' || 'osu-daily-tracker-v2.0.0' }}
-          path: ${{ github.ref_name == 'feature/2.2.0-replay-ai-beta' && 'osu-daily-tracker-v2.2.0-beta.apk' || 'osu-daily-tracker-v2.0.0.apk' }}
+          name: ${{ github.ref_name == 'feature/2.3.0-replay-collector' && 'osu-daily-tracker-v2.3.0-beta' || 'osu-daily-tracker-v2.0.0' }}
+          path: ${{ github.ref_name == 'feature/2.3.0-replay-collector' && 'osu-daily-tracker-v2.3.0-beta.apk' || 'osu-daily-tracker-v2.0.0.apk' }}
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -155,8 +155,44 @@ jobs:
           if-no-files-found: error
       # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
+  publish-replay-collector-beta:
+    if: github.ref == 'refs/heads/feature/2.3.0-replay-collector'
+    name: Publish osu! Daily Tracker 2.3.0 Beta
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: osu-daily-tracker-v2.3.0-beta
+          path: dist
+      - name: Publish 2.3.0 Beta release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="v2.3.0-beta"
+          APK="dist/osu-daily-tracker-v2.3.0-beta.apk"
+          TITLE="osu! Daily Tracker 2.3.0 Beta"
+          NOTES="$(cat <<'EOF'
+          2.3.0 Beta
+          - Добавлен добровольный сбор собственных реплеев после OAuth.
+          - Реплеи обезличиваются, проверяются на дубликаты и отправляются в приватный датасет.
+          - Добавлено управление согласием и отзывом участия.
+          EOF
+          )"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES" --prerelease
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TITLE" --notes "$NOTES" --prerelease
+          fi
+          gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
+
+
   publish-release:
-    if: github.ref != 'refs/heads/feature/2.2.0-replay-ai-beta'
+    if: github.ref != 'refs/heads/feature/2.3.0-replay-collector' && github.ref != 'refs/heads/feature/2.2.0-replay-ai-beta'
     name: Publish osu! Daily Tracker 2.0.0
     needs: [build]
     runs-on: ubuntu-latest
