@@ -63,7 +63,7 @@ jobs:
         run: npm run configure:android
       - name: Set Android beta version
         working-directory: app/android
-        run: sed -i 's/versionCode 11200/versionCode 20200/; s/versionName "1.12.0 Beta"/versionName "2.2.0 Beta"/' app/build.gradle
+        run: sed -i 's/versionCode 20000/versionCode 11200/; s/versionName "2.0.0"/versionName "1.12.0 Beta"/' app/build.gradle
       - name: Sync web assets
         working-directory: app
         run: npx cap sync android
