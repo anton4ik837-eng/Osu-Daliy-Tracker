@@ -417,20 +417,20 @@ export default {
     }
 
 
-    // Explicit opt-in registry. Only account ID and consent metadata are stored, never OAuth tokens.
+    // Explicit opt-in registry. Consent is tied to the osu! account returned by OAuth.
     if (url.pathname === "/api/me/replay-consent" && (request.method === "GET" || request.method === "POST")) {
       const auth = request.headers.get("authorization") || "";
-      const match = auth.match(/^Bearer\s+(.+)$/i);
+      const match = auth.match(/^Bearer\\s+(.+)$/i);
       if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
       if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
       const profileResponse = await fetch("https://osu.ppy.sh/api/v2/me/osu", { headers: { accept: "application/json", authorization: "Bearer " + match[1] } });
       const profile = await profileResponse.json().catch(() => ({}));
       if (!profileResponse.ok || !profile.id) return apiJson({ error: "osu_profile_request_failed" }, profileResponse.status === 401 ? 401 : 502);
       const key = "replay-consent:" + String(profile.id);
+      const stored = await env.OAUTH_KV.get(key);
+      let consent = null; try { consent = stored ? JSON.parse(stored) : null; } catch {}
       if (request.method === "GET") {
-        const stored = await env.OAUTH_KV.get(key);
-        let consent = null; if (stored) { try { consent = JSON.parse(stored); } catch {} }
-        return apiJson({ enabled: consent?.consent === true, consent_version: consent?.consent_version || null, accepted_at: consent?.accepted_at || null, last_collect_at: consent?.last_collect_at || null });
+        return apiJson({ enabled: consent?.consent === true && consent?.consent_version === "replay-dataset-v2", consent_version: consent?.consent_version || null, accepted_at: consent?.accepted_at || null });
       }
       let body; try { body = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
       if (body?.enabled === false) {
@@ -443,18 +443,19 @@ export default {
             headers: { accept: "application/vnd.github+json", authorization: "Bearer " + env.DATASET_GITHUB_TOKEN, "content-type": "application/json", "user-agent": "Osu-Daily-Tracker-Replay-Collector", "x-github-api-version": "2022-11-28" },
             body: JSON.stringify({ message: "Remove replay after consent withdrawal", sha: file.sha, branch: "main" })
           });
-          if (removed.ok) { await env.OAUTH_KV.delete("replay-hash:" + file.hash); deleted++; } else pending.push(file);
+          if (removed.ok) { if (file.kv_key) await env.OAUTH_KV.delete(file.kv_key); deleted++; }
+          else pending.push(file);
         }
-        if (pending.length) await env.OAUTH_KV.put(key, JSON.stringify({ user_id: String(profile.id), consent: false, consent_version: consent?.consent_version || "replay-dataset-v1", revoked_at: new Date().toISOString(), files: pending }));
+        if (pending.length) await env.OAUTH_KV.put(key, JSON.stringify({ user_id: String(profile.id), consent: false, consent_version: consent?.consent_version || "replay-dataset-v2", revoked_at: new Date().toISOString(), files: pending }));
         else await env.OAUTH_KV.delete(key);
         return apiJson({ enabled: false, deleted_files: deleted, pending_deletions: pending.length });
       }
       if (body?.enabled !== true || body?.consent !== true || body?.consent_version !== "replay-dataset-v2") return apiJson({ error: "explicit_consent_required" }, 400);
-      const record = { user_id: String(profile.id), consent: true, consent_version: "replay-dataset-v2", accepted_at: new Date().toISOString(), participant_id: crypto.randomUUID().replace(/-/g, "").slice(0, 12), consent_scope: "own_replays_private_dataset_anonymized_filename_and_player_name_ai_training", modes: ["osu", "mania"] };
+      if (consent?.consent === false && Array.isArray(consent.files) && consent.files.length) return apiJson({ error: "previous_replay_deletion_pending" }, 409);
+      const record = { user_id: String(profile.id), consent: true, consent_version: "replay-dataset-v2", accepted_at: new Date().toISOString(), participant_id: crypto.randomUUID().replace(/-/g, "").slice(0, 12), consent_scope: "own_replays_private_dataset_anonymized_filename_and_player_name_ai_training", modes: ["osu", "mania"], files: [] };
       await env.OAUTH_KV.put(key, JSON.stringify(record));
       return apiJson({ enabled: true, consent_version: record.consent_version, accepted_at: record.accepted_at });
     }
-
 
     // Upload only the authenticated participant's own replays after explicit opt-in.
     // Sync is triggered by app login/restore, capped to once per 24 hours and a small batch.
@@ -522,7 +523,11 @@ export default {
           let result;
           try { result = await uploadAnonymizedReplay(env, path, clean); }
           catch (error) { return apiJson({ error: error.message || "dataset_upload_failed", uploaded: uploaded.length }, 502); }
+          const fileRecord = { path: result.path, sha: result.sha, hash: scoreId, kv_key: uploadedKey };
+          consent.files = Array.isArray(consent.files) ? consent.files : [];
+          consent.files.push(fileRecord);
           await env.OAUTH_KV.put(uploadedKey, JSON.stringify({ path: result.path, sha: result.sha, uploaded_at: new Date().toISOString() }));
+          await env.OAUTH_KV.put(consentKey, JSON.stringify(consent));
           uploaded.push({ mode, file: fileName });
           modeUploads++;
         }
