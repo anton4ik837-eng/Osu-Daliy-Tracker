@@ -97,22 +97,20 @@ export function analyzeMania(map,presses,releases=[]) {
   }
   const rows=objects.map(object=>{
     const press=pressForObject.get(object)||null;
-    if(!press)return{index:0,time:object.time,offset:null,judgement:'MISS',type:object.type,miss:true,press:null,lane:object.column,release:null,releaseOffset:null,releaseJudgement:null,releaseMiss:false};
+    if(!press)return{index:0,time:object.time,offset:null,judgement:'MISS',type:object.type,miss:true,press:null,lane:object.column,endTime:object.endTime??object.time,release:null,releaseOffset:null,releaseJudgement:null,releaseMiss:false};
     const offset=Math.round(press.time-object.time);
-    return{index:0,time:object.time,offset,judgement:maniaJudgement(offset,map.od),type:object.type,miss:false,press,lane:object.column,release:null,releaseOffset:null,releaseJudgement:null,releaseMiss:false};
+    return{index:0,time:object.time,offset,judgement:maniaJudgement(offset,map.od),type:object.type,miss:false,press,lane:object.column,endTime:object.endTime??object.time,release:null,releaseOffset:null,releaseJudgement:null,releaseMiss:false};
   });
   const holdRows=rows.filter(row=>row.type==='hold'&&row.press&&!row.miss),usedReleases=new Set();
   for(let lane=0;lane<map.keys;lane++){
     const laneHolds=holdRows.filter(row=>row.lane===lane),laneReleases=releasesByLane[lane];
     const assignment=matchOneToOne(laneHolds,laneReleases,row=>{
-      const object=objects.find(o=>o.time===row.time&&o.column===row.lane);
-      return timedCandidates(laneReleases,object?.endTime??row.time,250,null,event=>event.time>=row.press.time,row);
+      return timedCandidates(laneReleases,row.endTime,250,null,event=>event.time>=row.press.time,row);
     });
     assignment.itemEvent.forEach((eventIndex,rowIndex)=>{
       if(eventIndex<0)return;
       const row=laneHolds[rowIndex],release=laneReleases[eventIndex];
-      const object=objects.find(o=>o.time===row.time&&o.column===row.lane);
-      const delta=release.time-(object?.endTime??row.time);
+      const delta=release.time-row.endTime;
       row.release=release;row.releaseOffset=Math.round(delta);row.releaseJudgement=maniaJudgement(delta,map.od);
       row.releaseMiss=row.releaseJudgement==='MISS';usedReleases.add(release);
     });
