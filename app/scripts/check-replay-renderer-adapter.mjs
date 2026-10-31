@@ -7,6 +7,8 @@ const adapterSource = readFileSync(new URL('../replay-renderer-adapter.mjs', imp
 assert.match(adapterSource, /async setSkin\(nextSkinBytes = null\)/, 'active JS renderer must support in-place skin refresh');
 assert.match(adapterSource, /previousSession\.destroy\(\)/, 'skin refresh must release the previous renderer session');
 assert.match(adapterSource, /maniaScrollMultiplier/, 'skin refresh must preserve Mania scroll speed');
+assert.match(adapterSource, /Math\.abs\(presentationMs - rendererTimeMs\) > 90/, 'playback clock sync must not seek the renderer on every app frame');
+assert.match(adapterSource, /renderer owns its own RAF clock/i, 'renderer clock ownership must be documented');
 
 const source = [
   'osu file format v14',

@@ -187,8 +187,18 @@ export async function createReplayRendererSession({
     seekMapTime(mapTimeMs) {
       if (destroyed) return;
       currentMapTimeMs = Number(mapTimeMs) || 0;
-      const presentationMs = (Number(mapTimeMs) - session.timeMapper.introOffsetMs) / session.timeMapper.speed;
-      session.player.seek(Math.max(0, Math.min(session.player.durationMs, presentationMs)));
+      const presentationMs = Math.max(0, Math.min(
+        session.player.durationMs,
+        (Number(mapTimeMs) - session.timeMapper.introOffsetMs) / session.timeMapper.speed,
+      ));
+      // The renderer owns its own RAF clock. Seeking it on every app RAF
+      // resets that clock continuously and causes duplicate frame work.
+      // Resync only when the two clocks drift meaningfully (e.g. after audio
+      // clock correction); ordinary playback remains renderer-driven.
+      const rendererTimeMs = Number(session.player.currentTimeMs);
+      if (!Number.isFinite(rendererTimeMs) || Math.abs(presentationMs - rendererTimeMs) > 90) {
+        session.player.seek(presentationMs);
+      }
     },
     async setSkin(nextSkinBytes = null) {
       if (destroyed) throw new Error('Renderer session has been destroyed.');
