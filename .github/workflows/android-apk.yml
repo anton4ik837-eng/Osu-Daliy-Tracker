@@ -2,7 +2,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases]
+    branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/2.2.0-replay-ai-beta]
     paths:
       - 'app/**'
       - 'test-fixtures/**'
@@ -111,13 +111,18 @@ jobs:
           grep -Fq 'mipmap/ic_launcher_v11103' /tmp/osu-apk-resources.txt
           grep -Fq 'mipmap/ic_launcher_round_v11103' /tmp/osu-apk-resources.txt
           grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11103" /tmp/osu-apk-badging.txt
-      - name: Name APK 2.0.0
-        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v2.0.0.apk
+      - name: Name APK for current branch
+        run: |
+          if [ "$GITHUB_REF_NAME" = "feature/2.2.0-replay-ai-beta" ]; then
+            cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v2.2.0-beta.apk
+          else
+            cp app/android/app/build/outputs/apk/debug/app-debug.apk osu-daily-tracker-v2.0.0.apk
+          fi
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v2.0.0
-          path: osu-daily-tracker-v2.0.0.apk
+          name: ${{ github.ref_name == 'feature/2.2.0-replay-ai-beta' && 'osu-daily-tracker-v2.2.0-beta' || 'osu-daily-tracker-v2.0.0' }}
+          path: ${{ github.ref_name == 'feature/2.2.0-replay-ai-beta' && 'osu-daily-tracker-v2.2.0-beta.apk' || 'osu-daily-tracker-v2.0.0.apk' }}
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
@@ -148,6 +153,7 @@ jobs:
       # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
   publish-release:
+    if: github.ref != 'refs/heads/feature/2.2.0-replay-ai-beta'
     name: Publish osu! Daily Tracker 2.0.0
     needs: [build]
     runs-on: ubuntu-latest
