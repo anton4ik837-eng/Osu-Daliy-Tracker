@@ -28,6 +28,9 @@ jobs:
       - name: Validate Replay Lab JavaScript and UI structure
         working-directory: app
         run: npm run test:replay-inline
+      - name: Validate replay counters and event matching
+        working-directory: app
+        run: npm run test:replay-counts
       - name: Validate Mania key-count remapping
         working-directory: app
         run: npm run test:mania-key-remap
