@@ -166,8 +166,8 @@ function replayConsentSession(){const s=window.__osuOAuthSession;return s?.acces
     const r=await fetch(API_BASE+'/api/me/replay-consent',{headers:{Accept:'application/json',Authorization:'Bearer '+s.accessToken}});
     const d=await r.json();if(!r.ok)throw Error(d.error||'Ошибка чтения');
     const enabled=d.enabled===true&&d.consent_version===REPLAY_CONSENT_VERSION;toggle.checked=enabled;
-    if(enabled){showReplayConsentPrompt(false);$('replayConsentStatus').textContent='Согласие активно. Автосбор выполняется каждые 30 минут, пока приложение открыто.';startReplayCollectionTimer();await runReplayCollection()} else stopReplayCollectionTimer()
-    else{
+    if(enabled){showReplayConsentPrompt(false);$('replayConsentStatus').textContent='Согласие активно. Автосбор выполняется каждые 30 минут, пока приложение открыто.';startReplayCollectionTimer();await runReplayCollection()}
+    else{stopReplayCollectionTimer();
      $('replayConsentStatus').textContent='Сбор выключен. После согласия начнётся первая загрузка.';
      let dismissed=false;try{dismissed=sessionStorage.getItem('replay-consent-dismissed-'+window.__osuProfileId)==='1'}catch{}
      showReplayConsentPrompt(!dismissed);
