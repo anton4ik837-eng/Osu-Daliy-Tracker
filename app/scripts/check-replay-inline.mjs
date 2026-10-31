@@ -111,8 +111,9 @@ if (!html.includes("cfg['hit'+tier]")) {
 if (!html.includes('function maniaJudgement(offset,od=5)')) {
   throw new Error('Mania judgements must use beatmap OD hit windows');
 }
-if (!html.includes("judgement:maniaJudgement(delta,map.od)")) {
-  throw new Error('Matched Mania replay events must store their calculated judgement');
+const analysisModule = readFileSync(new URL('../replay-analysis.mjs', import.meta.url), 'utf8');
+if (!html.includes('./replay-analysis.bundle.js') || !analysisModule.includes('judgement:maniaJudgement(offset,map.od)')) {
+  throw new Error('Matched Mania replay events must use the separately tested analysis module and store their calculated judgement');
 }
 if (!html.includes("label.textContent=current.kind+'  '+current.judgement")) {
   throw new Error('Replay HUD must show judgement instead of milliseconds');
