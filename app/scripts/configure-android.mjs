@@ -85,8 +85,14 @@ console.log('Generated density-specific launcher PNGs and adaptive/monochrome An
 
 const gradlePath='android/app/build.gradle';
 let gradle=await readFile(gradlePath,'utf8');
-gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 20000');
-gradle=gradle.replace(/versionName\s+['"][^'"]*['"]/, 'versionName "2.0.0"');
+const packageJson=JSON.parse(await readFile('package.json','utf8'));
+const appVersion=String(packageJson.version || '');
+const versionMatch=appVersion.match(/^(\\d+)\\.(\\d+)\\.(\\d+)(?:[-+].*)?$/);
+if(!versionMatch) throw new Error('Invalid app/package.json version: '+appVersion);
+const versionCode=Number(versionMatch[1])*10000+Number(versionMatch[2])*100+Number(versionMatch[3]);
+if(!Number.isSafeInteger(versionCode) || versionCode<1) throw new Error('Invalid Android versionCode for '+appVersion);
+gradle=gradle.replace(/versionCode\\s+\\d+/, 'versionCode '+versionCode);
+gradle=gradle.replace(/versionName\\s+['"][^'"]*['"]/, 'versionName "'+appVersion+'"');
 const signingEnv=['ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD'];
 if(!signingEnv.every(key=>process.env[key])) {
   console.error('Stable APK signing is not configured. Add the four ANDROID_* GitHub Actions secrets before building Alpha.');
