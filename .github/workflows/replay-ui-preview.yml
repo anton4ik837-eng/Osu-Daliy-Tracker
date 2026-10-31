@@ -57,6 +57,9 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: npm run configure:android
+      - name: Set Android beta version
+        working-directory: app/android
+        run: sed -i 's/versionCode 20000/versionCode 20200/; s/versionName "2.0.0"/versionName "2.2.0 Beta"/' app/build.gradle
       - name: Sync web assets
         working-directory: app
         run: npx cap sync android
