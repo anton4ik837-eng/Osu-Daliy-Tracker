@@ -5,6 +5,8 @@ on:
     branches: [alpha-1.0.0-work, feature/2.2.0-replay-ai-beta, feature/2.3.0-replay-collector]
     paths:
       - 'server/worker.js'
+      - 'server/ai-gateway.js'
+      - 'server/check-ai-gateway.mjs'
       - 'wrangler.toml'
       - '.github/workflows/deploy-worker.yml'
 
@@ -20,7 +22,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Validate Worker JavaScript syntax
-        run: node --input-type=module --check < server/worker.js
+        run: |
+          node --input-type=module --check < server/worker.js
+          node --input-type=module --check < server/ai-gateway.js
+          node server/check-ai-gateway.mjs
       - name: Deploy Worker with replay dataset access
         if: ${{ env.DATASET_GITHUB_TOKEN != '' }}
         uses: cloudflare/wrangler-action@v3
