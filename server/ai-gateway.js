@@ -138,11 +138,14 @@ export async function handleAiResearch(request, env) {
   const expected = typeof env.AI_RESEARCH_TOKEN === "string" ? env.AI_RESEARCH_TOKEN.trim() : "";
   const supplied = bearer(request);
   if (!expected) return response({ error: "research_gateway_not_configured" }, 503);
-  if (!supplied || supplied.length !== expected.length ||
-      !crypto.subtle || !await crypto.subtle.digest("SHA-256", new TextEncoder().encode(supplied)).then(async a => {
-        const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(expected));
-        return Array.from(new Uint8Array(a)).every((v, i) => v === new Uint8Array(b)[i]);
-      })) {
+  const suppliedBytes = new TextEncoder().encode(supplied);
+  const expectedBytes = new TextEncoder().encode(expected);
+  let difference = suppliedBytes.length ^ expectedBytes.length;
+  const compareLength = Math.max(suppliedBytes.length, expectedBytes.length);
+  for (let i = 0; i < compareLength; i++) {
+    difference |= (suppliedBytes[i] || 0) ^ (expectedBytes[i] || 0);
+  }
+  if (!supplied || difference !== 0) {
     return response({ error: "research_unauthorized" }, 401);
   }
 
