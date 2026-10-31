@@ -85,8 +85,8 @@ console.log('Generated density-specific launcher PNGs and adaptive/monochrome An
 
 const gradlePath='android/app/build.gradle';
 let gradle=await readFile(gradlePath,'utf8');
-gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 20100');
-gradle=gradle.replace(/versionName\s+['"][^'"]*['"]/, 'versionName "2.1.0-beta"');
+gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 20200');
+gradle=gradle.replace(/versionName\s+['"][^'"]*['"]/, 'versionName "2.2.0-beta"');
 const signingEnv=['ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD'];
 if(!signingEnv.every(key=>process.env[key])) {
   console.error('Stable APK signing is not configured. Add the four ANDROID_* GitHub Actions secrets before building Alpha.');
