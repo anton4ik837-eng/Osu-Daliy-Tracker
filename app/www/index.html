@@ -363,6 +363,7 @@ async function redeemHandoff(handoff){
   if(!profileResponse.ok)throw new Error('Не удалось загрузить статистику (HTTP '+profileResponse.status+'): '+(profileData.error_description||profileData.error||profileData.message||'ошибка osu! API'));
   if(!profileData||!profileData.id||!profileData.statistics)throw new Error('osu! API не вернул статистику аккаунта.');
   renderProfile(profileData);
+  window.__osuProfileId=profileData.id;
   await loadReplayConsent();
   $('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
   $('osuUser').value=profileData.username||String(profileData.id);
@@ -389,7 +390,7 @@ async function restoreOAuthSession(){
   if(response.status===401){session=await refreshOAuthSession(session);window.__osuOAuthSession=session;persistOAuthSession();response=await fetch(API_BASE+'/api/me?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json',Authorization:'Bearer '+session.accessToken}})}
   const data=await response.json();if(!response.ok)throw new Error(data.error||'osu! API error');
   if(!data?.id||!data?.statistics)throw new Error('Профиль не вернулся');
-  renderProfile(data);await loadReplayConsent();$('osuUser').value=data.username||String(data.id);$('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
+  renderProfile(data);window.__osuProfileId=data.id;await loadReplayConsent();$('osuUser').value=data.username||String(data.id);$('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
   setStatus('Авторизованный профиль восстановлен.','success');setAuthStatus('Аккаунт подключён: '+(data.username||'osu!')+'. Сессия восстановлена.','success');
  }catch(error){setAuthStatus('Не удалось проверить сессию; сохранённые данные не удалены: '+(error?.message||String(error)),'error')}
 }
