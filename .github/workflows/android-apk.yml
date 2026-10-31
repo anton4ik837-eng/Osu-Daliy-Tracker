@@ -109,6 +109,8 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
           test -x "$AAPT"
           "$AAPT" dump badging "$APK" > /tmp/osu-apk-badging.txt
+          grep -Fq "versionCode='20100' versionName='2.1.0-beta'" /tmp/osu-apk-badging.txt
+          grep -Fq "package: name='com.osudailytracker.app'" /tmp/osu-apk-badging.txt
           grep -Eq "^application-icon-[0-9]+:.*ic_launcher" /tmp/osu-apk-badging.txt
           "$AAPT" dump resources "$APK" > /tmp/osu-apk-resources.txt
           grep -Fq 'mipmap/ic_launcher_v11103' /tmp/osu-apk-resources.txt
