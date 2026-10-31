@@ -1,6 +1,6 @@
 {
   "name": "osu-daily-tracker-app",
-  "version": "2.0.0",
+  "version": "2.2.0-beta.1",
   "private": true,
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
@@ -9,9 +9,10 @@
     "test:replay-counts": "node scripts/check-replay-counts.mjs",
     "configure:android": "node scripts/configure-android.mjs",
     "test:mania-key-remap": "node scripts/check-mania-key-remap.mjs",
-    "test": "npm run test:replay-inline && npm run test:replay-counts && npm run test:mania-key-remap && npm run test:standard-mania-conversion && npm run test:renderer-adapter",
+    "test": "npm run test:replay-inline && npm run test:replay-counts && npm run test:mania-key-remap && npm run test:standard-mania-conversion && npm run test:renderer-adapter && npm run test:replay-ai-model",
     "test:standard-mania-conversion": "node scripts/check-standard-mania-conversion.mjs",
-    "test:renderer-adapter": "node --check replay-renderer-adapter.mjs && node scripts/check-replay-renderer-adapter.mjs"
+    "test:renderer-adapter": "node --check replay-renderer-adapter.mjs && node scripts/check-replay-renderer-adapter.mjs",
+    "test:replay-ai-model": "node scripts/check-replay-ai-model.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
