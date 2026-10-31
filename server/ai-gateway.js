@@ -74,9 +74,9 @@ async function callGemini(env, system, messages, context) {
   let upstream;
   try {
     upstream = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" +
-      encodeURIComponent(model) + ":generateContent?key=" + encodeURIComponent(apiKey), {
+      encodeURIComponent(model) + ":generateContent", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents,
