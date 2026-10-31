@@ -319,7 +319,8 @@ function renderModelPanel() {
     card.style.cssText = 'padding:10px;border:1px solid #2d4054;border-radius:9px;background:#0b111b';
     const label = element('small', 'muted', item.label);
     const value = element('strong', '', isTrained ? item.score.toFixed(1) + '/5' : item.score + '/100');
-    const colorScore = isTrained ? (item.score - 1) * 25 : item.score;\n    value.style.cssText = 'display:block;font-size:22px;color:' + (colorScore >= 70 ? '#42d392' : colorScore >= 50 ? '#f5c451' : '#ff8797');
+    const colorScore = isTrained ? (item.score - 1) * 25 : item.score;
+    value.style.cssText = 'display:block;font-size:22px;color:' + (colorScore >= 70 ? '#42d392' : colorScore >= 50 ? '#f5c451' : '#ff8797');
     card.append(label, value);
     scores.append(card);
   }
