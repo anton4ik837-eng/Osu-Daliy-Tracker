@@ -411,7 +411,8 @@ export default {
     }
 
     // Upload only the authenticated participant's own replays after explicit opt-in.
-    // Sync is triggered by app login/restore, capped to once per 24 hours and a small batch.
+    // The foreground app triggers sync every 30 minutes; each request is capped at 10 uploads,
+    // with a rolling UTC-day quota of 100 uploads per participant.
     if (url.pathname === "/api/me/replay-sync" && request.method === "POST") {
       const auth = request.headers.get("authorization") || "";
       const match = auth.match(/^Bearer\s+(.+)$/i);
@@ -427,71 +428,69 @@ export default {
       const storedConsent = await env.OAUTH_KV.get(consentKey);
       let consent = null; try { consent = storedConsent ? JSON.parse(storedConsent) : null; } catch {}
       if (consent?.consent !== true || consent?.consent_version !== "replay-dataset-v2") return apiJson({ error: "replay_consent_required" }, 403);
-      const lastSyncKey = "replay-sync-last:" + userId;
-      const lastSync = Number(await env.OAUTH_KV.get(lastSyncKey) || 0);
+
       const now = Date.now();
-      const cooldown = 24 * 60 * 60 * 1000;
-      if (lastSync && now - lastSync < cooldown) {
-        return apiJson({ ok: true, skipped: "daily_limit", next_sync_at: new Date(lastSync + cooldown).toISOString(), uploaded: 0 });
+      const day = new Date(now).toISOString().slice(0, 10);
+      const dailyKey = "replay-sync-count:" + userId + ":" + day;
+      let dailyUploaded = Number(await env.OAUTH_KV.get(dailyKey) || 0);
+      const nextDay = new Date(Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate() + 1));
+      if (dailyUploaded >= 100) {
+        return apiJson({ ok: true, skipped: "daily_limit", daily_uploaded: dailyUploaded, uploaded: 0, next_sync_at: nextDay.toISOString() });
       }
+
       const participantId = String(consent.participant_id || "anonymous").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 16) || "anonymous";
       const uploaded = [];
       const skipped = { already_present: 0, unavailable: 0 };
       let apiCalls = 1;
       for (const mode of ["osu", "mania"]) {
+        if (uploaded.length >= 10 || dailyUploaded >= 100) break;
         const prefix = mode === "osu" ? "standard" : "mania";
         const filePrefix = mode === "osu" ? "std_" : "mania_";
         let nextReplayNumber;
         try { nextReplayNumber = await getNextReplaySequence(env, "replays/" + prefix, filePrefix); }
         catch (error) {
-          return apiJson({ error: error.message || "dataset_sequence_lookup_failed", uploaded: uploaded.length }, 502);
+          return apiJson({ error: error.message || "dataset_sequence_lookup_failed", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 502);
         }
         await waitForApiBudget();
         const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(userId) + "/scores/recent");
         scoresUrl.searchParams.set("mode", mode);
-        scoresUrl.searchParams.set("limit", "10");
+        scoresUrl.searchParams.set("limit", "100");
         scoresUrl.searchParams.set("include_fails", "1");
         const scoresResponse = await fetch(scoresUrl, { headers: userHeaders });
         apiCalls++;
-        if (!scoresResponse.ok) return apiJson({ error: "osu_recent_scores_failed", upstream_status: scoresResponse.status, uploaded: uploaded.length }, scoresResponse.status === 401 ? 401 : 502);
+        if (!scoresResponse.ok) return apiJson({ error: "osu_recent_scores_failed", upstream_status: scoresResponse.status, uploaded: uploaded.length, daily_uploaded: dailyUploaded }, scoresResponse.status === 401 ? 401 : 502);
         const scores = await scoresResponse.json().catch(() => null);
-        if (!Array.isArray(scores)) return apiJson({ error: "osu_recent_scores_invalid_response", uploaded: uploaded.length }, 502);
+        if (!Array.isArray(scores)) return apiJson({ error: "osu_recent_scores_invalid_response", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 502);
         let modeUploads = 0;
         for (const score of scores) {
-          if (modeUploads >= 2 || uploaded.length >= 4) break;
+          if (modeUploads >= 5 || uploaded.length >= 10 || dailyUploaded >= 100) break;
           if (score?.has_replay !== true || !score.id) { skipped.unavailable++; continue; }
           const scoreId = String(score.id);
           const uploadedKey = "replay-uploaded:" + userId + ":" + mode + ":" + scoreId;
           if (await env.OAUTH_KV.get(uploadedKey)) { skipped.already_present++; continue; }
           await waitForApiBudget();
           const replayHeaders = { ...userHeaders, accept: "application/octet-stream" };
-          // Match the already-validated download route above: the generic score endpoint
-          // is the documented route; keep the ruleset-qualified path only as a fallback.
-          let replayResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId) + "/download", {
-            headers: replayHeaders
-          });
+          let replayResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId) + "/download", { headers: replayHeaders });
           apiCalls++;
           if (replayResponse.status === 404) {
             await replayResponse.arrayBuffer().catch(() => new ArrayBuffer(0));
             await waitForApiBudget();
-            replayResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", {
-              headers: replayHeaders
-            });
+            replayResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", { headers: replayHeaders });
             apiCalls++;
           }
           if (!replayResponse.ok) {
             if (replayResponse.status === 404) { skipped.unavailable++; continue; }
-            return apiJson({ error: "osu_replay_download_failed", upstream_status: replayResponse.status, uploaded: uploaded.length }, replayResponse.status === 401 ? 401 : 502);
+            return apiJson({ error: "osu_replay_download_failed", upstream_status: replayResponse.status, uploaded: uploaded.length, daily_uploaded: dailyUploaded }, replayResponse.status === 401 ? 401 : 502);
           }
           const raw = await replayResponse.arrayBuffer();
           let clean;
           try { clean = anonymizeOsr(raw, participantId, mode); }
-          catch { return apiJson({ error: "replay_anonymization_failed", uploaded: uploaded.length }, 422); }
+          catch { return apiJson({ error: "replay_anonymization_failed", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 422); }
           const fileName = filePrefix + String(nextReplayNumber).padStart(6, "0") + ".osr";
           const path = "replays/" + prefix + "/" + fileName;
           let result;
           try { result = await uploadAnonymizedReplay(env, path, clean); }
-          catch (error) { return apiJson({ error: error.message || "dataset_upload_failed", uploaded: uploaded.length }, 502); }
+          catch (error) { return apiJson({ error: error.message || "dataset_upload_failed", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 502); }
           const fileRecord = { path: result.path, sha: result.sha, hash: scoreId, kv_key: uploadedKey };
           consent.files = Array.isArray(consent.files) ? consent.files : [];
           consent.files.push(fileRecord);
@@ -500,10 +499,11 @@ export default {
           uploaded.push({ mode, file: fileName });
           nextReplayNumber++;
           modeUploads++;
+          dailyUploaded++;
+          await env.OAUTH_KV.put(dailyKey, String(dailyUploaded));
         }
       }
-      await env.OAUTH_KV.put(lastSyncKey, String(now));
-      return apiJson({ ok: true, uploaded: uploaded.length, files: uploaded, skipped, api_calls: apiCalls, next_sync_at: new Date(now + cooldown).toISOString() });
+      return apiJson({ ok: true, uploaded: uploaded.length, files: uploaded, skipped, api_calls: apiCalls, daily_uploaded: dailyUploaded, daily_limit: 100, batch_limit: 10, next_sync_at: nextDay.toISOString() });
     }
 
     // Return the authenticated user's own profile using the short-lived OAuth access token.
