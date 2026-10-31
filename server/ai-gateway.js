@@ -90,7 +90,14 @@ async function callGemini(env, system, messages, context) {
   const payload = await upstream.json().catch(() => null);
   if (!upstream.ok) {
     const status = upstream.status === 429 ? 429 : upstream.status >= 500 ? 502 : 503;
-    return { error: upstream.status === 429 ? "ai_provider_rate_limited" : "ai_provider_request_failed", status };
+    const providerStatus = typeof payload?.error?.status === "string"
+      ? payload.error.status.slice(0, 48) : null;
+    return {
+      error: upstream.status === 429 ? "ai_provider_rate_limited" : "ai_provider_request_failed",
+      status,
+      provider_status: upstream.status,
+      provider_reason: providerStatus,
+    };
   }
   const text = payload?.candidates?.[0]?.content?.parts
     ?.filter(part => typeof part.text === "string").map(part => part.text).join("").trim();
