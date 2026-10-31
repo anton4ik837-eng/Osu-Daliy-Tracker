@@ -78,7 +78,11 @@ async function callGemini(env, system, messages, context) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents,
-      generationConfig: { temperature: 0.35, maxOutputTokens: 1200 },
+      generationConfig: {
+        temperature: 0.35,
+        maxOutputTokens: 1200,
+        thinkingConfig: { thinkingLevel: "LOW" },
+      },
     }),
     signal: AbortSignal.timeout(30_000),
   });
@@ -92,8 +96,13 @@ async function callGemini(env, system, messages, context) {
       model = "gemini-3.8-flash";
       upstream = await requestModel(model);
     }
-  } catch {
-    return { error: "ai_provider_unavailable", status: 502 };
+  } catch (error) {
+    const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
+    return {
+      error: timedOut ? "ai_provider_timeout" : "ai_provider_unavailable",
+      status: timedOut ? 504 : 502,
+      provider_reason: timedOut ? "TIMEOUT" : (typeof error?.name === "string" ? error.name.slice(0, 48) : "NETWORK_ERROR"),
+    };
   }
   const payload = await upstream.json().catch(() => null);
   if (!upstream.ok) {
