@@ -137,7 +137,7 @@ export async function handleAiChat(request, env) {
   const quota = await enforceRateLimit(env, "chat:" + String(profile.id), CHAT_LIMIT_PER_HOUR);
   if (!quota.ok) return response({ error: quota.error }, quota.error === "rate_limit_exceeded" ? 429 : 503);
   const result = await callGemini(env, CHAT_SYSTEM, messages, context);
-  if (result.error) return response({ error: result.error }, result.status);
+  if (result.error) return response({ error: result.error, provider_status: result.provider_status ?? null, provider_reason: result.provider_reason ?? null }, result.status);
   return response({ ok: true, reply: result.text, provider: "gemini", model: result.model, usage: result.usage, rate_limit_remaining: quota.remaining });
 }
 
@@ -167,6 +167,6 @@ export async function handleAiResearch(request, env) {
   const quota = await enforceRateLimit(env, "research:admin", RESEARCH_LIMIT_PER_HOUR);
   if (!quota.ok) return response({ error: quota.error }, quota.error === "rate_limit_exceeded" ? 429 : 503);
   const result = await callGemini(env, RESEARCH_SYSTEM, messages, context);
-  if (result.error) return response({ error: result.error }, result.status);
+  if (result.error) return response({ error: result.error, provider_status: result.provider_status ?? null, provider_reason: result.provider_reason ?? null }, result.status);
   return response({ ok: true, reply: result.text, provider: "gemini", model: result.model, usage: result.usage, rate_limit_remaining: quota.remaining });
 }
