@@ -23,7 +23,7 @@ function response(data, status = 200) {
 
 function bearer(request) {
   const value = request.headers.get("authorization") || "";
-  const match = value.match(/^Bearer\\s+(.+)$/i);
+  const match = value.match(/^Bearer\s+(.+)$/i);
   return match ? match[1].trim() : "";
 }
 
