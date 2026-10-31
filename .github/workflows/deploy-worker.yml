@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Validate Worker JavaScript syntax
+        run: node --input-type=module --check < server/worker.js
       - name: Deploy Worker with replay dataset access
         if: ${{ env.DATASET_GITHUB_TOKEN != '' }}
         uses: cloudflare/wrangler-action@v3
