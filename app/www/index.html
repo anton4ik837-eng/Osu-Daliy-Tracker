@@ -179,7 +179,7 @@ function replayConsentSession(){const s=window.__osuOAuthSession;return s?.acces
    try{
     const r=await fetch(API_BASE+'/api/me/replay-consent',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:'Bearer '+s.accessToken},body:JSON.stringify({enabled,consent:enabled,consent_version:REPLAY_CONSENT_VERSION})});
     const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось сохранить');
-    if(enabled){showReplayConsentPrompt(false);$('replayConsentStatus').textContent='Согласие сохранено. Запускаем сбор…';startReplayCollectionTimer();await runReplayCollection()}else{stopReplayCollectionTimer();$('replayConsentStatus').textContent=d.pending_deletions?'Сбор остановлен. Не удалось удалить '+d.pending_deletions+' файлов; удаление нужно будет повторить.':'Согласие отозвано. Удалено файлов: '+Number(d.deleted_files||0)+'.';showReplayConsentPrompt(false)}
+    if(enabled){showReplayConsentPrompt(false);$('replayConsentStatus').textContent='Согласие сохранено. Запускаем сбор…';startReplayCollectionTimer();await runReplayCollection()}
     else{$('replayConsentStatus').textContent=d.pending_deletions?'Сбор остановлен. Не удалось удалить '+d.pending_deletions+' файлов; удаление нужно будет повторить.':'Согласие отозвано. Удалено файлов: '+Number(d.deleted_files||0)+'.';showReplayConsentPrompt(false)}
    }catch(e){$('replayConsentStatus').textContent='Ошибка: '+(e.message||String(e));await loadReplayConsent()}
    finally{button.disabled=false}
