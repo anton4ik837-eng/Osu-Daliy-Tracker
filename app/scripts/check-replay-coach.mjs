@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {analyzeReplayCoach} from '../replay-coach.mjs';
+const standardRows=Array.from({length:160},(_,i)=>({time:i*100,offset:i>100?((i%2)?90:-80):((i%2)?4:-4),miss:false,aimErrorPx:i>100?55:10,type:'circle'}));
+const std=analyzeReplayCoach({mode:0,rows:standardRows},'standard');
+assert.equal(std.mode,'standard');
+assert.ok(std.sampleCount===160);
+assert.ok(std.recommendations.some(x=>/стрим|тайминг|участк/i.test(x.title)));
+const maniaRows=Array.from({length:80},(_,i)=>({time:i*180,offset:i%2?5:-5,miss:false,lane:i%4,type:i%10===0?'hold':'circle',releaseMiss:i===10}));
+const mania=analyzeReplayCoach({mode:3,rows:maniaRows},'mania');
+assert.equal(mania.mode,'mania');
+assert.ok(mania.recommendations.some(x=>/hold/i.test(x.title)));
+assert.ok(!mania.strengths.some(x=>/aim/i.test(x.area)));
+assert.throws(()=>analyzeReplayCoach({mode:1,rows:[]}));
+console.log('Replay coach tests passed: mode-aware diagnostics, evidence and insufficient-data handling.');
