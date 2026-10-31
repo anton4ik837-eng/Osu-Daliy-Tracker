@@ -848,6 +848,8 @@ refreshReplayLibrary();
   await loadReplay(replay);
   await waitFor(()=>!!playMap&&playMap.mode===3,'mania replay and matching map');
   check('replay_loaded',!!window.replayFrames&&parsedReplay?.mode===3,{mode:parsedReplay?.mode,player:parsedReplay?.player,frames:window.replayFrames?.length||0});
+  await waitFor(()=>$('neuralStatus')?.textContent.startsWith('Готово'),'Mania neural encoder inference',30000);
+  check('mania_neural_encoder',!!$('neuralResult')?.children?.length&&$('neuralStatus').textContent.includes('MANIA'),{status:$('neuralStatus').textContent,matches:$('neuralResult')?.children?.length||0});
   check('exact_map_loaded',!!playMap&&playMap.mode===3&&playMap.objects.length>0,{keys:playMap?.keys,objects:playMap?.objects?.length||0,md5:parsedReplay?.beatmapMd5});
   await loadOsuSkin(skin);
   await waitFor(()=>Object.keys(activeSkin.images||{}).length>0,'custom skin images');
