@@ -1,7 +1,7 @@
 name: Replay Lab UI preview APK
 on:
   push:
-    branches: [feature/2.1.0-compact-replay-ui]
+    branches: [feature/2.1.0-compact-replay-ui, feature/2.2.0-replay-ai-beta]
     paths:
       - 'app/**'
       - '.github/workflows/replay-ui-preview.yml'
@@ -31,6 +31,9 @@ jobs:
       - name: Validate replay counters and event matching
         working-directory: app
         run: npm run test:replay-counts
+      - name: Validate experimental replay AI model
+        working-directory: app
+        run: npm run test:replay-ai-model
       - name: Validate Mania key-count remapping
         working-directory: app
         run: npm run test:mania-key-remap
@@ -72,6 +75,6 @@ jobs:
       - name: Upload UI preview APK
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-2.1.0-ui-preview
+          name: osu-daily-tracker-2.2.0-beta.1
           path: app/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
