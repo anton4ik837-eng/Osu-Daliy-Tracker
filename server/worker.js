@@ -448,8 +448,8 @@ export default {
         else await env.OAUTH_KV.delete(key);
         return apiJson({ enabled: false, deleted_files: deleted, pending_deletions: pending.length });
       }
-      if (body?.enabled !== true || body?.consent !== true || body?.consent_version !== "replay-dataset-v1") return apiJson({ error: "explicit_consent_required" }, 400);
-      const record = { user_id: String(profile.id), consent: true, consent_version: "replay-dataset-v1", accepted_at: new Date().toISOString(), modes: ["osu", "mania"] };
+      if (body?.enabled !== true || body?.consent !== true || body?.consent_version !== "replay-dataset-v2") return apiJson({ error: "explicit_consent_required" }, 400);
+      const record = { user_id: String(profile.id), consent: true, consent_version: "replay-dataset-v2", accepted_at: new Date().toISOString(), participant_id: crypto.randomUUID().replace(/-/g, "").slice(0, 12), consent_scope: "own_replays_private_dataset_anonymized_filename_and_player_name_ai_training", modes: ["osu", "mania"] };
       await env.OAUTH_KV.put(key, JSON.stringify(record));
       return apiJson({ enabled: true, consent_version: record.consent_version, accepted_at: record.accepted_at });
     }
@@ -471,7 +471,7 @@ export default {
       const consentKey = "replay-consent:" + userId;
       const storedConsent = await env.OAUTH_KV.get(consentKey);
       let consent = null; try { consent = storedConsent ? JSON.parse(storedConsent) : null; } catch {}
-      if (consent?.consent !== true || consent?.consent_version !== "replay-dataset-v1") return apiJson({ error: "replay_consent_required" }, 403);
+      if (consent?.consent !== true || consent?.consent_version !== "replay-dataset-v2") return apiJson({ error: "replay_consent_required" }, 403);
       const lastSyncKey = "replay-sync-last:" + userId;
       const lastSync = Number(await env.OAUTH_KV.get(lastSyncKey) || 0);
       const now = Date.now();
@@ -483,10 +483,8 @@ export default {
       const uploaded = [];
       const skipped = { already_present: 0, unavailable: 0 };
       let apiCalls = 1;
-      let firstApiRequest = true;
       for (const mode of ["osu", "mania"]) {
-        if (!firstApiRequest) await waitForApiBudget();
-        firstApiRequest = false;
+        await waitForApiBudget();
         const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(userId) + "/scores/recent");
         scoresUrl.searchParams.set("mode", mode);
         scoresUrl.searchParams.set("limit", "10");
