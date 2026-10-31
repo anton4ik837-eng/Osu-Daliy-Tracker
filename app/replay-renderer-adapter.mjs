@@ -171,34 +171,23 @@ export async function createReplayRendererSession({
     start() {
       if (destroyed) throw new Error('Renderer session has been destroyed.');
       rendererRunning = true;
-      session.renderer.start();
+      session.renderer.renderFrameAt(currentMapTimeMs);
     },
     pause() {
       if (destroyed) return;
-      session.player.pause();
       rendererRunning = false;
     },
     play() {
       if (destroyed) throw new Error('Renderer session has been destroyed.');
-      session.player.play();
       rendererRunning = true;
-      session.renderer.start();
+      session.renderer.renderFrameAt(currentMapTimeMs);
     },
     seekMapTime(mapTimeMs) {
       if (destroyed) return;
-      currentMapTimeMs = Number(mapTimeMs) || 0;
-      const presentationMs = Math.max(0, Math.min(
-        session.player.durationMs,
-        (Number(mapTimeMs) - session.timeMapper.introOffsetMs) / session.timeMapper.speed,
-      ));
-      // The renderer owns its own RAF clock. Seeking it on every app RAF
-      // resets that clock continuously and causes duplicate frame work.
-      // Resync only when the two clocks drift meaningfully (e.g. after audio
-      // clock correction); ordinary playback remains renderer-driven.
-      const rendererTimeMs = Number(session.player.currentTimeMs);
-      if (!Number.isFinite(rendererTimeMs) || Math.abs(presentationMs - rendererTimeMs) > 90) {
-        session.player.seek(presentationMs);
-      }
+      currentMapTimeMs = Math.max(0, Number(mapTimeMs) || 0);
+      // Replay Lab owns the only animation loop and supplies map time directly.
+      // renderFrameAt draws synchronously without starting replayviewer-js RAF.
+      session.renderer.renderFrameAt(currentMapTimeMs);
     },
     async setSkin(nextSkinBytes = null) {
       if (destroyed) throw new Error('Renderer session has been destroyed.');
@@ -208,13 +197,12 @@ export async function createReplayRendererSession({
         nextSkin = await loadSkin(skinBuffer, audioContext);
       }
       const nextSession = await createReplaySession({ ...sessionInputs, skin: nextSkin });
-      const presentationMs = (currentMapTimeMs - nextSession.timeMapper.introOffsetMs) / nextSession.timeMapper.speed;
-      nextSession.player.seek(Math.max(0, Math.min(nextSession.player.durationMs, presentationMs)));
+      nextSession.renderer.renderFrameAt(currentMapTimeMs);
       if (nextSession.mode === 3) nextSession.renderer.options.maniaScrollSpeed = Math.max(1, Math.min(40, Math.round(20 * maniaScrollMultiplier)));
       const previousSession = session;
       session = nextSession;
       previousSession.destroy();
-      if (rendererRunning) session.renderer.start();
+      if (rendererRunning) session.renderer.renderFrameAt(currentMapTimeMs);
       return true;
     },
     setManiaScrollSpeed(multiplier) {
@@ -222,8 +210,7 @@ export async function createReplayRendererSession({
       const factor = Math.max(0.5, Math.min(2, Number(multiplier) || 1));
       maniaScrollMultiplier = factor;
       session.renderer.options.maniaScrollSpeed = Math.max(1, Math.min(40, Math.round(20 * factor)));
-      const mapTimeMs = session.timeMapper.toMapTime(session.player.currentTimeMs);
-      session.renderer.renderFrameAt(mapTimeMs);
+      session.renderer.renderFrameAt(currentMapTimeMs);
     },
     destroy() {
       if (destroyed) return;
