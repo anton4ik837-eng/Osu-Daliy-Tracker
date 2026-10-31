@@ -215,7 +215,6 @@ function ensurePlaybackCache(){
  const playableObjects=objects.filter(object=>object.type!=='spinner').sort((a,b)=>a.time-b.time);
  const playableIndex=new Map(playableObjects.map((object,index)=>[object,index+1]));
  const rows=Array.isArray(analysis?.rows)?analysis.rows:[];
- const rowsByTime=rows.map(row=>({time:Number(row.time)||0,row})).sort((a,b)=>a.time-b.time);
  const missEntries=rows.filter(row=>row.miss).map(row=>({time:Number(row.time)||0,row})).sort((a,b)=>a.time-b.time);
  const pressEntries=rows.filter(row=>row.press&&Number.isFinite(Number(row.press.time))).map(row=>({time:Number(row.press.time),row})).sort((a,b)=>a.time-b.time);
  const lowerBound=(entries,time)=>{let low=0,high=entries.length;while(low<high){const mid=(low+high)>>>1;if(entries[mid].time<time)low=mid+1;else high=mid;}return low;};
@@ -671,7 +670,7 @@ async function setRendererEngineEnabled(enabled){
 }
 $('rendererEngineToggle')?.addEventListener('click',async()=>{try{await setRendererEngineEnabled(!rendererJsSession)}catch(error){diagLog('renderer_js.toggle_error',{message:String(error?.message||error)});}});
 async function enableDefaultRenderer(){if(new URLSearchParams(window.location.search).has('ciReplaySkin'))return;try{await setRendererEngineEnabled(true);diagLog('renderer_js.auto_enabled',{mode:playMap?.mode});}catch(error){diagLog('renderer_js.auto_enable_failed',{message:String(error?.message||error)});$('skinStatus').textContent='Карта загружена, но JS renderer не запустился: '+(error?.message||String(error));}}
-function drawPlayfield(){const c=$('playfield');if(!c||!playMap)return;const cache=ensurePlaybackCache();if(rendererJsSession){rendererJsSession.seekMapTime(playerNow);$('playerTime').textContent=fmtTime(playerNow);$('seek').value=Math.round(playerNow/Math.max(1,analysis.duration)*1000);updateReplayHud();return;}const maniaMode=playMap.mode===3,stage=$('playfieldStage');if(stage)stage.classList.toggle('mania-stage',maniaMode);const targetHeight=maniaMode?640:384;if(c.height!==targetHeight)c.height=targetHeight;const ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#0a1019';ctx.fillRect(0,0,w,h);if(playMap.mode===3){
+function drawPlayfield(){const c=$('playfield');if(!c||!playMap)return;if(rendererJsSession){rendererJsSession.seekMapTime(playerNow);$('playerTime').textContent=fmtTime(playerNow);$('seek').value=Math.round(playerNow/Math.max(1,analysis.duration)*1000);updateReplayHud();return;}const cache=ensurePlaybackCache();const maniaMode=playMap.mode===3,stage=$('playfieldStage');if(stage)stage.classList.toggle('mania-stage',maniaMode);const targetHeight=maniaMode?640:384;if(c.height!==targetHeight)c.height=targetHeight;const ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#0a1019';ctx.fillRect(0,0,w,h);if(playMap.mode===3){
  const keys=Math.max(1,Number(playMap.keys)||4);
  const cfg=ManiaSkinParser.select(activeSkin.maniaSections,keys);
  const layout=ManiaPlayfieldLayout.create(w,h,keys,cfg);

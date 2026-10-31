@@ -199,6 +199,18 @@ if (!html.includes('The latest hit replaces the previous one; use the judgement 
   throw new Error('Mania judgement artwork must be shared and replaced by the latest hit');
 }
 
+const drawStart = html.indexOf('function drawPlayfield(){');
+const drawEnd = html.indexOf('\nfunction tickPlayer(now){', drawStart);
+const drawSource = html.slice(drawStart, drawEnd);
+if (!html.includes('function ensurePlaybackCache()') ||
+    !drawSource.includes('const cache=ensurePlaybackCache()') ||
+    drawSource.includes('playMap.objects.filter(') ||
+    drawSource.includes('(analysis?.rows||[])') ||
+    drawSource.includes('for(let i=0;i<playFrames.length;i++)') ||
+    drawSource.includes('playMap.objects.filter(q=>q.time<o.time)')) {
+  throw new Error('Replay playback must use cached time indexes and avoid full-map scans in animation frames');
+}
+
 
 
 const maniaModTestStart = html.indexOf('function resolveManiaKeyCount(');
