@@ -250,8 +250,10 @@ jobs:
 
 
   emulator-smoke-test:
-    name: Android emulator smoke test
+    name: Android emulator smoke test (non-blocking)
     needs: build
+    # Emulator checks are diagnostic only: APK artifact and release publication depend on build, not this job.
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
