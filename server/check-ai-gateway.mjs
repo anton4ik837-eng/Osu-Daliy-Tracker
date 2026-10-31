@@ -18,6 +18,7 @@ const env = {
 let geminiCalls = 0;
 let geminiFailure = false;
 let oldModelNotFound = false;
+let geminiTimeout = false;
 globalThis.fetch = async (url, options = {}) => {
   if (String(url).startsWith("https://osu.ppy.sh/api/v2/me/osu")) {
     return new Response(JSON.stringify({ id: 12345 }), { status: 200 });
@@ -27,6 +28,7 @@ globalThis.fetch = async (url, options = {}) => {
     if (oldModelNotFound && String(url).includes("/models/gemini-2.5-flash:generateContent")) {
       return new Response(JSON.stringify({ error: { status: "NOT_FOUND", message: "Model unavailable" } }), { status: 404 });
     }
+    if (geminiTimeout) { const error = new Error("simulated timeout"); error.name = "TimeoutError"; throw error; }
     if (geminiFailure) {
       return new Response(JSON.stringify({ error: { status: "INVALID_ARGUMENT", message: "Test failure" } }), { status: 400 });
     }
@@ -97,6 +99,19 @@ try {
   geminiFailure = false;
   assert.equal(geminiCalls, 4);
 
+  geminiTimeout = true;
+  const timeoutResponse = await handleAiChat(new Request("https://worker.test/api/ai/chat", {
+    method: "POST",
+    headers: { authorization: "Bearer osu-token", "content-type": "application/json" },
+    body: JSON.stringify({ messages: [{ role: "user", content: "Проверка тайм-аута" }] }),
+  }), env);
+  assert.equal(timeoutResponse.status, 504);
+  const timeoutData = await timeoutResponse.json();
+  assert.equal(timeoutData.error, "ai_provider_timeout");
+  assert.equal(timeoutData.provider_reason, "TIMEOUT");
+  geminiTimeout = false;
+  assert.equal(geminiCalls, 5);
+
   const researchDenied = await handleAiResearch(new Request("https://worker.test/api/ai/research", {
     method: "POST",
     headers: { authorization: "Bearer wrong" },
@@ -114,7 +129,7 @@ try {
   }), env);
   assert.equal(research.status, 200);
   assert.equal((await research.json()).reply, "Тестовый ответ");
-  assert.equal(geminiCalls, 5);
+  assert.equal(geminiCalls, 6);
 
   console.log("AI Gateway tests passed: OAuth auth, payload validation, Gemini proxy, rate limits, research isolation.");
 } finally {
