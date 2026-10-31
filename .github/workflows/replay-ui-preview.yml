@@ -1,0 +1,74 @@
+name: Replay Lab UI preview APK
+on:
+  push:
+    branches: [feature/2.1.0-compact-replay-ui]
+    paths:
+      - 'app/**'
+      - '.github/workflows/replay-ui-preview.yml'
+  pull_request:
+    branches: [renderer-js-releases]
+    paths:
+      - 'app/**'
+      - '.github/workflows/replay-ui-preview.yml'
+permissions:
+  contents: read
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: app
+        run: npm install
+      - name: Validate Replay Lab JavaScript and UI structure
+        working-directory: app
+        run: npm run test:replay-inline
+      - name: Validate Mania key-count remapping
+        working-directory: app
+        run: npm run test:mania-key-remap
+      - name: Validate Standard to Mania conversion
+        working-directory: app
+        run: npm run test:standard-mania-conversion
+      - name: Validate renderer adapter
+        working-directory: app
+        run: npm run test:renderer-adapter
+      - name: Build JavaScript bridge
+        working-directory: app
+        run: npm run build
+      - name: Add Android platform
+        working-directory: app
+        run: npx cap add android
+      - name: Configure Android signing and app identity
+        working-directory: app
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: npm run configure:android
+      - name: Sync web assets
+        working-directory: app
+        run: npx cap sync android
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build preview APK
+        working-directory: app/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleDebug
+      - name: Upload UI preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: osu-daily-tracker-2.1.0-ui-preview
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
