@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { evaluateReplayModel, extractTrainingFeatures } from '../replay-ai-model.mjs';
+import { evaluateReplayModel, extractTrainingFeatures, evaluateTrainedArtifact } from '../replay-ai-model.mjs';
 
 const stableRows = Array.from({length:100},(_,i)=>({
   time:i*100,
@@ -47,5 +47,18 @@ assert.equal(extracted.dense_pair_count,11);
 assert.equal(extracted.mean_aim_error_px,6);
 assert.equal(extracted.bpm_estimate,180);
 assert.equal(extracted.high_density_hit_rate,null,'unavailable map-derived features must remain null');
+
+const targetKeys = ['timing_level','rhythm_stability','aim_control','reading_consistency','stream_stability','burst_control'];
+const artifact = {
+  trained:true, feature_names:['offset_stddev_ms','__mode_standard__','__mode_mania__'],
+  targets:targetKeys,
+  normalization:{mean:[0,0,0],scale:[1,1,1],median_imputation:{}},
+  weights:{w1:[[0,0],[0,0],[0,0]],b1:[0,0],w2:Array.from({length:2},()=>Array(6).fill(0)),b2:Array(6).fill(0)},
+};
+const trainedScores = evaluateTrainedArtifact(extracted,artifact,'standard');
+assert.equal(trainedScores.length,6);
+assert.ok(trainedScores.every(item=>item.score===3));
+assert.equal(evaluateTrainedArtifact(extracted,{trained:false},'standard'),null);
+
 
 console.log('Replay AI beta model tests passed: score range, confidence, stability sensitivity, recommendations, low-sample guard.');
