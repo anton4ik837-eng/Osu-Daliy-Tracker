@@ -43,3 +43,48 @@ The client ID is not a password, but storing both values as Worker secrets simpl
 ## Current limitation
 
 This commit adds the server-side flow scaffold only. It is not live until an OAuth app is registered, Worker secrets/variables and KV are configured, and the Capacitor app has a native deep-link handler plus secure token storage. Do not advertise OAuth as working until the app integration is complete and tested.
+
+## Gemini LLM Gateway (beta)
+
+The Worker proxies LLM requests to Gemini. The Gemini API key is a Cloudflare Worker secret; it must never be placed in the APK, app HTML, or public repository.
+
+Configure secrets in the Worker environment:
+
+```sh
+npx wrangler secret put GEMINI_API_KEY
+npx wrangler secret put AI_RESEARCH_TOKEN
+```
+
+Optional Worker variable: `GEMINI_MODEL` (defaults to `gemini-2.5-flash`).
+
+### Player coach
+
+`POST /api/ai/chat`
+
+- Requires the user's existing osu! OAuth access token in `Authorization: Bearer ...`.
+- Revalidates the token against osu! API before accepting the request.
+- Accepts `messages` (1–12 user/assistant messages) and an optional structured `context` object.
+- Limits requests to 20 per authenticated account per hour.
+- Does not persist chat content or replay data. Do not send raw `.osr` files or identifying information.
+
+Example body:
+
+```json
+{
+  "messages": [{ "role": "user", "content": "Разбери стабильность стримов по этим метрикам." }],
+  "context": { "bpm": 180, "ur": 95, "stream_stability": 72 }
+}
+```
+
+### Research assistant
+
+`POST /api/ai/research`
+
+- Requires `Authorization: Bearer <AI_RESEARCH_TOKEN>`.
+- The token is server/admin-only and must not be embedded in the Android app or distributed to users.
+- Accepts curated aggregate reports and metrics only; no automatic repository writes, training runs, or publishing.
+- Limited to 10 requests per hour.
+
+Both endpoints return `{ ok, reply, provider, model, usage }` on success. Requests are size-limited; the gateway accepts only user/assistant chat roles and supplies its own system instructions. Gemini provider failures are returned as safe error codes without forwarding provider diagnostics or credentials.
+
+The gateway is server-side infrastructure only. It is not yet wired to a chat screen in the Android app, and a successful source commit does not mean the Worker has been deployed. Configure the two Worker secrets and verify the deployment before enabling client calls.
