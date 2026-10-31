@@ -155,7 +155,7 @@ function replayMetrics(frames, matrix) {
   return {
     frame_count: frames.length,
     sampled_frame_count: matrix.length,
-    coordinate_coverage: Number(mean(coordinate.map(Number).map(Number).map(Number)).toFixed(4)),
+    coordinate_coverage: Number(mean(coordinate.map(value => value ? 1 : 0)).toFixed(4)),
     button_state_coverage: Number(mean(matrix.map(row => row[12])).toFixed(4)),
     active_button_frame_ratio: Number(mean(active.map(Number)).toFixed(4)),
     median_frame_interval_ms: median(intervals),
