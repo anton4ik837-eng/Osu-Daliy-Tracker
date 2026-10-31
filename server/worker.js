@@ -334,6 +334,88 @@ export default {
     }
 
 
+
+    // Sync only the authenticated account's own recent replays after explicit opt-in.
+    // Capped to five files per day; no other users are enumerated.
+    if (url.pathname === "/api/me/replay-collect" && request.method === "POST") {
+      const auth = request.headers.get("authorization") || "";
+      const match = auth.match(/^Bearer\s+(.+)$/i);
+      if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
+      if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
+      if (!env.DATASET_GITHUB_TOKEN) return apiJson({ error: "dataset_uploader_not_configured" }, 503);
+      const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + match[1] };
+      const meResponse = await fetch("https://osu.ppy.sh/api/v2/me/osu", { headers });
+      const me = await meResponse.json().catch(() => ({}));
+      if (!meResponse.ok || !me.id) return apiJson({ error: "osu_profile_request_failed", upstream_status: meResponse.status }, meResponse.status === 401 ? 401 : 502);
+      const consentKey = "replay-consent:" + String(me.id);
+      const storedConsent = await env.OAUTH_KV.get(consentKey);
+      let consent = null; try { consent = storedConsent ? JSON.parse(storedConsent) : null; } catch {}
+      if (consent?.consent !== true) return apiJson({ error: "replay_consent_required" }, 403);
+      const now = Date.now();
+      const lastSync = Number(consent.last_collect_at || 0);
+      if (lastSync && now - lastSync < 86400000) return apiJson({ ok: true, skipped: "daily_limit", next_sync_at: new Date(lastSync + 86400000).toISOString(), uploaded: 0, duplicates: 0 });
+      const githubHeaders = { accept: "application/vnd.github+json", authorization: "Bearer " + env.DATASET_GITHUB_TOKEN, "content-type": "application/json", "user-agent": "Osu-Daily-Tracker-Replay-Collector", "x-github-api-version": "2022-11-28" };
+      const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+      const seen = new Set(Array.isArray(consent.seen_score_ids) ? consent.seen_score_ids.map(String) : []);
+      let uploaded = 0, duplicates = 0, unavailable = 0, checked = 0, osuCalls = 0;
+      const results = [];
+      for (const mode of ["osu", "mania"]) {
+        if (uploaded >= 5) break;
+        if (osuCalls > 0) await delay(1000);
+        const scoreUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(me.id) + "/scores/recent");
+        scoreUrl.searchParams.set("mode", mode);
+        scoreUrl.searchParams.set("limit", "10");
+        scoreUrl.searchParams.set("include_fails", "1");
+        const scoreResponse = await fetch(scoreUrl, { headers }); osuCalls++;
+        const scores = await scoreResponse.json().catch(() => null);
+        if (!scoreResponse.ok || !Array.isArray(scores)) return apiJson({ error: "osu_scores_failed", mode, upstream_status: scoreResponse.status }, scoreResponse.status === 401 ? 401 : 502);
+        for (const score of scores) {
+          if (uploaded >= 5) break;
+          const scoreId = String(score?.id || "");
+          if (!/^[0-9]+$/.test(scoreId) || seen.has(scoreId)) continue;
+          seen.add(scoreId); checked++;
+          if (score.has_replay !== true) { unavailable++; continue; }
+          await delay(1000);
+          const replayResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId) + "/download", {
+            headers: { accept: "application/octet-stream", "x-api-version": "20220705", authorization: "Bearer " + match[1] }
+          });
+          osuCalls++;
+          if (!replayResponse.ok) {
+            if (replayResponse.status === 404) { unavailable++; continue; }
+            return apiJson({ error: "osu_replay_download_failed", mode, upstream_status: replayResponse.status }, replayResponse.status === 401 ? 401 : 502);
+          }
+          const buffer = await replayResponse.arrayBuffer();
+          if (buffer.byteLength < 32 || buffer.byteLength > 20 * 1024 * 1024) { results.push({ mode, status: "invalid_size" }); continue; }
+          const bytes = new Uint8Array(buffer), expectedModeByte = mode === "osu" ? 0 : 3;
+          if (bytes[0] !== expectedModeByte) { results.push({ mode, status: "mode_mismatch" }); continue; }
+          const digest = await crypto.subtle.digest("SHA-256", buffer);
+          const hash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+          const hashKey = "replay-hash:" + hash;
+          if (await env.OAUTH_KV.get(hashKey)) { duplicates++; continue; }
+          let binary = "";
+          for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + 0x8000, bytes.length)));
+          const folder = mode === "osu" ? "standard" : "mania", prefix = mode === "osu" ? "std" : "mania";
+          const filePath = "replays/" + folder + "/" + prefix + "_" + hash.slice(0, 16) + ".osr";
+          const uploadResponse = await fetch("https://api.github.com/repos/anton4ik-eng/Osu-Replay-Dataset/contents/" + filePath.split("/").map(encodeURIComponent).join("/"), {
+            method: "PUT", headers: githubHeaders,
+            body: JSON.stringify({ message: "Add consented " + mode + " replay " + hash.slice(0, 12), content: btoa(binary), branch: "main" })
+          });
+          const uploadData = await uploadResponse.json().catch(() => ({}));
+          if (!uploadResponse.ok || !uploadData.content?.sha) return apiJson({ error: "dataset_upload_failed", mode, status: uploadResponse.status, github_error: uploadData.message || null }, 502);
+          await env.OAUTH_KV.put(hashKey, filePath);
+          consent.files = Array.isArray(consent.files) ? consent.files : [];
+          consent.files.push({ path: filePath, sha: uploadData.content.sha, hash });
+          uploaded++; results.push({ mode, status: "uploaded", file: filePath.split("/").pop() });
+        }
+      }
+      consent.seen_score_ids = Array.from(seen).slice(-500);
+      consent.last_collect_at = now;
+      consent.last_collect_result = { uploaded, duplicates, unavailable, checked };
+      await env.OAUTH_KV.put(consentKey, JSON.stringify(consent));
+      return apiJson({ ok: true, uploaded, duplicates, unavailable, checked, next_sync_at: new Date(now + 86400000).toISOString(), results });
+    }
+
+
     // Explicit opt-in registry. Only account ID and consent metadata are stored, never OAuth tokens.
     if (url.pathname === "/api/me/replay-consent" && (request.method === "GET" || request.method === "POST")) {
       const auth = request.headers.get("authorization") || "";
@@ -347,10 +429,25 @@ export default {
       if (request.method === "GET") {
         const stored = await env.OAUTH_KV.get(key);
         let consent = null; if (stored) { try { consent = JSON.parse(stored); } catch {} }
-        return apiJson({ enabled: consent?.consent === true, consent_version: consent?.consent_version || null, accepted_at: consent?.accepted_at || null });
+        return apiJson({ enabled: consent?.consent === true, consent_version: consent?.consent_version || null, accepted_at: consent?.accepted_at || null, last_collect_at: consent?.last_collect_at || null });
       }
       let body; try { body = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
-      if (body?.enabled === false) { await env.OAUTH_KV.delete(key); return apiJson({ enabled: false }); }
+      if (body?.enabled === false) {
+        const files = Array.isArray(consent?.files) ? consent.files : [];
+        const pending = []; let deleted = 0;
+        for (const file of files) {
+          if (!env.DATASET_GITHUB_TOKEN) { pending.push(file); continue; }
+          const removed = await fetch("https://api.github.com/repos/anton4ik837-eng/Osu-Replay-Dataset/contents/" + file.path.split("/").map(encodeURIComponent).join("/"), {
+            method: "DELETE",
+            headers: { accept: "application/vnd.github+json", authorization: "Bearer " + env.DATASET_GITHUB_TOKEN, "content-type": "application/json", "user-agent": "Osu-Daily-Tracker-Replay-Collector", "x-github-api-version": "2022-11-28" },
+            body: JSON.stringify({ message: "Remove replay after consent withdrawal", sha: file.sha, branch: "main" })
+          });
+          if (removed.ok) { await env.OAUTH_KV.delete("replay-hash:" + file.hash); deleted++; } else pending.push(file);
+        }
+        if (pending.length) await env.OAUTH_KV.put(key, JSON.stringify({ user_id: String(profile.id), consent: false, consent_version: consent?.consent_version || "replay-dataset-v1", revoked_at: new Date().toISOString(), files: pending }));
+        else await env.OAUTH_KV.delete(key);
+        return apiJson({ enabled: false, deleted_files: deleted, pending_deletions: pending.length });
+      }
       if (body?.enabled !== true || body?.consent !== true || body?.consent_version !== "replay-dataset-v1") return apiJson({ error: "explicit_consent_required" }, 400);
       const record = { user_id: String(profile.id), consent: true, consent_version: "replay-dataset-v1", accepted_at: new Date().toISOString(), modes: ["osu", "mania"] };
       await env.OAUTH_KV.put(key, JSON.stringify(record));
