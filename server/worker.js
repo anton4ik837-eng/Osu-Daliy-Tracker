@@ -43,6 +43,79 @@ function apiJson(data, status = 200) {
   });
 }
 
+
+async function waitForApiBudget() { await new Promise(resolve => setTimeout(resolve, 1050)); }
+
+function readOsuString(bytes, offset) {
+  if (offset >= bytes.length) throw new Error("invalid_osr_string");
+  const start = offset;
+  const marker = bytes[offset++];
+  if (marker === 0) return { start, end: offset };
+  if (marker !== 0x0b) throw new Error("invalid_osr_string_marker");
+  let length = 0, shift = 0;
+  while (offset < bytes.length && shift <= 28) {
+    const value = bytes[offset++];
+    length |= (value & 0x7f) << shift;
+    if ((value & 0x80) === 0) {
+      const end = offset + length;
+      if (end > bytes.length) throw new Error("invalid_osr_string_length");
+      return { start, end };
+    }
+    shift += 7;
+  }
+  throw new Error("invalid_osr_string_length");
+}
+
+function encodeOsuString(value) {
+  const encoded = new TextEncoder().encode(value);
+  const out = [0x0b];
+  let length = encoded.length;
+  while (length >= 0x80) { out.push((length & 0x7f) | 0x80); length >>>= 7; }
+  out.push(length);
+  return new Uint8Array([...out, ...encoded]);
+}
+
+function anonymizeOsr(input, participantId, expectedMode) {
+  const bytes = new Uint8Array(input);
+  const modeByte = expectedMode === "osu" ? 0 : 3;
+  if (bytes.length < 32 || bytes[0] !== modeByte) throw new Error("invalid_replay_mode_or_file");
+  const beatmap = readOsuString(bytes, 5);
+  const player = readOsuString(bytes, beatmap.end);
+  const replacement = encodeOsuString("participant_" + participantId);
+  const output = new Uint8Array(bytes.length - (player.end - player.start) + replacement.length);
+  output.set(bytes.subarray(0, player.start), 0);
+  output.set(replacement, player.start);
+  output.set(bytes.subarray(player.end), player.start + replacement.length);
+  return output;
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 0x8000, bytes.length)));
+  }
+  return btoa(binary);
+}
+
+async function uploadAnonymizedReplay(env, path, bytes) {
+  const token = typeof env.DATASET_GITHUB_TOKEN === "string" ? env.DATASET_GITHUB_TOKEN.trim() : "";
+  if (!token) throw new Error("dataset_upload_not_configured");
+  const response = await fetch("https://api.github.com/repos/anton4ik837-eng/Osu-Replay-Dataset/contents/" + path.split("/").map(encodeURIComponent).join("/"), {
+    method: "PUT",
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: "Bearer " + token,
+      "content-type": "application/json",
+      "user-agent": "OsuDailyTracker-ReplaySync",
+      "x-github-api-version": "2022-11-28"
+    },
+    body: JSON.stringify({ message: "Add anonymized opt-in replay", content: bytesToBase64(bytes), branch: "main" })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.content?.sha) throw new Error("dataset_upload_failed_" + response.status);
+  return { sha: payload.content.sha, path: payload.content.path || path };
+}
+
 function validMode(value) {
   return ["osu", "taiko", "fruits", "mania"].includes(value) ? value : null;
 }
@@ -282,6 +355,84 @@ export default {
       const record = { user_id: String(profile.id), consent: true, consent_version: "replay-dataset-v1", accepted_at: new Date().toISOString(), modes: ["osu", "mania"] };
       await env.OAUTH_KV.put(key, JSON.stringify(record));
       return apiJson({ enabled: true, consent_version: record.consent_version, accepted_at: record.accepted_at });
+    }
+
+
+    // Upload only the authenticated participant's own replays after explicit opt-in.
+    // Sync is triggered by app login/restore, capped to once per 24 hours and a small batch.
+    if (url.pathname === "/api/me/replay-sync" && request.method === "POST") {
+      const auth = request.headers.get("authorization") || "";
+      const match = auth.match(/^Bearer\\s+(.+)$/i);
+      if (!match) return apiJson({ error: "missing_bearer_token" }, 401);
+      if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
+      if (!env.DATASET_GITHUB_TOKEN) return apiJson({ error: "dataset_upload_not_configured" }, 503);
+      const userHeaders = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + match[1] };
+      const profileResponse = await fetch("https://osu.ppy.sh/api/v2/me/osu", { headers: userHeaders });
+      const profile = await profileResponse.json().catch(() => ({}));
+      if (!profileResponse.ok || !profile.id) return apiJson({ error: "osu_profile_request_failed" }, profileResponse.status === 401 ? 401 : 502);
+      const userId = String(profile.id);
+      const consentKey = "replay-consent:" + userId;
+      const storedConsent = await env.OAUTH_KV.get(consentKey);
+      let consent = null; try { consent = storedConsent ? JSON.parse(storedConsent) : null; } catch {}
+      if (consent?.consent !== true || consent?.consent_version !== "replay-dataset-v1") return apiJson({ error: "replay_consent_required" }, 403);
+      const lastSyncKey = "replay-sync-last:" + userId;
+      const lastSync = Number(await env.OAUTH_KV.get(lastSyncKey) || 0);
+      const now = Date.now();
+      const cooldown = 24 * 60 * 60 * 1000;
+      if (lastSync && now - lastSync < cooldown) {
+        return apiJson({ ok: true, skipped: "daily_limit", next_sync_at: new Date(lastSync + cooldown).toISOString(), uploaded: 0 });
+      }
+      const participantId = String(consent.participant_id || "anonymous").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 16) || "anonymous";
+      const uploaded = [];
+      const skipped = { already_present: 0, unavailable: 0 };
+      let apiCalls = 1;
+      let firstApiRequest = true;
+      for (const mode of ["osu", "mania"]) {
+        if (!firstApiRequest) await waitForApiBudget();
+        firstApiRequest = false;
+        const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(userId) + "/scores/recent");
+        scoresUrl.searchParams.set("mode", mode);
+        scoresUrl.searchParams.set("limit", "10");
+        scoresUrl.searchParams.set("include_fails", "1");
+        const scoresResponse = await fetch(scoresUrl, { headers: userHeaders });
+        apiCalls++;
+        if (!scoresResponse.ok) return apiJson({ error: "osu_recent_scores_failed", upstream_status: scoresResponse.status, uploaded: uploaded.length }, scoresResponse.status === 401 ? 401 : 502);
+        const scores = await scoresResponse.json().catch(() => null);
+        if (!Array.isArray(scores)) return apiJson({ error: "osu_recent_scores_invalid_response", uploaded: uploaded.length }, 502);
+        let modeUploads = 0;
+        for (const score of scores) {
+          if (modeUploads >= 2 || uploaded.length >= 4) break;
+          if (score?.has_replay !== true || !score.id) { skipped.unavailable++; continue; }
+          const scoreId = String(score.id);
+          const uploadedKey = "replay-uploaded:" + userId + ":" + mode + ":" + scoreId;
+          if (await env.OAUTH_KV.get(uploadedKey)) { skipped.already_present++; continue; }
+          await waitForApiBudget();
+          const replayResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", {
+            headers: { ...userHeaders, accept: "application/octet-stream" }
+          });
+          apiCalls++;
+          if (!replayResponse.ok) {
+            if (replayResponse.status === 404) { skipped.unavailable++; continue; }
+            return apiJson({ error: "osu_replay_download_failed", upstream_status: replayResponse.status, uploaded: uploaded.length }, replayResponse.status === 401 ? 401 : 502);
+          }
+          const raw = await replayResponse.arrayBuffer();
+          let clean;
+          try { clean = anonymizeOsr(raw, participantId, mode); }
+          catch { return apiJson({ error: "replay_anonymization_failed", uploaded: uploaded.length }, 422); }
+          const fileId = crypto.randomUUID().replace(/-/g, "");
+          const prefix = mode === "osu" ? "standard" : "mania";
+          const fileName = (mode === "osu" ? "std_" : "mania_") + fileId + ".osr";
+          const path = "replays/" + prefix + "/" + fileName;
+          let result;
+          try { result = await uploadAnonymizedReplay(env, path, clean); }
+          catch (error) { return apiJson({ error: error.message || "dataset_upload_failed", uploaded: uploaded.length }, 502); }
+          await env.OAUTH_KV.put(uploadedKey, JSON.stringify({ path: result.path, sha: result.sha, uploaded_at: new Date().toISOString() }));
+          uploaded.push({ mode, file: fileName });
+          modeUploads++;
+        }
+      }
+      await env.OAUTH_KV.put(lastSyncKey, String(now));
+      return apiJson({ ok: true, uploaded: uploaded.length, files: uploaded, skipped, api_calls: apiCalls, next_sync_at: new Date(now + cooldown).toISOString() });
     }
 
     // Return the authenticated user's own profile using the short-lived OAuth access token.
