@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { evaluateReplayModel } from '../replay-ai-model.mjs';
+import { evaluateReplayModel, extractTrainingFeatures } from '../replay-ai-model.mjs';
 
 const stableRows = Array.from({length:100},(_,i)=>({
   time:i*100,
@@ -32,5 +32,20 @@ assert.ok(unstable.weakestSegments.length>0);
 const insufficient = evaluateReplayModel([{time:0,offset:null,miss:true}],{totalObjects:1});
 assert.equal(insufficient.confidence,0);
 assert.match(insufficient.recommendations[0].title,/Недостаточно данных/);
+
+
+const featureRows = Array.from({length:12},(_,i)=>({
+  time:i*100, offset:i%2===0?4:-4, miss:false, type:'circle', aimErrorPx:6,
+}));
+const extracted = extractTrainingFeatures({
+  rows:featureRows, totalPresses:12, unmatchedPresses:0, bpm:180,
+});
+assert.equal(extracted.object_count,12);
+assert.equal(extracted.matched_count,12);
+assert.equal(extracted.stream_count,1);
+assert.equal(extracted.dense_pair_count,11);
+assert.equal(extracted.mean_aim_error_px,6);
+assert.equal(extracted.bpm_estimate,180);
+assert.equal(extracted.high_density_hit_rate,null,'unavailable map-derived features must remain null');
 
 console.log('Replay AI beta model tests passed: score range, confidence, stability sensitivity, recommendations, low-sample guard.');
