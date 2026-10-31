@@ -142,8 +142,8 @@ jobs:
       - name: Upload versioned APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: osu-daily-tracker-v${{ needs.build.outputs.version }}
-          path: osu-daily-tracker-v${{ needs.build.outputs.version }}.apk
+          name: osu-daily-tracker-v${{ steps.app-version.outputs.version }}
+          path: osu-daily-tracker-v${{ steps.app-version.outputs.version }}.apk
           if-no-files-found: error
       - name: Build fixture-enabled APK for emulator integration tests
         working-directory: .
