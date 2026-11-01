@@ -443,7 +443,7 @@ export default {
       const dailyKey = "replay-sync-count:" + userId + ":" + day;
       let dailyUploaded = Number(await env.OAUTH_KV.get(dailyKey) || 0);
       const nextDay = new Date(Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate() + 1));
-      const dailyLimit = 150, batchLimit = 5;
+      const dailyLimit = 600, batchLimit = 10;
       if (dailyUploaded >= dailyLimit) return apiJson({ ok: true, skipped: "daily_limit", daily_uploaded: dailyUploaded, daily_limit: dailyLimit, uploaded: 0, next_sync_at: nextDay.toISOString() });
       const participantId = String(consent.participant_id || "anonymous").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 16) || "anonymous";
       const uploaded = [], skipped = { already_present: 0, unavailable: 0 };
