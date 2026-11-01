@@ -168,8 +168,10 @@ function renderModelFacts(latest){
  $('splitRows').innerHTML=Object.keys(splits).length?Object.entries(splits).map(([name,v])=>'<tr><td>'+esc(name)+'</td><td>'+n(v.replays)+'</td><td>'+n(v.segments)+'</td><td>'+n(v.player_groups)+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">Нет опубликованных данных.</td></tr>';
  const dc=latest.dataset_counts||{};
  $('datasetFacts').innerHTML=[
+  ['Сырые Standard / Mania',n((latest.raw_replay_counts||{}).standard)+' / '+n((latest.raw_replay_counts||{}).mania)],
+  ['Извлечено Standard / Mania',n((latest.extracted_event_counts||{}).standard)+' / '+n((latest.extracted_event_counts||{}).mania)],
   ['Сопоставлено реплеев',n(dc.matched_replays)],['Сегментов всего',n(dc.segments)],
-  ['Standard / Mania',n(dc.standard_segments)+' / '+n(dc.mania_segments)],
+  ['Standard / Mania сегменты',n(dc.standard_segments)+' / '+n(dc.mania_segments)],
   ['Пропущено при сборке',n(dc.skipped)],['Независимые группы',n(latest.player_group_count)],
   ['Разделение по игрокам',latest.player_disjoint===true?'Да':latest.player_disjoint===false?'Нет':'—']
  ].map(x=>'<div class="metric-row"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');
