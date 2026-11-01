@@ -489,15 +489,16 @@ export default {
           }
           if (!replayResponse.ok) {
             if (replayResponse.status === 404) { skipped.unavailable++; continue; }
+            queue.index--;
             await env.OAUTH_KV.put(queueKey, JSON.stringify(queue));
             return apiJson({ error: "osu_replay_download_failed", upstream_status: replayResponse.status, uploaded: uploaded.length, daily_uploaded: dailyUploaded }, replayResponse.status === 401 ? 401 : replayResponse.status === 429 ? 429 : 502);
           }
           const raw = await replayResponse.arrayBuffer();
           let clean; try { clean = anonymizeOsr(raw, participantId, mode); }
-          catch { await env.OAUTH_KV.put(queueKey, JSON.stringify(queue)); return apiJson({ error: "replay_anonymization_failed", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 422); }
+          catch { queue.index--; await env.OAUTH_KV.put(queueKey, JSON.stringify(queue)); return apiJson({ error: "replay_anonymization_failed", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 422); }
           const fileName = filePrefix + String(nextReplayNumber).padStart(6, "0") + ".osr", path = "replays/" + prefix + "/" + fileName;
           let result; try { result = await uploadAnonymizedReplay(env, path, clean); }
-          catch (error) { await env.OAUTH_KV.put(queueKey, JSON.stringify(queue)); return apiJson({ error: error.message || "dataset_upload_failed", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 502); }
+          catch (error) { queue.index--; await env.OAUTH_KV.put(queueKey, JSON.stringify(queue)); return apiJson({ error: error.message || "dataset_upload_failed", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 502); }
           const fileRecord = { path: result.path, sha: result.sha, hash: scoreId, kv_key: uploadedKey };
           consent.files = Array.isArray(consent.files) ? consent.files : []; consent.files.push(fileRecord);
           await env.OAUTH_KV.put(uploadedKey, JSON.stringify({ path: result.path, sha: result.sha, uploaded_at: new Date().toISOString() }));
@@ -507,6 +508,7 @@ export default {
         }
         if (queue.index >= queue.scores.length) { queue.offset += queue.scores.length; queue.scores = []; queue.index = 0; }
         await env.OAUTH_KV.put(queueKey, JSON.stringify(queue));
+        if (queue.offset < target || queue.index < queue.scores.length) complete = false;
       }
       return apiJson({ ok: true, type, uploaded: uploaded.length, files: uploaded, skipped, api_calls: apiCalls, daily_uploaded: dailyUploaded, daily_limit: dailyLimit, batch_limit: batchLimit, complete, next_sync_at: nextDay.toISOString() });
     }
