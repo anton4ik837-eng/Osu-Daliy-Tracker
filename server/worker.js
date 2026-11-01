@@ -99,23 +99,73 @@ function bytesToBase64(bytes) {
   return btoa(binary);
 }
 
+async function gitBlobSha(bytes) {
+  const header = new TextEncoder().encode("blob " + bytes.length + "\0");
+  const blob = new Uint8Array(header.length + bytes.length);
+  blob.set(header, 0);
+  blob.set(bytes, header.length);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-1", blob));
+  return Array.from(digest, value => value.toString(16).padStart(2, "0")).join("");
+}
+
 async function uploadAnonymizedReplay(env, path, bytes) {
   const token = typeof env.DATASET_GITHUB_TOKEN === "string" ? env.DATASET_GITHUB_TOKEN.trim() : "";
   if (!token) throw new Error("dataset_upload_not_configured");
-  const response = await fetch("https://api.github.com/repos/anton4ik837-eng/Osu-Replay-Dataset/contents/" + path.split("/").map(encodeURIComponent).join("/"), {
-    method: "PUT",
-    headers: {
-      accept: "application/vnd.github+json",
-      authorization: "Bearer " + token,
-      "content-type": "application/json",
-      "user-agent": "OsuDailyTracker-ReplaySync",
-      "x-github-api-version": "2022-11-28"
-    },
-    body: JSON.stringify({ message: "Add anonymized opt-in replay", content: bytesToBase64(bytes), branch: "main" })
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || !payload.content?.sha) throw new Error("dataset_upload_failed_" + response.status);
-  return { sha: payload.content.sha, path: payload.content.path || path };
+
+  // GitHub's Contents API can return 409 when two independent best/recent
+  // queues update the same branch concurrently. Retry the same path if the
+  // branch update raced; if the path already exists, verify its blob and
+  // either treat an identical upload as success or allocate the next number.
+  const expectedSha = await gitBlobSha(bytes);
+  const directory = path.slice(0, path.lastIndexOf("/"));
+  const fileName = path.slice(path.lastIndexOf("/") + 1);
+  const sequenceMatch = fileName.match(/^(.*?)(\\d+)\\.osr$/);
+  if (!sequenceMatch) throw new Error("dataset_filename_invalid");
+  const prefix = sequenceMatch[1];
+  const headers = {
+    accept: "application/vnd.github+json",
+    authorization: "Bearer " + token,
+    "user-agent": "OsuDailyTracker-ReplaySync",
+    "x-github-api-version": "2022-11-28"
+  };
+  let targetPath = path;
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const endpoint = "https://api.github.com/repos/anton4ik837-eng/Osu-Replay-Dataset/contents/"
+      + targetPath.split("/").map(encodeURIComponent).join("/");
+    const response = await fetch(endpoint, {
+      method: "PUT",
+      headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({
+        message: "Add anonymized opt-in replay",
+        content: bytesToBase64(bytes),
+        branch: "main"
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok && payload.content?.sha) {
+      return { sha: payload.content.sha, path: payload.content.path || targetPath };
+    }
+    if (response.status !== 409) {
+      throw new Error("dataset_upload_failed_" + response.status);
+    }
+
+    const existingResponse = await fetch(endpoint, { headers });
+    const existing = await existingResponse.json().catch(() => ({}));
+    if (existingResponse.ok && existing?.sha) {
+      if (existing.sha === expectedSha) {
+        return { sha: existing.sha, path: existing.path || targetPath, already_present: true };
+      }
+      const next = await getNextReplaySequence(env, directory, prefix);
+      targetPath = directory + "/" + prefix + String(next).padStart(6, "0") + ".osr";
+    } else if (existingResponse.status === 404) {
+      // The 409 was a branch-head race, not a filename collision.
+      await new Promise(resolve => setTimeout(resolve, 150 * (attempt + 1)));
+    } else {
+      throw new Error("dataset_conflict_check_failed_" + existingResponse.status);
+    }
+  }
+  throw new Error("dataset_upload_conflict_retry_exhausted");
 }
 
 // Continue the existing six-digit sequence in the private dataset folder.
