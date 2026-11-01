@@ -48,6 +48,17 @@ function apiJson(data, status = 200) {
 
 async function waitForApiBudget() { await new Promise(resolve => setTimeout(resolve, 1050)); }
 
+function osuRetryAfterSeconds(response, fallback = 60) {
+  const raw = Number(response.headers.get("retry-after"));
+  if (Number.isFinite(raw) && raw > 0) return Math.min(3600, Math.max(5, Math.ceil(raw)));
+  const reset = Number(response.headers.get("x-ratelimit-reset"));
+  if (Number.isFinite(reset) && reset > 0) {
+    const seconds = reset > 1e12 ? Math.ceil((reset - Date.now()) / 1000) : Math.ceil(reset - Date.now() / 1000);
+    if (seconds > 0) return Math.min(3600, Math.max(5, seconds));
+  }
+  return fallback;
+}
+
 function readOsuString(bytes, offset) {
   if (offset >= bytes.length) throw new Error("invalid_osr_string");
   const start = offset;
@@ -536,7 +547,11 @@ export default {
           scoresUrl.searchParams.set("offset", String(queue.offset));
           if (type === "recent") scoresUrl.searchParams.set("include_fails", "1");
           const scoresResponse = await fetch(scoresUrl, { headers: userHeaders }); apiCalls++;
-          if (!scoresResponse.ok) return apiJson({ error: "osu_" + type + "_scores_failed", upstream_status: scoresResponse.status, uploaded: uploaded.length, daily_uploaded: dailyUploaded }, scoresResponse.status === 401 ? 401 : scoresResponse.status === 429 ? 429 : 502);
+          if (!scoresResponse.ok) {
+            const retryAfter = scoresResponse.status === 429 ? osuRetryAfterSeconds(scoresResponse) : null;
+            if (retryAfter) await env.OAUTH_KV.put(cooldownKey, String(Date.now() + retryAfter * 1000), { expirationTtl: retryAfter });
+            return apiJson({ error: "osu_" + type + "_scores_failed", upstream_status: scoresResponse.status, retry_after: retryAfter, uploaded: uploaded.length, daily_uploaded: dailyUploaded }, scoresResponse.status === 401 ? 401 : scoresResponse.status === 429 ? 429 : 502);
+          }
           const scores = await scoresResponse.json().catch(() => null);
           if (!Array.isArray(scores)) return apiJson({ error: "osu_" + type + "_scores_invalid_response", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 502);
           queue.scores = scores.slice(0, Math.min(50, target - queue.offset)); queue.index = 0;
@@ -562,7 +577,9 @@ export default {
             if (replayResponse.status === 404) { skipped.unavailable++; continue; }
             queue.index--;
             await env.OAUTH_KV.put(queueKey, JSON.stringify(queue));
-            return apiJson({ error: "osu_replay_download_failed", upstream_status: replayResponse.status, uploaded: uploaded.length, daily_uploaded: dailyUploaded }, replayResponse.status === 401 ? 401 : replayResponse.status === 429 ? 429 : 502);
+            const retryAfter = replayResponse.status === 429 ? osuRetryAfterSeconds(replayResponse) : null;
+            if (retryAfter) await env.OAUTH_KV.put(cooldownKey, String(Date.now() + retryAfter * 1000), { expirationTtl: retryAfter });
+            return apiJson({ error: "osu_replay_download_failed", upstream_status: replayResponse.status, retry_after: retryAfter, uploaded: uploaded.length, daily_uploaded: dailyUploaded }, replayResponse.status === 401 ? 401 : replayResponse.status === 429 ? 429 : 502);
           }
           const raw = await replayResponse.arrayBuffer();
           let clean; try { clean = anonymizeOsr(raw, participantId, mode); }
