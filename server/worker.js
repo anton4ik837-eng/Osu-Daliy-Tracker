@@ -119,7 +119,7 @@ async function uploadAnonymizedReplay(env, path, bytes) {
   const expectedSha = await gitBlobSha(bytes);
   const directory = path.slice(0, path.lastIndexOf("/"));
   const fileName = path.slice(path.lastIndexOf("/") + 1);
-  const sequenceMatch = fileName.match(/^(.*?)(\\d+)\\.osr$/);
+  const sequenceMatch = fileName.match(/^(.*?)(\d+)\.osr$/);
   if (!sequenceMatch) throw new Error("dataset_filename_invalid");
   const prefix = sequenceMatch[1];
   const headers = {
