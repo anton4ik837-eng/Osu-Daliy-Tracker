@@ -34,6 +34,14 @@
 <nav class="nav"><a href="index.html">← Tracker</a><a href="replay.html">Replay Lab</a><a class="active" href="training.html">AI Training</a></nav>
 <section class="hero"><div class="eyebrow">MODEL DEVELOPMENT / LIVE TELEMETRY</div><h1>AI TRAINING<br><span style="color:var(--ice)">MONITOR</span></h1><p>Ход обучения, динамика ошибок, проверка качества и история продолженных циклов. Данные отображаются только после их публикации обучающим процессом.</p>
 <div class="statusrow"><span class="status"><i class="dot" id="statusDot"></i><b id="runStatus">Загрузка состояния…</b></span><span class="status" id="updated">Обновлено: —</span><span class="actions"><button class="btn" id="refresh">Обновить</button></span></div></section>
+<section class="card" id="accountPanel" style="margin:14px 0"><div class="statusrow"><div><b id="accountLabel">Гость · доступен мониторинг</b><div class="sub" id="accountHint">Вход через GitHub открывает профиль; панель управления доступна только владельцу.</div></div><button class="btn" id="loginButton">Войти через GitHub</button><button class="btn" id="logoutButton" style="display:none">Выйти</button></div></section>
+<section class="card" id="adminPanel" style="display:none;margin:14px 0"><div class="section" style="margin-top:0"><h2>Управление обучением</h2><p>Запуск приватного workflow. Ограничения параметров проверяются сервером.</p></div>
+<div class="metric-list" style="grid-template-columns:repeat(auto-fit,minmax(145px,1fr))">
+<label class="metric-row">Режим <select id="trainMode"><option value="continue">Продолжить обучение</option><option value="fresh">Обучение с нуля</option></select></label>
+<label class="metric-row">Эпохи <input id="trainEpochs" type="number" min="50" max="400" value="200"></label>
+<label class="metric-row">Patience <input id="trainPatience" type="number" min="5" max="50" value="20"></label>
+<label class="metric-row">Trials <input id="trainTrials" type="number" min="1" max="5" value="1"></label></div>
+<div class="actions" style="margin-top:12px"><button class="btn" id="launchTraining">Запустить обучение</button><span class="sub" id="launchStatus"></span></div></section>
 <div class="grid">
 <article class="card"><div class="label">Training cycle</div><div class="value" id="cycle">—</div><div class="sub">текущий / запланированный</div></article>
 <article class="card"><div class="label">Epoch</div><div class="value" id="epoch">—</div><div class="sub" id="epochSub">ожидание данных</div></article>
@@ -85,6 +93,25 @@ function renderWorkflowJobs(jobs){
  }).join('');
 }
 function render(d){if(!d||typeof d!=='object')throw Error('Некорректный формат training-data.json');const latest=d.latest||{};const running=String(d.status||latest.status||'unknown').toLowerCase();$('runStatus').textContent=({in_progress:'Обучение выполняется',queued:'В очереди',completed:'Последний запуск завершён',failure:'Ошибка обучения',unknown:'Нет активного запуска'})[running]||running;$('statusDot').className='dot '+(running==='in_progress'?'live':running==='failure'?'bad':'');$('updated').textContent='Обновлено: '+date(d.generated_at);const cycle=Number(d.training_cycles??latest.cycle??0),due=Number(d.comparison_due_at??7);$('cycle').textContent=cycle?cycle+' / '+due:'—';$('epoch').textContent=latest.epoch!=null?latest.epoch+(latest.total_epochs?'/'+latest.total_epochs:''):'—';$('epochSub').textContent=latest.epoch?'последняя известная эпоха':'ожидание истории эпох';$('loss').textContent=fmt(latest.validation_loss);$('warm').textContent=latest.warm_started===true?'ДА':latest.warm_started===false?'НЕТ':'—';$('cycleBar').style.width=Math.min(100,cycle/due*100)+'%';$('cycleProgress').textContent=cycle+' из '+due+' циклов';$('runDetails').innerHTML=[['Workflow',latest.run_id?'#'+latest.run_id:'—'],['Начало',date(latest.started_at)],['Завершение',date(latest.finished_at)],['Реплеи',fmt(latest.replay_count,0)],['Сегменты',fmt(latest.segment_count,0)],['Лучшая эпоха',fmt(latest.best_epoch,0)],['Checkpoint',latest.checkpoint||'—']].map(x=>'<div class="metric-row"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');draw(latest.epoch_history||[]);setMetricRows(latest.metrics||latest.objective_test_metrics||{});const hist=d.history||[];$('historyRows').innerHTML=hist.length?hist.slice().reverse().map(x=>'<tr><td>'+fmt(x.cycle,0)+'</td><td>'+date(x.finished_at||x.started_at)+'</td><td>'+fmt(x.replay_count,0)+' / '+fmt(x.segment_count,0)+'</td><td>'+(x.warm_started?'Да':'Нет')+'</td><td>'+fmt(x.validation_loss)+'</td><td>'+(x.status||'—')+'</td></tr>').join(''):'<tr><td colspan="6" class="empty">Завершённые циклы ещё не опубликованы.</td></tr>';$('dataNote').textContent=d.note||'Показаны только метрики, полученные из обучающего workflow.'}
+const API='https://osu-ai-training-telemetry.anton4ik837.workers.dev';
+let adminSession=sessionStorage.getItem('osu_admin_session')||'';
+function authHeaders(){return adminSession?{Authorization:'Bearer '+adminSession}:{}}
+async function initAuth(){
+ const params=new URLSearchParams(location.search),ticket=params.get('auth_ticket');
+ if(ticket){
+  history.replaceState({},'',location.pathname+location.hash);
+  try{const r=await fetch(API+'/api/auth/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket})});const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось завершить вход');adminSession=d.session;sessionStorage.setItem('osu_admin_session',adminSession);}catch(e){$('accountHint').textContent=e.message;}
+ }
+ if(adminSession){
+  try{const r=await fetch(API+'/api/auth/me',{headers:authHeaders()});const d=await r.json();if(r.ok&&d.authenticated){$('accountLabel').textContent='GitHub: '+d.login+ (d.is_admin?' · владелец':'');$('accountHint').textContent=d.is_admin?'Доступна панель управления обучением.':'Доступен только мониторинг.';$('loginButton').style.display='none';$('logoutButton').style.display='inline-block';$('adminPanel').style.display=d.is_admin?'block':'none';}else{adminSession='';sessionStorage.removeItem('osu_admin_session');}}catch(_){}
+ }
+}
+$('loginButton').addEventListener('click',()=>location.href=API+'/auth/github/start');
+$('logoutButton').addEventListener('click',()=>{adminSession='';sessionStorage.removeItem('osu_admin_session');location.reload()});
+$('launchTraining').addEventListener('click',async()=>{
+ const button=$('launchTraining');button.disabled=true;$('launchStatus').textContent='Отправка…';
+ try{const r=await fetch(API+'/api/admin/training/dispatch',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({training_mode:$('trainMode').value,epochs:Number($('trainEpochs').value),patience:Number($('trainPatience').value),trials:Number($('trainTrials').value)})});const d=await r.json();if(!r.ok)throw Error(d.error||'Ошибка запуска');$('launchStatus').textContent='Запуск отправлен в GitHub Actions.';setTimeout(refresh,2500);}catch(e){$('launchStatus').textContent='Ошибка: '+e.message;}finally{button.disabled=false;}
+});
 async function refresh(){ $('refresh').disabled=true;try{
 let data={status:'unknown',latest:{},history:[],training_cycles:0};
 try{const live=await fetch('https://osu-ai-training-telemetry.anton4ik837.workers.dev/api/telemetry?ts='+Date.now(),{cache:'no-store'});if(live.ok){const v=await live.json();if(v&&typeof v==='object')data={...data,...v,latest:{...(v.latest||{})}};}}catch(_){}
@@ -93,5 +120,5 @@ try{const wr=await fetch('https://osu-ai-training-telemetry.anton4ik837.workers.
 else{$('workflowSteps').innerHTML='<div class="empty">Ожидается публикация этапов из приватного GitHub Actions.</div>';if(data.status==='unknown'||data.status==='idle')$('runStatus').textContent='Ожидание данных о запуске';}
 }else{$('workflowSteps').innerHTML='<div class="empty">Worker пока не предоставляет снимок этапов. Требуется обновление Worker.</div>';}}catch(_){$('workflowSteps').innerHTML='<div class="empty">Не удалось получить снимок этапов обучения.</div>';}
 }catch(e){$('runStatus').textContent='Не удалось обновить данные';$('statusDot').className='dot bad';$('dataNote').textContent='Ошибка обновления: '+e.message;}finally{$('refresh').disabled=false}}
-$('refresh').addEventListener('click',refresh);refresh();setInterval(refresh,10000);
+$('refresh').addEventListener('click',refresh);initAuth();refresh();setInterval(refresh,10000);
 </script></body></html>
