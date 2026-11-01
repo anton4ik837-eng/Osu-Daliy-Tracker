@@ -440,7 +440,7 @@ export default {
     // can remove exactly this participant's contributions from the private dataset.
     if (url.pathname === "/api/internal/replay-files" && request.method === "POST") {
       const expected = typeof env.INGEST_TOKEN === "string" ? env.INGEST_TOKEN.trim() : "";
-      const supplied = (request.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+      const supplied = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
       if (!expected || !supplied || supplied !== expected) return apiJson({ error: "unauthorized" }, 401);
       if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
       let body; try { body = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
@@ -450,7 +450,7 @@ export default {
         const userId = String(item?.user_id || "");
         const path = String(item?.path || "");
         const sha = String(item?.sha || "");
-        if (!/^\\d{1,15}$/.test(userId) || !/^replays\\/(standard|mania)\\/(std_|mania_)\\d{6}\\.osr$/.test(path) || !/^[a-f0-9]{40}$/.test(sha)) {
+        if (!/^\d{1,15}$/.test(userId) || !/^replays\/(standard|mania)\/(std_|mania_)\d{6}\.osr$/.test(path) || !/^[a-f0-9]{40}$/.test(sha)) {
           return apiJson({ error: "invalid_file_record" }, 400);
         }
         if (!grouped.has(userId)) grouped.set(userId, []);
