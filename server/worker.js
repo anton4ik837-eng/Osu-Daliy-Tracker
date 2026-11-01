@@ -436,6 +436,42 @@ export default {
 
 
 
+    // Register files committed by the scheduled collector so consent withdrawal
+    // can remove exactly this participant's contributions from the private dataset.
+    if (url.pathname === "/api/internal/replay-files" && request.method === "POST") {
+      const expected = typeof env.INGEST_TOKEN === "string" ? env.INGEST_TOKEN.trim() : "";
+      const supplied = (request.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+      if (!expected || !supplied || supplied !== expected) return apiJson({ error: "unauthorized" }, 401);
+      if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
+      let body; try { body = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      if (!Array.isArray(body?.files) || body.files.length > 500) return apiJson({ error: "invalid_files" }, 400);
+      const grouped = new Map();
+      for (const item of body.files) {
+        const userId = String(item?.user_id || "");
+        const path = String(item?.path || "");
+        const sha = String(item?.sha || "");
+        if (!/^\\d{1,15}$/.test(userId) || !/^replays\\/(standard|mania)\\/(std_|mania_)\\d{6}\\.osr$/.test(path) || !/^[a-f0-9]{40}$/.test(sha)) {
+          return apiJson({ error: "invalid_file_record" }, 400);
+        }
+        if (!grouped.has(userId)) grouped.set(userId, []);
+        grouped.get(userId).push({ path, sha });
+      }
+      let registered = 0, skipped = 0;
+      for (const [userId, files] of grouped) {
+        const key = "replay-consent:" + userId;
+        const raw = await env.OAUTH_KV.get(key);
+        let consent; try { consent = raw ? JSON.parse(raw) : null; } catch { consent = null; }
+        if (consent?.consent !== true || consent?.consent_version !== "replay-dataset-v2") { skipped += files.length; continue; }
+        const existing = Array.isArray(consent.files) ? consent.files : [];
+        const byPath = new Map(existing.map(file => [file.path, file]));
+        for (const file of files) byPath.set(file.path, file);
+        consent.files = [...byPath.values()];
+        await env.OAUTH_KV.put(key, JSON.stringify(consent));
+        registered += files.length;
+      }
+      return apiJson({ ok: true, registered, skipped });
+    }
+
     // Private server-to-server consent registry for the scheduled dataset collector.
     // Never expose this endpoint to app clients: it is protected by INGEST_TOKEN.
     if (url.pathname === "/api/internal/replay-consents" && request.method === "GET") {
