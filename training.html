@@ -61,6 +61,21 @@
 <section class="card chart"><div class="section" style="margin-top:0"><h2>Loss по эпохам</h2><p>Сравнение train и validation за последние пять циклов обучения</p></div><canvas id="lossChart" width="900" height="360"></canvas><div class="legend" id="chartLegend"><span>Цвет — цикл · сплошная — train · пунктир — validation</span></div><div class="empty" id="chartEmpty">История эпох пока не опубликована.</div></section>
 <section class="card"><div class="section" style="margin-top:0"><h2>Текущий запуск</h2><p>Сводка последнего workflow</p></div><div class="metric-list" id="runDetails"><div class="empty">Нет данных о запуске.</div></div><div class="section"><h2>Прогресс плана</h2><p id="cycleLabel">Циклы до сравнения с историческим чемпионом</p><div class="progress"><span id="cycleBar"></span></div><div class="sub" id="cycleProgress">—</div></div></section>
 </div>
+<div class="section"><h2>Параметры модели и датасета</h2><p>Только измеренные значения из последнего обучающего запуска</p></div>
+<div class="grid" id="modelFacts">
+<article class="card"><div class="label">Сырые реплеи</div><div class="value" id="rawReplayCount">—</div><div class="sub">.osr в репозитории</div></article>
+<article class="card"><div class="label">Извлечённые события</div><div class="value" id="eventFileCount">—</div><div class="sub">processed/events JSON</div></article>
+<article class="card"><div class="label">Параметры сети</div><div class="value" id="parameterCount">—</div><div class="sub">обучаемые веса и смещения</div></article>
+<article class="card"><div class="label">Входные признаки</div><div class="value" id="featureCount">—</div><div class="sub">размерность входа</div></article>
+</div>
+<div class="cols">
+<section class="card"><div class="section" style="margin-top:0"><h2>Разделение данных</h2><p>Реплеи и сегменты по независимым выборкам</p></div>
+<div class="tablewrap"><table style="min-width:0"><thead><tr><th>Набор</th><th>Реплеи</th><th>Сегменты</th><th>Группы</th></tr></thead><tbody id="splitRows"><tr><td colspan="4" class="empty">Нет опубликованных данных.</td></tr></tbody></table></div>
+<div class="metric-list" id="datasetFacts" style="margin-top:12px"></div></section>
+<section class="card"><div class="section" style="margin-top:0"><h2>Архитектура и encoder</h2><p>Размеры слоёв и качество self-supervised этапа</p></div><div class="metric-list" id="architectureFacts"><div class="empty">Нет опубликованных данных.</div></div></section>
+</div>
+<div class="section"><h2>Покрытие целевых метрик</h2><p>Количество размеченных сегментов по каждой измеряемой характеристике</p></div>
+<div class="tablewrap"><table><thead><tr><th>Целевая метрика</th><th>Train</th><th>Validation</th><th>Test</th><th>Validation лучше baseline</th><th>Test лучше baseline</th></tr></thead><tbody id="targetCoverageRows"><tr><td colspan="6" class="empty">Нет опубликованных данных.</td></tr></tbody></table></div>
 <div class="section"><h2>Качество модели</h2><p>Отдельно показываются проверка на validation и итоговая оценка на независимом test-наборе.</p></div>
 <div class="sub" style="margin:8px 0 10px">Validation · выбор активных голов модели</div>
 <div class="tablewrap"><table><thead><tr><th>Выход модели</th><th>Ошибка</th><th>Baseline</th><th>Результат</th><th>Сегменты</th></tr></thead><tbody id="validationRows"><tr><td colspan="5" class="empty">Validation-метрики появятся после следующего запуска.</td></tr></tbody></table></div>
@@ -143,7 +158,39 @@ function renderWorkflowJobs(jobs){
   });
  });
 }
-function render(d){if(!d||typeof d!=='object')throw Error('Некорректный формат training-data.json');const latest=d.latest||{};const running=String(d.status||latest.status||'unknown').toLowerCase();$('runStatus').textContent=({in_progress:'Обучение выполняется',queued:'В очереди',completed:'Последний запуск завершён',failure:'Ошибка обучения',unknown:'Нет активного запуска'})[running]||running;$('statusDot').className='dot '+(running==='in_progress'?'live':running==='failure'?'bad':'');$('updated').textContent='Обновлено: '+date(d.generated_at);const cycle=Number(d.training_cycles??latest.cycle??0),due=Number(d.comparison_due_at??7);$('cycle').textContent=cycle?cycle+' / '+due:'—';$('epoch').textContent=latest.epoch!=null?latest.epoch+(latest.total_epochs?'/'+latest.total_epochs:''):'—';$('epochSub').textContent=latest.epoch?'последняя известная эпоха':'ожидание истории эпох';$('loss').textContent=fmt(latest.validation_loss);$('warm').textContent=latest.warm_started===true?'ДА':latest.warm_started===false?'НЕТ':'—';$('cycleBar').style.width=Math.min(100,cycle/due*100)+'%';$('cycleProgress').textContent=cycle+' из '+due+' циклов';$('runDetails').innerHTML=[['Workflow',latest.run_id?'#'+latest.run_id:'—'],['Начало',date(latest.started_at)],['Завершение',date(latest.finished_at)],['Реплеи',fmt(latest.replay_count,0)],['Сегменты',fmt(latest.segment_count,0)],['Лучшая эпоха',fmt(latest.best_epoch,0)],['Checkpoint',latest.checkpoint||'—']].map(x=>'<div class="metric-row"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');draw(latest.epoch_history||[]);setMetricRows(latest.metrics||latest.objective_test_metrics||{},latest.validation_head_selection||latest.validation_metrics||{});const best=Number(latest.best_epoch??0),epochs=latest.epoch_history||[];const active=latest.active_target_names||[];$('learningDiagnosis').textContent=best>0?'Обучение улучшило начальный checkpoint на эпохе '+best+'. Записано эпох: '+epochs.length+'. Активные выходы: '+(active.length?active.join(', '):'сведения не переданы')+'.':epochs.length?'ВНИМАНИЕ: ни одна эпоха не улучшила начальный checkpoint (best_epoch = 0). Этот запуск нельзя считать успешным обучением. Эпох: '+epochs.length+'.':'После запуска здесь появится проверка улучшения весов.';const hist=d.history||[];$('historyRows').innerHTML=hist.length?hist.slice().reverse().map(x=>'<tr><td>'+fmt(x.cycle,0)+'</td><td>'+date(x.finished_at||x.started_at)+'</td><td>'+fmt(x.replay_count,0)+' / '+fmt(x.segment_count,0)+'</td><td>'+(x.warm_started?'Да':'Нет')+'</td><td>'+fmt(x.validation_loss)+'</td><td>'+(x.status||'—')+'</td></tr>').join(''):'<tr><td colspan="6" class="empty">Завершённые циклы ещё не опубликованы.</td></tr>';$('dataNote').textContent=d.note||'Показаны только метрики, полученные из обучающего workflow.'}
+function renderModelFacts(latest){
+ const n=v=>v==null?'—':fmt(v,0);
+ $('rawReplayCount').textContent=n(latest.raw_replay_files);
+ $('eventFileCount').textContent=n(latest.extracted_event_files);
+ $('parameterCount').textContent=n(latest.parameter_count);
+ $('featureCount').textContent=n(latest.feature_count);
+ const splits=latest.split_summary||{};
+ $('splitRows').innerHTML=Object.keys(splits).length?Object.entries(splits).map(([name,v])=>'<tr><td>'+esc(name)+'</td><td>'+n(v.replays)+'</td><td>'+n(v.segments)+'</td><td>'+n(v.player_groups)+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">Нет опубликованных данных.</td></tr>';
+ const dc=latest.dataset_counts||{};
+ $('datasetFacts').innerHTML=[
+  ['Сопоставлено реплеев',n(dc.matched_replays)],['Сегментов всего',n(dc.segments)],
+  ['Standard / Mania',n(dc.standard_segments)+' / '+n(dc.mania_segments)],
+  ['Пропущено при сборке',n(dc.skipped)],['Независимые группы',n(latest.player_group_count)],
+  ['Разделение по игрокам',latest.player_disjoint===true?'Да':latest.player_disjoint===false?'Нет':'—']
+ ].map(x=>'<div class="metric-row"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');
+ const a=latest.architecture||{},e=latest.encoder||{};
+ $('architectureFacts').innerHTML=[
+  ['Сеть',a.type||'—'],['Слои',a.input!=null?[a.input,a.hidden,a.output].join(' → '):'—'],
+  ['Активация',a.activation||'—'],['Выходных голов',n(latest.target_candidate_count)],
+  ['Активных голов',n((latest.active_target_names||[]).length)],
+  ['Encoder validation MSE',fmt(e.validation_reconstruction_mse)],
+  ['Encoder baseline MSE',fmt(e.validation_mean_baseline_mse)],
+  ['Encoder лучше baseline',e.beats_validation_baseline===true?'Да':e.beats_validation_baseline===false?'Нет':'—'],
+  ['Encoder train / validation',e.train_replays!=null?n(e.train_replays)+' / '+n(e.validation_replays):'—']
+ ].map(x=>'<div class="metric-row"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');
+ const coverage=latest.target_label_coverage||{},val=latest.validation_metrics||{},test=latest.metrics||{};
+ const keys=[...new Set([...Object.keys(coverage),...Object.keys(val),...Object.keys(test)])];
+ $('targetCoverageRows').innerHTML=keys.length?keys.map(k=>{
+  const c=coverage[k]||{},v=val[k]||{},t=test[k]||{};
+  return '<tr><td>'+esc(k.replaceAll('_',' '))+'</td><td>'+n(c.train)+'</td><td>'+n(c.validation??v.segments)+'</td><td>'+n(c.test??t.test_segments)+'</td><td class="'+(v.beats_baseline?'good':'bad')+'">'+(v.beats_baseline===true?'Да':v.beats_baseline===false?'Нет':'—')+'</td><td class="'+(t.beats_baseline?'good':'bad')+'">'+(t.beats_baseline===true?'Да':t.beats_baseline===false?'Нет':'—')+'</td></tr>';
+ }).join(''):'<tr><td colspan="6" class="empty">Метрики появятся после запуска с расширенной телеметрией.</td></tr>';
+}
+function render(d){if(!d||typeof d!=='object')throw Error('Некорректный формат training-data.json');const latest=d.latest||{};renderModelFacts(latest);const running=String(d.status||latest.status||'unknown').toLowerCase();$('runStatus').textContent=({in_progress:'Обучение выполняется',queued:'В очереди',completed:'Последний запуск завершён',failure:'Ошибка обучения',unknown:'Нет активного запуска'})[running]||running;$('statusDot').className='dot '+(running==='in_progress'?'live':running==='failure'?'bad':'');$('updated').textContent='Обновлено: '+date(d.generated_at);const cycle=Number(d.training_cycles??latest.cycle??0),due=Number(d.comparison_due_at??7);$('cycle').textContent=cycle?cycle+' / '+due:'—';$('epoch').textContent=latest.epoch!=null?latest.epoch+(latest.total_epochs?'/'+latest.total_epochs:''):'—';$('epochSub').textContent=latest.epoch?'последняя известная эпоха':'ожидание истории эпох';$('loss').textContent=fmt(latest.validation_loss);$('warm').textContent=latest.warm_started===true?'ДА':latest.warm_started===false?'НЕТ':'—';$('cycleBar').style.width=Math.min(100,cycle/due*100)+'%';$('cycleProgress').textContent=cycle+' из '+due+' циклов';$('runDetails').innerHTML=[['Workflow',latest.run_id?'#'+latest.run_id:'—'],['Начало',date(latest.started_at)],['Завершение',date(latest.finished_at)],['Реплеи',fmt(latest.replay_count,0)],['Сегменты',fmt(latest.segment_count,0)],['Лучшая эпоха',fmt(latest.best_epoch,0)],['Checkpoint',latest.checkpoint||'—']].map(x=>'<div class="metric-row"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');draw(latest.epoch_history||[]);setMetricRows(latest.metrics||latest.objective_test_metrics||{},latest.validation_head_selection||latest.validation_metrics||{});const best=Number(latest.best_epoch??0),epochs=latest.epoch_history||[];const active=latest.active_target_names||[];$('learningDiagnosis').textContent=best>0?'Обучение улучшило начальный checkpoint на эпохе '+best+'. Записано эпох: '+epochs.length+'. Активные выходы: '+(active.length?active.join(', '):'сведения не переданы')+'.':epochs.length?'ВНИМАНИЕ: ни одна эпоха не улучшила начальный checkpoint (best_epoch = 0). Этот запуск нельзя считать успешным обучением. Эпох: '+epochs.length+'.':'После запуска здесь появится проверка улучшения весов.';const hist=d.history||[];$('historyRows').innerHTML=hist.length?hist.slice().reverse().map(x=>'<tr><td>'+fmt(x.cycle,0)+'</td><td>'+date(x.finished_at||x.started_at)+'</td><td>'+fmt(x.replay_count,0)+' / '+fmt(x.segment_count,0)+'</td><td>'+(x.warm_started?'Да':'Нет')+'</td><td>'+fmt(x.validation_loss)+'</td><td>'+(x.status||'—')+'</td></tr>').join(''):'<tr><td colspan="6" class="empty">Завершённые циклы ещё не опубликованы.</td></tr>';$('dataNote').textContent=d.note||'Показаны только метрики, полученные из обучающего workflow.'}
 const API='https://osu-ai-training-telemetry.anton4ik837.workers.dev';
 let adminSession=sessionStorage.getItem('osu_admin_session')||'';
 function authHeaders(){return adminSession?{Authorization:'Bearer '+adminSession}:{}}
