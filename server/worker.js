@@ -436,6 +436,39 @@ export default {
 
 
 
+    // Private server-to-server consent registry for the scheduled dataset collector.
+    // Never expose this endpoint to app clients: it is protected by INGEST_TOKEN.
+    if (url.pathname === "/api/internal/replay-consents" && request.method === "GET") {
+      const expected = typeof env.INGEST_TOKEN === "string" ? env.INGEST_TOKEN.trim() : "";
+      const supplied = (request.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+      if (!expected || !supplied || supplied !== expected) return apiJson({ error: "unauthorized" }, 401);
+      if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
+      const players = [];
+      let cursor;
+      do {
+        const page = await env.OAUTH_KV.list({ prefix: "replay-consent:", cursor, limit: 1000 });
+        for (const key of page.keys || []) {
+          const raw = await env.OAUTH_KV.get(key.name);
+          if (!raw) continue;
+          let record;
+          try { record = JSON.parse(raw); } catch { continue; }
+          if (record?.consent !== true || record?.consent_version !== "replay-dataset-v2") continue;
+          const userId = Number(record.user_id);
+          if (!Number.isSafeInteger(userId) || userId <= 0) continue;
+          players.push({
+            user_id: userId,
+            consent: true,
+            consent_date: record.accepted_at || null,
+            consent_scope: "replay_download_private_storage_and_ml_training",
+            consent_withdrawn: false,
+            modes: Array.isArray(record.modes) ? record.modes.filter(mode => ["osu", "mania"].includes(mode)) : ["osu", "mania"]
+          });
+        }
+        cursor = page.list_complete ? undefined : page.cursor;
+      } while (cursor);
+      return apiJson({ schema_version: 1, generated_at: new Date().toISOString(), players });
+    }
+
     // Explicit opt-in registry. Consent is tied to the osu! account returned by OAuth.
     if (url.pathname === "/api/me/replay-consent" && (request.method === "GET" || request.method === "POST")) {
       const auth = request.headers.get("authorization") || "";
