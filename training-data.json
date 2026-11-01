@@ -1,0 +1,9 @@
+{
+  "generated_at": null,
+  "status": "unknown",
+  "training_cycles": 1,
+  "comparison_due_at": 7,
+  "latest": null,
+  "history": [],
+  "note": "Интерфейс готов. Публикация live-телеметрии из приватного репозитория Osu-Replay-Dataset ещё не подключена; здесь не показываются выдуманные значения."
+}
