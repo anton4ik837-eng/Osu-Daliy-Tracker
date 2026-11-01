@@ -23,7 +23,7 @@
 <div id="authStatus" class="status" role="status" aria-live="polite">Вход через osu!.</div>
 <div class="update-box" id="replayConsentPanel" style="display:none;margin-top:14px">
  <div class="panel-head"><h3>Обучение Replay AI</h3><span class="pill">Добровольно</span></div>
- <p class="fine">Собираются только твои собственные реплеи после согласия. Ник внутри .osr заменяется на псевдоним участника, файлы получают обезличенные последовательные имена. Сбор идёт отдельными очередями: 100 лучших и 50 последних результатов для каждого режима. До 10 файлов за одну сессию, до 600 в сутки по UTC. Очереди сохраняются на сервере и продолжаются при следующем запуске. Датасет закрытый. При отзыве согласия новые загрузки прекращаются, а файлы удаляются из актуальной версии датасета; GitHub может сохранять старые версии в истории коммитов.</p>
+ <p class="fine">Собираются только твои собственные реплеи после согласия. Ник внутри .osr заменяется на псевдоним участника, файлы получают обезличенные последовательные имена. Сбор идёт отдельными очередями: 100 лучших и 50 последних результатов для каждого режима. До 30 реплеев за запуск (15 STD + 15 Mania при наличии обоих режимов), до 600 в сутки по UTC. Очереди сохраняются на сервере и продолжаются при следующем запуске. Датасет закрытый. При отзыве согласия новые загрузки прекращаются, а файлы удаляются из актуальной версии датасета; GitHub может сохранять старые версии в истории коммитов.</p>
  <label class="fine" style="display:flex;gap:10px;align-items:flex-start;margin:12px 0"><input id="replayConsentToggle" type="checkbox" style="width:auto;margin-top:3px"><span>Я согласен на загрузку моих реплеев, замену игрового ника на ID участника, приватное хранение и использование для обучения Replay AI.</span></label>
  <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="saveReplayConsentButton" class="secondary" type="button" disabled>Сохранить согласие</button><button id="collectRecentButton" class="secondary" type="button" disabled>Собрать последние</button><button id="collectBestButton" class="secondary" type="button" disabled>Собрать лучшие</button></div>
  <div id="replayConsentStatus" class="status" role="status" aria-live="polite">Для настройки подключи аккаунт osu! через OAuth.</div>
@@ -171,7 +171,7 @@ function refreshReplayCollectionButtons(){
   const button=$(type==='best'?'collectBestButton':'collectRecentButton');
   if(!button)continue;
   const remaining=replayCooldownRemaining(type),base=type==='best'?'Собрать лучшие':'Собрать последние';
-  button.disabled=!!replayCollectionInFlight||remaining>0||!replayConsentSession()||!$('replayConsentToggle')?.checked;
+  button.disabled=!!replayCollectionInFlight||remaining>0||!window.__osuOAuthSession?.refreshToken||!$('replayConsentToggle')?.checked;
   button.textContent=remaining>0?base+' ('+Math.ceil(remaining/1000)+' с)':base;
  }
 }
@@ -190,7 +190,7 @@ async function runReplayCollection(type='recent',options={}){
   const d=await r.json();if(!r.ok){if(r.status===429&&d.error==='replay_sync_cooldown'){setReplayCooldown(type,Number(d.retry_after)||60);$('replayConsentStatus').textContent='Эта кнопка будет доступна через '+(Number(d.retry_after)||60)+' сек.';}else if(r.status===429)$('replayConsentStatus').textContent='osu! API временно ограничил запросы. Очередь сохранена; повторим позже.';else throw Error(d.error||'Не удалось собрать реплеи');return}
   const daily=Number(d.daily_uploaded||0);
   if(d.skipped==='daily_limit')$('replayConsentStatus').textContent='Дневной лимит: '+daily+'/'+Number(d.daily_limit||600)+'. Продолжение после '+new Date(d.next_sync_at).toLocaleString('ru-RU')+'.';
-  else $('replayConsentStatus').textContent=(type==='best'?'Лучшие':'Последние')+': +'+Number(d.uploaded||0)+' из 30 за запуск · '+(d.active_modes?.length>1?'до 15 STD + 15 Mania':'до 30 '+(d.active_modes?.[0]==='mania'?'Mania':'STD'))+' · пропущено '+(Number(d.skipped?.unavailable||0)+Number(d.skipped?.already_present||0))+' · сегодня '+daily+'/'+Number(d.daily_limit||600)+'.';
+  else $('replayConsentStatus').textContent=(type==='best'?'Лучшие':'Последние')+': +'+Number(d.uploaded||0)+' из 30 за запуск · '+(d.active_modes?.length>1?'до 15 STD + 15 Mania':d.active_modes?.length===1?'до 30 '+(d.active_modes[0]==='mania'?'Mania':'STD'):'режимы с активной игрой не найдены')+' · пропущено '+(Number(d.skipped?.unavailable||0)+Number(d.skipped?.already_present||0))+' · сегодня '+daily+'/'+Number(d.daily_limit||600)+'.';
  }catch(e){$('replayConsentStatus').textContent='Сбор не выполнен: '+(e.message||String(e))}
  finally{replayCollectionInFlight=false;refreshReplayCollectionButtons()}
 }
