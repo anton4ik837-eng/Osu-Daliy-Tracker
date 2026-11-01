@@ -476,7 +476,7 @@ export default {
     // Never expose this endpoint to app clients: it is protected by INGEST_TOKEN.
     if (url.pathname === "/api/internal/replay-consents" && request.method === "GET") {
       const expected = typeof env.INGEST_TOKEN === "string" ? env.INGEST_TOKEN.trim() : "";
-      const supplied = (request.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+      const supplied = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
       if (!expected || !supplied || supplied !== expected) return apiJson({ error: "unauthorized" }, 401);
       if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
       const players = [];
