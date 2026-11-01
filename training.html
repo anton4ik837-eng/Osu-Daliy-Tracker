@@ -50,7 +50,7 @@
 </div>
 <div class="section"><h2>Карта обучения</h2><p>Путь данных через основные стадии модели · статусы и шаги берутся из GitHub Actions</p></div><div class="pipeline" id="workflowSteps"><div class="empty">Загрузка схемы обучения…</div></div>
 <div class="cols">
-<section class="card chart"><div class="section" style="margin-top:0"><h2>Loss по эпохам</h2><p>Train и validation — для обнаружения переобучения</p></div><canvas id="lossChart" width="900" height="360"></canvas><div class="legend"><span><i class="key"></i>Training loss</span><span><i class="key pink"></i>Validation loss</span></div><div class="empty" id="chartEmpty">История эпох пока не опубликована.</div></section>
+<section class="card chart"><div class="section" style="margin-top:0"><h2>Loss по эпохам</h2><p>Сравнение train и validation за последние пять циклов обучения</p></div><canvas id="lossChart" width="900" height="360"></canvas><div class="legend" id="chartLegend"><span>Цвет — цикл · сплошная — train · пунктир — validation</span></div><div class="empty" id="chartEmpty">История эпох пока не опубликована.</div></section>
 <section class="card"><div class="section" style="margin-top:0"><h2>Текущий запуск</h2><p>Сводка последнего workflow</p></div><div class="metric-list" id="runDetails"><div class="empty">Нет данных о запуске.</div></div><div class="section"><h2>Прогресс плана</h2><p id="cycleLabel">Циклы до сравнения с историческим чемпионом</p><div class="progress"><span id="cycleBar"></span></div><div class="sub" id="cycleProgress">—</div></div></section>
 </div>
 <div class="section"><h2>Качество модели</h2><p>Сравнение с простым baseline на независимой выборке. Положительный результат не означает улучшение всех направлений.</p></div>
@@ -61,7 +61,35 @@
 <div class="foot">OSU! AI TRAINING MONITOR · METRICS FROM REPLAY MODEL TRAINING</div>
 </main><script>
 const $=id=>document.getElementById(id);const fmt=(v,d=4)=>v==null?'—':Number(v).toLocaleString('ru-RU',{maximumFractionDigits:d});const date=v=>{if(!v)return'—';const d=new Date(v);return isNaN(d)?String(v):d.toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'});};
-function draw(history){const c=$('lossChart'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);const rows=(history||[]).filter(x=>Number.isFinite(Number(x.epoch))&&(Number.isFinite(Number(x.train_loss))||Number.isFinite(Number(x.validation_loss))));$('chartEmpty').style.display=rows.length?'none':'block';if(!rows.length)return;const vals=rows.flatMap(x=>[x.train_loss,x.validation_loss]).filter(v=>v!=null&&Number.isFinite(Number(v))).map(Number);let min=Math.min(...vals),max=Math.max(...vals);if(max===min){max+=.001;min=Math.max(0,min-.001)}const l=65,r=25,t=22,b=48,pw=w-l-r,ph=h-t-b;ctx.strokeStyle='#2d4054';ctx.fillStyle='#91a3b9';ctx.font='15px system-ui';ctx.textAlign='right';for(let i=0;i<5;i++){let y=t+ph*i/4;ctx.beginPath();ctx.moveTo(l,y);ctx.lineTo(w-r,y);ctx.stroke();ctx.fillText(fmt(max-(max-min)*i/4,5),l-9,y+5)}function line(key,color){let pts=rows.filter(x=>x[key]!=null&&Number.isFinite(Number(x[key])));if(!pts.length)return;ctx.strokeStyle=color;ctx.lineWidth=4;ctx.beginPath();pts.forEach((x,i)=>{let px=l+pw*(Number(x.epoch)-1)/Math.max(1,Number(rows[rows.length-1].epoch)-1),py=t+ph*(max-Number(x[key]))/(max-min);if(i)ctx.lineTo(px,py);else ctx.moveTo(px,py)});ctx.stroke();}line('train_loss','#57c9e8');line('validation_loss','#fa719e');ctx.fillStyle='#91a3b9';ctx.textAlign='center';ctx.fillText('Эпоха',w/2,h-9)}
+function draw(history){
+ const canvas=$('lossChart'),ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+ ctx.clearRect(0,0,w,h);
+ const rows=(history||[]).filter(x=>Number.isFinite(Number(x.epoch))&&(Number.isFinite(Number(x.train_loss))||Number.isFinite(Number(x.validation_loss))));
+ $('chartEmpty').style.display=rows.length?'none':'block';
+ if(!rows.length)return;
+ const groups=[...new Set(rows.map(x=>String(x.cycle??'текущий')))].sort((a,b)=>Number(a)-Number(b));
+ const vals=rows.flatMap(x=>[x.train_loss,x.validation_loss]).filter(v=>v!=null&&Number.isFinite(Number(v))).map(Number);
+ let min=Math.min(...vals),max=Math.max(...vals);if(max===min){max+=.001;min=Math.max(0,min-.001)}
+ const l=70,r=24,t=24,b=48,pw=w-l-r,ph=h-t-b;
+ ctx.strokeStyle='#2d4054';ctx.fillStyle='#91a3b9';ctx.font='14px system-ui';ctx.textAlign='right';
+ for(let i=0;i<5;i++){const y=t+ph*i/4;ctx.beginPath();ctx.moveTo(l,y);ctx.lineTo(w-r,y);ctx.stroke();ctx.fillText(fmt(max-(max-min)*i/4,5),l-9,y+5)}
+ const maxEpoch=Math.max(1,...rows.map(x=>Number(x.epoch)));
+ for(let gi=0;gi<groups.length;gi++){
+  const cycle=groups[gi],series=rows.filter(x=>String(x.cycle??'текущий')===cycle);
+  const hue=(gi*67+185)%360;
+  for(const [key,dash] of [['train_loss',[]],['validation_loss',[8,6]]]){
+   const pts=series.filter(x=>x[key]!=null&&Number.isFinite(Number(x[key]))).sort((a,b)=>Number(a.epoch)-Number(b.epoch));
+   if(!pts.length)continue;
+   ctx.strokeStyle='hsl('+hue+' 78% '+(key==='train_loss'?'64%':'78%')+')';ctx.lineWidth=3;ctx.setLineDash(dash);ctx.beginPath();
+   pts.forEach((x,i)=>{const px=l+pw*(Number(x.epoch)-1)/Math.max(1,maxEpoch-1),py=t+ph*(max-Number(x[key]))/(max-min);if(i)ctx.lineTo(px,py);else ctx.moveTo(px,py)});
+   ctx.stroke();
+  }
+ }
+ ctx.setLineDash([]);ctx.fillStyle='#91a3b9';ctx.textAlign='center';
+ for(let i=0;i<5;i++){const x=l+pw*i/4;ctx.fillText(String(Math.round(1+(maxEpoch-1)*i/4)),x,h-24)}
+ ctx.fillText('Эпоха каждого цикла · цвет обозначает цикл',w/2,h-7);
+ $('chartLegend').innerHTML=groups.map((cycle,i)=>'<span><i class="key" style="background:hsl('+((i*67+185)%360)+' 78% 64%)"></i>Цикл '+esc(cycle)+'</span>').join('')+'<span>Сплошная — train · пунктир — validation</span>';
+}
 function setMetricRows(metrics){const rows=Object.entries(metrics||{});$('metricRows').innerHTML=rows.length?rows.map(([k,v])=>'<tr><td>'+k.replaceAll('_',' ')+'</td><td>'+fmt(v.mae)+'</td><td>'+fmt(v.baseline_mae)+'</td><td class="'+(v.beats_baseline?'good':'bad')+'">'+(v.beats_baseline?'Лучше baseline':'Хуже baseline')+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">Метрики появятся после оценки модели.</td></tr>'}
 function esc(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
 function stateLabel(s,conclusion){if(s==='in_progress')return'Выполняется';if(s==='queued'||s==='pending')return'Ожидает';if(s==='completed')return conclusion==='success'?'Завершён':conclusion==='skipped'?'Пропущен':'Ошибка';return'—'}
