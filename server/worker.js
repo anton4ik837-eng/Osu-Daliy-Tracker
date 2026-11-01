@@ -493,13 +493,34 @@ export default {
       const dailyKey = "replay-sync-count:" + userId + ":" + day;
       let dailyUploaded = Number(await env.OAUTH_KV.get(dailyKey) || 0);
       const nextDay = new Date(Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate() + 1));
-      const dailyLimit = 600, batchLimit = 10;
+      const dailyLimit = 600, batchLimit = 30;
       if (dailyUploaded >= dailyLimit) return apiJson({ ok: true, skipped: "daily_limit", daily_uploaded: dailyUploaded, daily_limit: dailyLimit, uploaded: 0, next_sync_at: nextDay.toISOString() });
+      const cooldownKey = "replay-sync-cooldown:" + userId + ":" + type;
+      const cooldownUntil = Number(await env.OAUTH_KV.get(cooldownKey) || 0);
+      if (cooldownUntil > now) {
+        return apiJson({ error: "replay_sync_cooldown", retry_after: Math.max(1, Math.ceil((cooldownUntil - now) / 1000)) }, 429);
+      }
+      await env.OAUTH_KV.put(cooldownKey, String(now + 60000), { expirationTtl: 60 });
       const participantId = String(consent.participant_id || "anonymous").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 16) || "anonymous";
       const uploaded = [], skipped = { already_present: 0, unavailable: 0 };
       let apiCalls = 1, processed = 0, complete = true;
+
+      // Detect modes the account actually plays. If both are present, allocate
+      // half of this 30-score session to each; otherwise use all 30 for one mode.
+      const modeAvailability = { osu: Number(profile.statistics?.play_count || 0) > 0, mania: false };
+      const maniaProfileResponse = await fetch("https://osu.ppy.sh/api/v2/me/mania", { headers: userHeaders });
+      apiCalls++;
+      if (maniaProfileResponse.ok) {
+        const maniaProfile = await maniaProfileResponse.json().catch(() => ({}));
+        modeAvailability.mania = Number(maniaProfile.statistics?.play_count || 0) > 0;
+      }
+      const activeModes = ["osu", "mania"].filter(mode => modeAvailability[mode]);
+      const perModeLimit = activeModes.length > 1 ? 15 : 30;
+
       for (const mode of ["osu", "mania"]) {
+        if (!modeAvailability[mode]) continue;
         if (processed >= batchLimit || dailyUploaded >= dailyLimit) { complete = false; break; }
+        let modeProcessed = 0;
         const prefix = mode === "osu" ? "standard" : "mania";
         const filePrefix = mode === "osu" ? "std_" : "mania_";
         const target = type === "best" ? 100 : 50;
@@ -524,8 +545,8 @@ export default {
         let nextReplayNumber;
         try { nextReplayNumber = await getNextReplaySequence(env, "replays/" + prefix, filePrefix); }
         catch (error) { return apiJson({ error: error.message || "dataset_sequence_lookup_failed", uploaded: uploaded.length, daily_uploaded: dailyUploaded }, 502); }
-        while (queue.index < queue.scores.length && processed < batchLimit && dailyUploaded < dailyLimit) {
-          const score = queue.scores[queue.index]; queue.index++; processed++;
+        while (queue.index < queue.scores.length && processed < batchLimit && modeProcessed < perModeLimit && dailyUploaded < dailyLimit) {
+          const score = queue.scores[queue.index]; queue.index++; processed++; modeProcessed++;
           if (score?.has_replay !== true || !score.id) { skipped.unavailable++; continue; }
           const scoreId = String(score.id), uploadedKey = "replay-uploaded:" + userId + ":" + mode + ":" + scoreId;
           if (await env.OAUTH_KV.get(uploadedKey)) { skipped.already_present++; continue; }
@@ -560,7 +581,7 @@ export default {
         await env.OAUTH_KV.put(queueKey, JSON.stringify(queue));
         if (queue.offset < target || queue.index < queue.scores.length) complete = false;
       }
-      return apiJson({ ok: true, type, uploaded: uploaded.length, files: uploaded, skipped, api_calls: apiCalls, daily_uploaded: dailyUploaded, daily_limit: dailyLimit, batch_limit: batchLimit, complete, next_sync_at: nextDay.toISOString() });
+      return apiJson({ ok: true, type, uploaded: uploaded.length, files: uploaded, skipped, api_calls: apiCalls, daily_uploaded: dailyUploaded, daily_limit: dailyLimit, batch_limit: batchLimit, mode_batch_limit: perModeLimit, active_modes: activeModes, complete, next_sync_at: nextDay.toISOString() });
     }
 
     // Return the authenticated user's own profile using the short-lived OAuth access token.
