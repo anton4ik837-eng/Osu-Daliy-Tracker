@@ -450,7 +450,7 @@ export default {
         const userId = String(item?.user_id || "");
         const path = String(item?.path || "");
         const sha = String(item?.sha || "");
-        if (!/^\d{1,15}$/.test(userId) || !/^replays\/(standard|mania)\/(std_|mania_)\d{6}(?:_[a-f0-9]{12})?\.osr$/.test(path) || !/^[a-f0-9]{40}$/.test(sha)) {
+        if (!/^\d{1,15}$/.test(userId) || !/^replays\/(?:standard\/std_|mania\/mania_)[a-f0-9]{32}\.osr$/.test(path) || !/^[a-f0-9]{64}$/.test(sha)) {
           return apiJson({ error: "invalid_file_record" }, 400);
         }
         if (!grouped.has(userId)) grouped.set(userId, []);
@@ -527,10 +527,18 @@ export default {
         await env.OAUTH_KV.delete("replay-sync-last:" + String(profile.id));
         for (const file of files) {
           if (!env.DATASET_GITHUB_TOKEN) { pending.push(file); continue; }
-          const removed = await fetch("https://api.github.com/repos/anton4ik837-eng/Osu-Replay-Dataset/contents/" + file.path.split("/").map(encodeURIComponent).join("/"), {
+          const fileUrl = "https://api.github.com/repos/anton4ik837-eng/Osu-Replay-Dataset/contents/" + file.path.split("/").map(encodeURIComponent).join("/");
+          const githubHeaders = { accept: "application/vnd.github+json", authorization: "Bearer " + env.DATASET_GITHUB_TOKEN, "user-agent": "Osu-Daily-Tracker-Replay-Collector", "x-github-api-version": "2022-11-28" };
+          // The collector stores the content SHA-256, but GitHub's Contents DELETE
+          // requires Git's blob SHA. Resolve the current blob SHA at revocation time.
+          const current = await fetch(fileUrl + "?ref=main", { headers: githubHeaders });
+          if (!current.ok) { pending.push(file); continue; }
+          const currentData = await current.json();
+          if (!currentData?.sha) { pending.push(file); continue; }
+          const removed = await fetch(fileUrl, {
             method: "DELETE",
-            headers: { accept: "application/vnd.github+json", authorization: "Bearer " + env.DATASET_GITHUB_TOKEN, "content-type": "application/json", "user-agent": "Osu-Daily-Tracker-Replay-Collector", "x-github-api-version": "2022-11-28" },
-            body: JSON.stringify({ message: "Remove replay after consent withdrawal", sha: file.sha, branch: "main" })
+            headers: { ...githubHeaders, "content-type": "application/json" },
+            body: JSON.stringify({ message: "Remove replay after consent withdrawal", sha: currentData.sha, branch: "main" })
           });
           if (removed.ok) { if (file.kv_key) await env.OAUTH_KV.delete(file.kv_key); deleted++; }
           else pending.push(file);
