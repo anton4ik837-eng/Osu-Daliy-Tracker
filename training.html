@@ -48,6 +48,7 @@
 <div class="metric-row"><span>Подключение планшета</span><b id="localDeviceStatus">Проверка…</b></div>
 <div class="metric-row"><span>Локальное обучение</span><b id="localJobStatus">Ожидание</b></div>
 <div class="metric-row"><span>Задача</span><b id="localRunId">—</b></div>
+<div class="metric-row" id="localJobErrorRow" hidden><span>Причина ошибки</span><b id="localJobError" style="max-width:70%;text-align:right;overflow-wrap:anywhere"></b></div>
 </div>
 <div class="section" style="margin-top:24px"><h2>Ночное обучение</h2><p>Планировщик добавляет задачу в очередь планшета. Для ночного обучения Termux Agent должен оставаться запущенным.</p></div>
 <div class="metric-list" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
@@ -245,6 +246,9 @@ async function loadLocalTraining(){
   const labels={queued:'В очереди',running:'Обучается',completed:'Завершено',failed:'Ошибка',stopped:'Остановлено'};
   $('localJobStatus').textContent=job?(labels[job.status]||job.status):'Нет запусков';
   $('localRunId').textContent=job?String(job.run_id).slice(0,24):'—';
+  const jobError=job&&job.last_error?String(job.last_error):'';
+  $('localJobErrorRow').hidden=!jobError;
+  $('localJobError').textContent=jobError;
   $('stopTraining').disabled=!(job&&['queued','running'].includes(job.status));
   if(job&&['queued','running'].includes(job.status)){
    $('runStatus').textContent=job.status==='running'?'Обучение на планшете':'Задача ожидает планшет';
