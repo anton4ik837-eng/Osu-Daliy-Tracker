@@ -60,6 +60,13 @@ const STORAGE_KEY='osu-daily-tracker-profile';
 const OAUTH_STATE_KEY='osu-daily-tracker-oauth-state';
 const OAUTH_SESSION_KEY='osu-daily-tracker-oauth-session';
 function persistOAuthSession(){try{if(window.__osuOAuthSession)localStorage.setItem(OAUTH_SESSION_KEY,JSON.stringify(window.__osuOAuthSession));else localStorage.removeItem(OAUTH_SESSION_KEY)}catch{}}
+function clearOAuthSession(){
+ window.__osuOAuthSession=null;
+ try{localStorage.removeItem(OAUTH_SESSION_KEY);sessionStorage.removeItem(OAUTH_SESSION_KEY)}catch{}
+ $('authBadge').textContent='Не подключён';$('authBadge').style.color='';
+ const button=$('authorizeButton');
+ if(button)button.innerHTML='<span class="osu-icon">o!</span> Повторно войти через osu!';
+}
 async function refreshOAuthSession(session){const response=await fetch(API_BASE+'/oauth/refresh',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({refresh_token:session.refreshToken})});const tokens=await response.json();if(!response.ok||!tokens.access_token||!tokens.refresh_token)throw new Error(tokens.error||'Не удалось обновить OAuth-сессию');return{accessToken:tokens.access_token,refreshToken:tokens.refresh_token,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000}}
 const $=id=>document.getElementById(id);
 const fmt=(n,d=0)=>n==null||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString('ru-RU',{maximumFractionDigits:d});
@@ -300,6 +307,7 @@ async function redeemHandoff(handoff){
   if(!profileData||!profileData.id||!profileData.statistics)throw new Error('osu! API не вернул статистику аккаунта.');
   renderProfile(profileData);
   $('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
+  $('authorizeButton').innerHTML='<span class="osu-icon">o!</span> Сменить аккаунт osu!';
   $('osuUser').value=profileData.username||String(profileData.id);
   setStatus('Авторизованный профиль загружен.','success');
   setAuthStatus('Аккаунт подключён: '+(profileData.username||'osu!')+'. Статистика загружена автоматически. Сессия сохранена и будет автоматически обновляться.','success');
@@ -318,15 +326,29 @@ async function initializeNativeOAuthBridge(){
 async function restoreOAuthSession(){
  try{
   const raw=localStorage.getItem(OAUTH_SESSION_KEY)||sessionStorage.getItem(OAUTH_SESSION_KEY);if(!raw)return;
-  let session=JSON.parse(raw);if(!session?.refreshToken){setAuthStatus('Сохранённая сессия не поддерживает автоматическое обновление. Войди ещё раз один раз.','error');return}
+  let session=JSON.parse(raw);
+  if(!session?.refreshToken){
+   clearOAuthSession();
+   setAuthStatus('Старая OAuth-сессия больше не поддерживается. Нажми «Повторно войти через osu!».','error');
+   return;
+  }
   if(!session.accessToken||!Number.isFinite(session.expiresAt)||session.expiresAt<=Date.now()+30000){session=await refreshOAuthSession(session);window.__osuOAuthSession=session;persistOAuthSession()}else window.__osuOAuthSession=session;
   let response=await fetch(API_BASE+'/api/me?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json',Authorization:'Bearer '+session.accessToken}});
   if(response.status===401){session=await refreshOAuthSession(session);window.__osuOAuthSession=session;persistOAuthSession();response=await fetch(API_BASE+'/api/me?mode='+encodeURIComponent(activeMode),{headers:{Accept:'application/json',Authorization:'Bearer '+session.accessToken}})}
   const data=await response.json();if(!response.ok)throw new Error(data.error||'osu! API error');
   if(!data?.id||!data?.statistics)throw new Error('Профиль не вернулся');
   renderProfile(data);$('osuUser').value=data.username||String(data.id);$('authBadge').textContent='Подключён';$('authBadge').style.color='var(--good)';
+  $('authorizeButton').innerHTML='<span class="osu-icon">o!</span> Сменить аккаунт osu!';
   setStatus('Авторизованный профиль восстановлен.','success');setAuthStatus('Аккаунт подключён: '+(data.username||'osu!')+'. Сессия восстановлена.','success');
- }catch(error){setAuthStatus('Не удалось проверить сессию; сохранённые данные не удалены: '+(error?.message||String(error)),'error')}
+ }catch(error){
+  const message=String(error?.message||error);
+  if(/refresh_failed|invalid_refresh_token|invalid_grant|unauthorized|HTTP 401/i.test(message)){
+   clearOAuthSession();
+   setAuthStatus('Старая авторизация osu! больше не действует. Нажми «Повторно войти через osu!» и подтверди вход под нужным аккаунтом.','error');
+  }else{
+   setAuthStatus('Не удалось проверить OAuth-сессию: '+message+'. Сохранённая сессия пока оставлена; проверь соединение и повтори попытку.','error');
+  }
+ }
 }
 initThemeSettings();
 initSettingsOverlay();
