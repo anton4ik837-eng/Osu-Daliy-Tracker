@@ -40,8 +40,9 @@
 <label class="metric-row">Режим <select id="trainMode"><option value="continue">Продолжить обучение</option><option value="fresh">Обучение с нуля</option></select></label>
 <label class="metric-row">Макс. эпохи <input id="trainEpochs" type="number" min="50" max="400" value="300"></label>
 <label class="metric-row">Patience <input id="trainPatience" type="number" min="5" max="50" value="30"></label>
-<label class="metric-row">Trials <input id="trainTrials" type="number" min="1" max="5" value="2"></label></div>
-<div class="sub" style="margin-top:6px">При плато качества тренер автоматически снижает learning rate и продолжает обучение до улучшения или срабатывания patience. Trials сравнивают несколько запусков по validation loss.</div>
+<label class="metric-row">Trials <input id="trainTrials" type="number" min="1" max="5" value="2"></label>
+<label class="metric-row">Learning Rate <input id="trainLearningRate" type="number" min="0.00001" max="0.005" step="0.00001" value="0.00025"></label></div>
+<div class="sub" style="margin-top:6px">Learning Rate — начальная скорость обучения (0.00001–0.005). При плато тренер автоматически уменьшает её. Trials сравнивают несколько запусков по validation loss.</div>
 <div class="actions" style="margin-top:12px"><button class="btn" id="launchTraining">Запустить на планшете</button><button class="btn" id="stopTraining" disabled>Остановить</button><span class="sub" id="launchStatus"></span></div>
 <div class="metric-list" style="margin-top:12px">
 <div class="metric-row"><span>Подключение планшета</span><b id="localDeviceStatus">Проверка…</b></div>
@@ -56,8 +57,9 @@
 <label class="metric-row">Макс. эпохи <input id="nightEpochs" type="number" min="50" max="400" value="400"></label>
 <label class="metric-row">Patience <input id="nightPatience" type="number" min="5" max="50" value="40"></label>
 <label class="metric-row">Trials <input id="nightTrials" type="number" min="1" max="5" value="3"></label>
+<label class="metric-row">Learning Rate <input id="nightLearningRate" type="number" min="0.00001" max="0.005" step="0.00001" value="0.00025"></label>
 </div>
-<div class="sub" style="margin-top:6px">Ночной профиль: до 400 эпох, patience 40 и 3 попытки. Learning rate автоматически уменьшается при плато. Обучение может занять заметно больше времени; текущий цикл не прерывается по окончании окна. Часовой пояс: Asia/Almaty (UTC+5).</div>
+<div class="sub" style="margin-top:6px">Ночной профиль: до 400 эпох, patience 40 и 3 попытки. Learning Rate задаётся вручную и автоматически уменьшается при плато. Обучение может занять заметно больше времени; текущий цикл не прерывается по окончании окна. Часовой пояс: Asia/Almaty (UTC+5).</div>
 <div class="actions" style="margin-top:12px"><button class="btn" id="saveNightSchedule">Сохранить расписание</button><span class="sub" id="nightStatus">Расписание ещё не загружено.</span></div></section>
 <div class="grid">
 <article class="card"><div class="label">Training cycle</div><div class="value" id="cycle">—</div><div class="sub">текущий / запланированный</div></article>
@@ -209,16 +211,16 @@ async function loadNightSchedule(){
  try{
   const r=await fetch(API+'/api/admin/night-training',{headers:authHeaders(),cache:'no-store'});
   const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось загрузить расписание');
-  const v=d.schedule||{};$('nightEnabled').checked=Boolean(v.enabled);$('nightStart').value=v.start_time||'23:00';$('nightEnd').value=v.end_time||'07:00';$('nightEpochs').value=v.night_epochs??400;$('nightPatience').value=v.night_patience??40;$('nightTrials').value=v.night_trials??3;
+  const v=d.schedule||{};$('nightEnabled').checked=Boolean(v.enabled);$('nightStart').value=v.start_time||'23:00';$('nightEnd').value=v.end_time||'07:00';$('nightEpochs').value=v.night_epochs??400;$('nightPatience').value=v.night_patience??40;$('nightTrials').value=v.night_trials??3;$('nightLearningRate').value=v.night_learning_rate??0.00025;
   $('nightStatus').textContent=v.enabled?'Расписание включено. Последняя дата окна: '+(v.last_window_date||'ещё не запускалось'):'Расписание выключено.';
  }catch(e){$('nightStatus').textContent='Ошибка: '+e.message;}
 }
 $('saveNightSchedule').addEventListener('click',async()=>{
  const b=$('saveNightSchedule');b.disabled=true;$('nightStatus').textContent='Сохранение…';
  try{
-  const r=await fetch(API+'/api/admin/night-training',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({enabled:$('nightEnabled').checked,start_time:$('nightStart').value,end_time:$('nightEnd').value,night_epochs:Number($('nightEpochs').value),night_patience:Number($('nightPatience').value),night_trials:Number($('nightTrials').value)})});
+  const r=await fetch(API+'/api/admin/night-training',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({enabled:$('nightEnabled').checked,start_time:$('nightStart').value,end_time:$('nightEnd').value,night_epochs:Number($('nightEpochs').value),night_patience:Number($('nightPatience').value),night_trials:Number($('nightTrials').value),night_learning_rate:Number($('nightLearningRate').value)})});
   const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось сохранить расписание');
-  $('nightStatus').textContent=d.schedule.enabled?'Расписание включено: '+d.schedule.start_time+'–'+d.schedule.end_time+' · '+d.schedule.night_epochs+' эпох / patience '+d.schedule.night_patience+' / '+d.schedule.night_trials+' trials (Asia/Almaty).':'Ночное обучение выключено. Параметры сохранены.';
+  $('nightStatus').textContent=d.schedule.enabled?'Расписание включено: '+d.schedule.start_time+'–'+d.schedule.end_time+' · '+d.schedule.night_epochs+' эпох / patience '+d.schedule.night_patience+' / '+d.schedule.night_trials+' trials / LR '+d.schedule.night_learning_rate+' (Asia/Almaty).':'Ночное обучение выключено. Параметры сохранены.';
  }catch(e){$('nightStatus').textContent='Ошибка: '+e.message;}finally{b.disabled=false;}
 });
 async function initAuth(){
@@ -259,7 +261,7 @@ async function loadLocalTraining(){
 $('launchTraining').addEventListener('click',async()=>{
  const button=$('launchTraining');button.disabled=true;$('launchStatus').textContent='Добавление задачи в очередь планшета…';
  try{
-  const r=await fetch(API+'/api/admin/local-training',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({training_mode:$('trainMode').value,epochs:Number($('trainEpochs').value),patience:Number($('trainPatience').value),trials:Number($('trainTrials').value)})});
+  const r=await fetch(API+'/api/admin/local-training',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({training_mode:$('trainMode').value,epochs:Number($('trainEpochs').value),patience:Number($('trainPatience').value),trials:Number($('trainTrials').value),learning_rate:Number($('trainLearningRate').value)})});
   const d=await r.json();if(!r.ok)throw Error(d.error||'Ошибка запуска');
   $('launchStatus').textContent='Задача передана планшету. GitHub Actions не запускался.';
   await loadLocalTraining();
