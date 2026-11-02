@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: osu-daily-tracker-v3.2.5
-          path: osu-daily-tracker-v0.4.0-prealpha.apk
+          path: osu-daily-tracker-v3.2.5.apk
           if-no-files-found: error
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
@@ -62,4 +62,4 @@ jobs:
             - Исправлена палитра Miyabi: сине-голубые оттенки.
 
             APK собран для Android.
-          files: osu-daily-tracker-v0.4.0-prealpha.apk
+          files: osu-daily-tracker-v3.2.5.apk
