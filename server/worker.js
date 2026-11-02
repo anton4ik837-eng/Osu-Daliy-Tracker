@@ -450,7 +450,7 @@ export default {
         const userId = String(item?.user_id || "");
         const path = String(item?.path || "");
         const sha = String(item?.sha || "");
-        if (!/^\d{1,15}$/.test(userId) || !/^replays\/(standard|mania)\/(std_|mania_)\d{6}(?:_[a-f0-9]{12})?\.osr$/.test(path) || !/^[a-f0-9]{40}$/.test(sha)) {
+        if (!/^\d{1,15}$/.test(userId) || !/^replays\/(?:standard\/std_|mania\/mania_)[a-f0-9]{32}\.osr$/.test(path) || !/^[a-f0-9]{64}$/.test(sha)) {
           return apiJson({ error: "invalid_file_record" }, 400);
         }
         if (!grouped.has(userId)) grouped.set(userId, []);
