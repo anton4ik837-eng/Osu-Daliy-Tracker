@@ -54,6 +54,7 @@
 <div class="section" style="margin-top:24px"><h2>Анализ видео коучеров · Gemini 3</h2><p>Добавь публичную YouTube-ссылку. Анализ выполнится на сервере через выделенный ключ GEMINI_TRAINING_KEY_3; результат сохранится как предложение на проверку и не попадёт в обучение автоматически.</p></div>
 <div class="metric-list" style="grid-template-columns:minmax(0,1fr) auto;align-items:end">
 <label class="metric-row" style="display:grid;gap:6px">YouTube URL <input id="coachVideoUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="url"></label>
+<label class="metric-row" style="display:flex;align-items:center;gap:8px"><input id="coachVideoPermission" type="checkbox"> У меня есть права на ML-использование этого видео</label>
 <button class="btn" id="analyzeCoachVideo">Анализировать видео</button>
 </div>
 <div class="sub" id="coachVideoStatus" style="margin-top:8px">Поддерживаются публичные видео YouTube. Видео и результаты не записываются в D1.</div>
@@ -273,9 +274,10 @@ async function loadLocalTraining(){
 $('analyzeCoachVideo').addEventListener('click',async()=>{
  const button=$('analyzeCoachVideo'), url=$('coachVideoUrl').value.trim();
  if(!url){$('coachVideoStatus').textContent='Вставь публичную ссылку YouTube.';return;}
+ if(!$('coachVideoPermission').checked){$('coachVideoStatus').textContent='Для ML-обучения нужно подтвердить права на использование видео.';return;}
  button.disabled=true;$('coachVideoStatus').textContent='Проверка ссылки и постановка задачи в очередь…';
  try{
-  const r=await fetch(API+'/api/admin/coach-video',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({video_url:url})});
+  const r=await fetch(API+'/api/admin/coach-video',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({video_url:url,usage_permission_confirmed:true})});
   const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось отправить видео на анализ');
   $('coachVideoStatus').textContent='Задача поставлена в очередь · ID видео: '+d.video_id+'. После обработки появится review-only JSON в labels/coach_video_proposals/.';
  }catch(e){$('coachVideoStatus').textContent='Ошибка: '+e.message;}
