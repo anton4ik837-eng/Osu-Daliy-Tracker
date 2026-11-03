@@ -38,7 +38,7 @@
 <section class="card" id="adminPanel" style="display:none;margin:14px 0"><div class="section" style="margin-top:0"><h2>Управление обучением на планшете</h2><p>Сайт ставит задачу в очередь. Python и NumPy выполняют обучение локально в Termux; GitHub Actions для этого не запускается.</p></div>
 <div class="metric-list" style="grid-template-columns:repeat(auto-fit,minmax(145px,1fr))">
 <label class="metric-row">Режим <select id="trainMode"><option value="continue">Продолжить обучение</option><option value="fresh">Обучение с нуля</option></select></label>
-<label class="metric-row">Архитектура <select id="hiddenUnits"><option value="32">32 нейрона · базовая</option><option value="64" selected>64 нейрона · экспериментальная</option></select></label>
+<label class="metric-row">Архитектура <select id="hiddenUnits"><option value="32">32 нейрона</option><option value="64" selected>64 нейрона</option><option value="128">128 нейронов</option><option value="256">256 нейронов</option></select></label>
 <label class="metric-row">Макс. эпохи <input id="trainEpochs" type="number" min="50" max="400" value="300"></label>
 <label class="metric-row">Patience <input id="trainPatience" type="number" min="5" max="50" value="30"></label>
 <label class="metric-row">Trials <input id="trainTrials" type="number" min="1" max="5" value="2"></label>
@@ -60,7 +60,7 @@
 <label class="metric-row">Patience <input id="nightPatience" type="number" min="5" max="50" value="40"></label>
 <label class="metric-row">Trials <input id="nightTrials" type="number" min="1" max="5" value="3"></label>
 <label class="metric-row">Learning Rate <input id="nightLearningRate" type="number" min="0.00001" max="0.005" step="0.00001" value="0.00025"></label>
-<label class="metric-row">Архитектура <select id="nightHiddenUnits"><option value="32">32 нейрона</option><option value="64">64 нейрона · экспериментальная</option></select></label>
+<label class="metric-row">Архитектура <select id="nightHiddenUnits"><option value="32">32 нейрона</option><option value="64" selected>64 нейрона</option><option value="128">128 нейронов</option><option value="256">256 нейронов</option></select></label>
 </div>
 <div class="sub" style="margin-top:6px">Ночной профиль: до 400 эпох, patience 40 и 3 попытки. Learning Rate задаётся вручную и автоматически уменьшается при плато. Обучение может занять заметно больше времени; текущий цикл не прерывается по окончании окна. Часовой пояс: Asia/Almaty (UTC+5).</div>
 <div class="actions" style="margin-top:12px"><button class="btn" id="saveNightSchedule">Сохранить расписание</button><span class="sub" id="nightStatus">Расписание ещё не загружено.</span></div></section>
@@ -214,7 +214,7 @@ async function loadNightSchedule(){
  try{
   const r=await fetch(API+'/api/admin/night-training',{headers:authHeaders(),cache:'no-store'});
   const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось загрузить расписание');
-  const v=d.schedule||{};$('nightEnabled').checked=Boolean(v.enabled);$('nightStart').value=v.start_time||'23:00';$('nightEnd').value=v.end_time||'07:00';$('nightEpochs').value=v.night_epochs??400;$('nightPatience').value=v.night_patience??40;$('nightTrials').value=v.night_trials??3;$('nightLearningRate').value=v.night_learning_rate??0.00025;$('nightHiddenUnits').value=String(v.night_hidden_units??32);
+  const v=d.schedule||{};$('nightEnabled').checked=Boolean(v.enabled);$('nightStart').value=v.start_time||'23:00';$('nightEnd').value=v.end_time||'07:00';$('nightEpochs').value=v.night_epochs??400;$('nightPatience').value=v.night_patience??40;$('nightTrials').value=v.night_trials??3;$('nightLearningRate').value=v.night_learning_rate??0.00025;$('nightHiddenUnits').value=String(v.night_hidden_units??64);
   $('nightStatus').textContent=v.enabled?'Расписание включено. Последняя дата окна: '+(v.last_window_date||'ещё не запускалось'):'Расписание выключено.';
  }catch(e){$('nightStatus').textContent='Ошибка: '+e.message;}
 }
