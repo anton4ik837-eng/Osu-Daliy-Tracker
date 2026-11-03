@@ -1,0 +1,89 @@
+name: Gemini video coach knowledge
+
+run-name: "Gemini video analysis — ${{ inputs.video_url }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: "Public YouTube URL of an osu! coaching video"
+        required: true
+        type: string
+      usage_permission_confirmed:
+        description: "I own this video or have explicit creator permission for ML training use"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gemini-video-coach
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    if: ${{ inputs.usage_permission_confirmed }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout public app workflow repository
+        uses: actions/checkout@v4
+
+      - name: Checkout private dataset and video processor
+        uses: actions/checkout@v4
+        with:
+          repository: anton4ik837-eng/Osu-Replay-Dataset
+          ref: main
+          path: dataset
+          token: ${{ secrets.DATASET_REPO_TOKEN }}
+
+      - name: Verify secrets
+        env:
+          GEMINI_TRAINING_KEY_3: ${{ secrets.GEMINI_TRAINING_KEY_3 }}
+          DATASET_REPO_TOKEN: ${{ secrets.DATASET_REPO_TOKEN }}
+        run: |
+          test -n "$GEMINI_TRAINING_KEY_3" || { echo "::error::GEMINI_TRAINING_KEY_3 is missing"; exit 1; }
+          test -n "$DATASET_REPO_TOKEN" || { echo "::error::DATASET_REPO_TOKEN is missing"; exit 1; }
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate and analyze video with Gemini
+        working-directory: dataset
+        env:
+          GEMINI_TRAINING_KEY_3: ${{ secrets.GEMINI_TRAINING_KEY_3 }}
+          GEMINI_VIDEO_MODEL: gemini-3.8-flash
+          VIDEO_URL: ${{ inputs.video_url }}
+        run: |
+          python -m py_compile tools/gemini_video_coach.py
+          python -m unittest discover -s tests -p 'test_gemini_video_coach.py' -v
+          python tools/gemini_video_coach.py --video-url "$VIDEO_URL" --usage-permission-confirmed
+
+      - name: Publish review-only proposal to private dataset
+        working-directory: dataset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          git add labels/coach_video_proposals/
+          if ! git diff --cached --quiet; then
+            git commit -m "Add Gemini video coaching knowledge proposal"
+            git push origin HEAD:main
+          else
+            echo "No new video knowledge proposal was generated."
+          fi
+
+      - name: Report result
+        if: always()
+        run: |
+          {
+            echo "### Gemini video analysis"
+            echo "- Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "- Dataset: private `Osu-Replay-Dataset`"
+            echo "- Model: `gemini-3.8-flash`"
+            echo "- Automatic model training: disabled"
+          } >> "$GITHUB_STEP_SUMMARY"
