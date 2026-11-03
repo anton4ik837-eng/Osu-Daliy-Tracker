@@ -51,6 +51,13 @@
 <div class="metric-row"><span>Задача</span><b id="localRunId">—</b></div>
 <div class="metric-row" id="localJobErrorRow" hidden><span>Причина ошибки</span><b id="localJobError" style="max-width:70%;text-align:right;overflow-wrap:anywhere"></b></div>
 </div>
+<div class="section" style="margin-top:24px"><h2>Анализ видео коучеров · Gemini 3</h2><p>Добавь публичную YouTube-ссылку. Анализ выполнится на сервере через выделенный ключ GEMINI_TRAINING_KEY_3; результат сохранится как предложение на проверку и не попадёт в обучение автоматически.</p></div>
+<div class="metric-list" style="grid-template-columns:minmax(0,1fr) auto;align-items:end">
+<label class="metric-row" style="display:grid;gap:6px">YouTube URL <input id="coachVideoUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="url"></label>
+<label class="metric-row" style="display:flex;align-items:center;gap:8px"><input id="coachVideoPermission" type="checkbox"> У меня есть права на ML-использование этого видео</label>
+<button class="btn" id="analyzeCoachVideo">Анализировать видео</button>
+</div>
+<div class="sub" id="coachVideoStatus" style="margin-top:8px">Поддерживаются публичные видео YouTube. Видео и результаты не записываются в D1.</div>
 <div class="section" style="margin-top:24px"><h2>Ночное обучение</h2><p>Планировщик добавляет задачу в очередь планшета. Для ночного обучения Termux Agent должен оставаться запущенным.</p></div>
 <div class="metric-list" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
 <label class="metric-row" style="align-items:center">Включить расписание <input id="nightEnabled" type="checkbox"></label>
@@ -264,6 +271,18 @@ async function loadLocalTraining(){
   $('localDeviceStatus').textContent='Ошибка связи';$('localJobStatus').textContent=e.message;$('stopTraining').disabled=true;
  }
 }
+$('analyzeCoachVideo').addEventListener('click',async()=>{
+ const button=$('analyzeCoachVideo'), url=$('coachVideoUrl').value.trim();
+ if(!url){$('coachVideoStatus').textContent='Вставь публичную ссылку YouTube.';return;}
+ if(!$('coachVideoPermission').checked){$('coachVideoStatus').textContent='Для ML-обучения нужно подтвердить права на использование видео.';return;}
+ button.disabled=true;$('coachVideoStatus').textContent='Проверка ссылки и постановка задачи в очередь…';
+ try{
+  const r=await fetch(API+'/api/admin/coach-video',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({video_url:url,usage_permission_confirmed:true})});
+  const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось отправить видео на анализ');
+  $('coachVideoStatus').textContent='Задача поставлена в очередь · ID видео: '+d.video_id+'. После обработки появится review-only JSON в labels/coach_video_proposals/.';
+ }catch(e){$('coachVideoStatus').textContent='Ошибка: '+e.message;}
+ finally{button.disabled=false;}
+});
 $('launchTraining').addEventListener('click',async()=>{
  const button=$('launchTraining');button.disabled=true;$('launchStatus').textContent='Добавление задачи в очередь планшета…';
  try{
@@ -284,12 +303,12 @@ $('stopTraining').addEventListener('click',async()=>{
 });
 async function refresh(){ $('refresh').disabled=true;try{
 let data={status:'unknown',latest:{},history:[],training_cycles:0};
-try{const live=await fetch('https://osu-ai-training-telemetry.anton4ik837.workers.dev/api/telemetry?ts='+Date.now(),{cache:'no-store'});if(live.ok){const v=await live.json();if(v&&typeof v==='object')data={...data,...v,latest:{...(v.latest||{})}};}}catch(_){}
+try{const live=await fetch('https://osu-ai-training-telemetry.anton4ik837.workers.dev/api/telemetry',{cache:'default'});if(live.ok){const v=await live.json();if(v&&typeof v==='object')data={...data,...v,latest:{...(v.latest||{})}};}}catch(_){}
 render(data);
-try{const wr=await fetch('https://osu-ai-training-telemetry.anton4ik837.workers.dev/api/workflow?ts='+Date.now(),{cache:'no-store'});if(wr.ok){const snap=await wr.json();const latest=snap.latest||null;if(latest&&Array.isArray(latest.jobs)&&latest.jobs.length){renderWorkflowJobs(latest.jobs);$('runStatus').textContent=latest.status==='in_progress'?'Обучение выполняется':latest.conclusion==='failure'?'Последний запуск завершился с ошибкой':'Последний запуск завершён';$('statusDot').className='dot '+(latest.status==='in_progress'?'live':latest.conclusion==='failure'?'bad':'');$('runDetails').innerHTML += '<div class="metric-row"><span>GitHub Actions</span><b>#'+esc(String(latest.run_number||latest.run_id))+'</b></div>';}
+try{const wr=await fetch('https://osu-ai-training-telemetry.anton4ik837.workers.dev/api/workflow',{cache:'default'});if(wr.ok){const snap=await wr.json();const latest=snap.latest||null;if(latest&&Array.isArray(latest.jobs)&&latest.jobs.length){renderWorkflowJobs(latest.jobs);$('runStatus').textContent=latest.status==='in_progress'?'Обучение выполняется':latest.conclusion==='failure'?'Последний запуск завершился с ошибкой':'Последний запуск завершён';$('statusDot').className='dot '+(latest.status==='in_progress'?'live':latest.conclusion==='failure'?'bad':'');$('runDetails').innerHTML += '<div class="metric-row"><span>GitHub Actions</span><b>#'+esc(String(latest.run_number||latest.run_id))+'</b></div>';}
 else{$('workflowSteps').innerHTML='<div class="empty">Ожидается публикация этапов из приватного GitHub Actions.</div>';if(data.status==='unknown'||data.status==='idle')$('runStatus').textContent='Ожидание данных о запуске';}
 }else{$('workflowSteps').innerHTML='<div class="empty">Worker пока не предоставляет снимок этапов. Требуется обновление Worker.</div>';}}catch(_){$('workflowSteps').innerHTML='<div class="empty">Не удалось получить снимок этапов обучения.</div>';}
 if(adminSession) await loadLocalTraining();
 }catch(e){$('runStatus').textContent='Не удалось обновить данные';$('statusDot').className='dot bad';$('dataNote').textContent='Ошибка обновления: '+e.message;}finally{$('refresh').disabled=false}}
-$('refresh').addEventListener('click',refresh);initAuth();refresh();setInterval(refresh,10000);
+$('refresh').addEventListener('click',refresh);initAuth();refresh();setInterval(refresh,60000);
 </script></body></html>
