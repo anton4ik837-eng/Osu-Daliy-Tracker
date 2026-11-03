@@ -40,7 +40,7 @@
 <label class="metric-row">Режим <select id="trainMode"><option value="continue">Продолжить обучение</option><option value="fresh">Обучение с нуля</option></select></label>
 <label class="metric-row">Архитектура <select id="hiddenUnits"><option value="32">32 нейрона</option><option value="64" selected>64 нейрона</option><option value="128">128 нейронов</option><option value="256">256 нейронов</option></select></label>
 <label class="metric-row">Макс. эпохи <input id="trainEpochs" type="number" min="50" max="400" value="300"></label>
-<label class="metric-row">Patience <input id="trainPatience" type="number" min="5" max="50" value="30"></label>
+<label class="metric-row">Patience (0 = выкл.) <input id="trainPatience" type="number" min="0" max="50" value="0"></label>
 <label class="metric-row">Trials <input id="trainTrials" type="number" min="1" max="5" value="2"></label>
 <label class="metric-row">Learning Rate <input id="trainLearningRate" type="number" min="0.00001" max="0.005" step="0.00001" value="0.00025"></label></div>
 <div class="sub" style="margin-top:6px">Learning Rate — начальная скорость обучения (0.00001–0.005). При плато тренер автоматически уменьшает её. Trials сравнивают несколько запусков по validation loss.</div>
@@ -57,12 +57,12 @@
 <label class="metric-row">Начало <input id="nightStart" type="time" value="23:00"></label>
 <label class="metric-row">Окончание <input id="nightEnd" type="time" value="07:00"></label>
 <label class="metric-row">Макс. эпохи <input id="nightEpochs" type="number" min="50" max="400" value="400"></label>
-<label class="metric-row">Patience <input id="nightPatience" type="number" min="5" max="50" value="40"></label>
+<label class="metric-row">Patience (0 = выкл.) <input id="nightPatience" type="number" min="0" max="50" value="0"></label>
 <label class="metric-row">Trials <input id="nightTrials" type="number" min="1" max="5" value="3"></label>
 <label class="metric-row">Learning Rate <input id="nightLearningRate" type="number" min="0.00001" max="0.005" step="0.00001" value="0.00025"></label>
 <label class="metric-row">Архитектура <select id="nightHiddenUnits"><option value="32">32 нейрона</option><option value="64" selected>64 нейрона</option><option value="128">128 нейронов</option><option value="256">256 нейронов</option></select></label>
 </div>
-<div class="sub" style="margin-top:6px">Ночной профиль: до 400 эпох, patience 40 и 3 попытки. Learning Rate задаётся вручную и автоматически уменьшается при плато. Обучение может занять заметно больше времени; текущий цикл не прерывается по окончании окна. Часовой пояс: Asia/Almaty (UTC+5).</div>
+<div class="sub" style="margin-top:6px">Ночной профиль: до 400 эпох и 3 попытки. Patience = 0 отключает раннюю остановку; Learning Rate автоматически уменьшается при плато только при включённом Patience. Обучение может занять заметно больше времени; текущий цикл не прерывается по окончании окна. Часовой пояс: Asia/Almaty (UTC+5).</div>
 <div class="actions" style="margin-top:12px"><button class="btn" id="saveNightSchedule">Сохранить расписание</button><span class="sub" id="nightStatus">Расписание ещё не загружено.</span></div></section>
 <div class="grid">
 <article class="card"><div class="label">Training cycle</div><div class="value" id="cycle">—</div><div class="sub">текущий / запланированный</div></article>
