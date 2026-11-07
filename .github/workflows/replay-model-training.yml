@@ -1,0 +1,298 @@
+name: Replay model training (public runner)
+
+on:
+  workflow_dispatch:
+    inputs:
+      training_mode:
+        description: "Continue from the last trained checkpoint or start fresh"
+        required: true
+        type: choice
+        options: [continue, fresh]
+        default: continue
+      epochs:
+        description: "Maximum epochs"
+        required: true
+        type: string
+        default: "300"
+      patience:
+        description: "Early stopping patience (0 disables it)"
+        required: true
+        type: string
+        default: "0"
+      trials:
+        description: "Independent training trials"
+        required: true
+        type: string
+        default: "2"
+      learning_rate:
+        description: "Initial learning rate"
+        required: true
+        type: string
+        default: "0.00025"
+      hidden_units:
+        description: "Hidden layer width"
+        required: true
+        type: choice
+        options: ["32", "64", "128", "256", "512"]
+        default: "256"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: replay-model-training
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout private replay dataset
+        uses: actions/checkout@v4
+        with:
+          repository: anton4ik837-eng/Osu-Replay-Dataset
+          ref: main
+          path: dataset
+          token: ${{ secrets.DATASET_GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install training dependency
+        run: python -m pip install -r training/requirements.txt
+      - name: Validate trainer and training parameters
+        env:
+          EPOCHS: ${{ inputs.epochs }}
+          PATIENCE: ${{ inputs.patience }}
+          TRIALS: ${{ inputs.trials }}
+          LEARNING_RATE: ${{ inputs.learning_rate }}
+          HIDDEN_UNITS: ${{ inputs.hidden_units }}
+        working-directory: dataset
+        run: |
+          python -m py_compile training/train_diagnostic_model.py training/compare_models.py
+          python - <<'PY'
+          import os
+          epochs=int(os.environ["EPOCHS"]); patience=int(os.environ["PATIENCE"])
+          trials=int(os.environ["TRIALS"]); lr=float(os.environ["LEARNING_RATE"])
+          hidden=int(os.environ["HIDDEN_UNITS"])
+          if not 50 <= epochs <= 400: raise SystemExit("epochs must be 50..400")
+          if not 0 <= patience <= 50: raise SystemExit("patience must be 0..50")
+          if not 1 <= trials <= 5: raise SystemExit("trials must be 1..5")
+          if not 0.00001 <= lr <= 0.005: raise SystemExit("learning_rate out of range")
+          if hidden not in (32,64,128,256,512): raise SystemExit("unsupported hidden_units")
+          PY
+      - name: Select warm-start checkpoint
+        id: checkpoint
+        env:
+          TRAINING_MODE: ${{ inputs.training_mode }}
+        working-directory: dataset
+        run: |
+          mkdir -p "$RUNNER_TEMP/replay-training"
+          if [ "$TRAINING_MODE" = "continue" ] && [ -s models/replay-diagnostic-last-trained.json ]; then
+            echo "path=models/replay-diagnostic-last-trained.json" >> "$GITHUB_OUTPUT"
+            echo "Using last trained checkpoint."
+          elif [ "$TRAINING_MODE" = "continue" ] && [ -s models/replay-diagnostic-model.json ]; then
+            echo "path=models/replay-diagnostic-model.json" >> "$GITHUB_OUTPUT"
+            echo "No last-trained checkpoint; using current champion as warm start."
+          else
+            echo "path=" >> "$GITHUB_OUTPUT"
+            echo "Training from fresh initialization."
+          fi
+      - name: Train model and stream live telemetry
+        env:
+          EPOCHS: ${{ inputs.epochs }}
+          PATIENCE: ${{ inputs.patience }}
+          TRIALS: ${{ inputs.trials }}
+          LEARNING_RATE: ${{ inputs.learning_rate }}
+          HIDDEN_UNITS: ${{ inputs.hidden_units }}
+          INIT_MODEL: ${{ steps.checkpoint.outputs.path }}
+          TELEMETRY_URL: https://osu-ai-training-telemetry.anton4ik837.workers.dev/api/workflow
+          TELEMETRY_INGEST_TOKEN: ${{ secrets.TELEMETRY_INGEST_TOKEN }}
+        working-directory: dataset
+        run: |
+          set -euo pipefail
+          RUN_DIR="models/checkpoints/run-${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "$RUN_DIR"
+          TELEMETRY_LOG="$RUNNER_TEMP/replay-training/telemetry.jsonl"
+          TRAIN_LOG="$RUN_DIR/training.log"
+          export LOCAL_TRAINING_RUN_ID="$GITHUB_RUN_ID"
+          export LOCAL_TRAINING_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT"
+          export GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_SERVER_URL GITHUB_REPOSITORY
+          python -u - "$RUN_DIR" "$TELEMETRY_LOG" "$TRAIN_LOG" <<'PY'
+          import json, os, subprocess, sys, time, urllib.request, urllib.error
+          from pathlib import Path
+          run_dir, telemetry_name, log_name = map(Path, sys.argv[1:])
+          telemetry_name.parent.mkdir(parents=True, exist_ok=True)
+          candidate = run_dir / "replay-diagnostic-model.candidate.json"
+          cmd = [sys.executable, "training/train_diagnostic_model.py", "--data-root", ".",
+                 "--output", str(candidate), "--segments-output", str(run_dir / "diagnostic_segments.jsonl"),
+                 "--epochs", os.environ["EPOCHS"], "--hidden", os.environ["HIDDEN_UNITS"],
+                 "--patience", os.environ["PATIENCE"], "--trials", os.environ["TRIALS"],
+                 "--learning-rate", os.environ["LEARNING_RATE"], "--telemetry-log", str(telemetry_name)]
+          if os.environ.get("INIT_MODEL"):
+              cmd += ["--init-model", os.environ["INIT_MODEL"]]
+          env = dict(os.environ, PYTHONUNBUFFERED="1")
+          offset = 0
+          with log_name.open("w", encoding="utf-8") as log:
+              process = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env)
+              while process.poll() is None:
+                  if telemetry_name.exists():
+                      with telemetry_name.open(encoding="utf-8") as stream:
+                          stream.seek(offset)
+                          while True:
+                              line = stream.readline()
+                              if not line: break
+                              offset = stream.tell()
+                              try: event=json.loads(line)
+                              except Exception: continue
+                              if not os.environ.get("TELEMETRY_INGEST_TOKEN"):
+                                  continue
+                              req=urllib.request.Request(os.environ["TELEMETRY_URL"], data=json.dumps(event).encode(),
+                                  headers={"Authorization":"Bearer "+os.environ["TELEMETRY_INGEST_TOKEN"],"Content-Type":"application/json"},
+                                  method="POST")
+                              try:
+                                  with urllib.request.urlopen(req,timeout=15) as response: response.read()
+                              except Exception as exc:
+                                  print("Telemetry delivery warning:",str(exc)[:300],flush=True)
+                  time.sleep(2)
+              code=process.wait()
+              if telemetry_name.exists():
+                  with telemetry_name.open(encoding="utf-8") as stream:
+                      stream.seek(offset)
+                      for line in stream:
+                          try: event=json.loads(line)
+                          except Exception: continue
+                          if os.environ.get("TELEMETRY_INGEST_TOKEN"):
+                              req=urllib.request.Request(os.environ["TELEMETRY_URL"],data=json.dumps(event).encode(),
+                                  headers={"Authorization":"Bearer "+os.environ["TELEMETRY_INGEST_TOKEN"],"Content-Type":"application/json"},method="POST")
+                              try:
+                                  with urllib.request.urlopen(req,timeout=15) as response: response.read()
+                              except Exception as exc: print("Final telemetry warning:",str(exc)[:300],flush=True)
+              if code:
+                  print(log_name.read_text(encoding="utf-8",errors="replace")[-6000:])
+                  raise SystemExit(code)
+          if not candidate.is_file():
+              raise SystemExit("Trainer exited without a candidate checkpoint.")
+          model=json.loads(candidate.read_text(encoding="utf-8"))
+          if model.get("model_type")!="objective_replay_outcome_evaluator" or not model.get("weights"):
+              raise SystemExit("Candidate checkpoint failed model validation.")
+          training=model.get("training",{})
+          if not training.get("validation_improved"):
+              print("WARNING: validation did not improve over initialization; candidate will be archived but not used as warm-start.")
+              (run_dir/"warm-start-eligible.txt").write_text("false\n")
+          else:
+              (run_dir/"warm-start-eligible.txt").write_text("true\n")
+          PY
+      - name: Evaluate candidate without promoting champion
+        env:
+          RUN_DIR: models/checkpoints/run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+        working-directory: dataset
+        run: |
+          set -euo pipefail
+          CANDIDATE="$RUN_DIR/replay-diagnostic-model.candidate.json"
+          REPORT="$RUN_DIR/quality-gate-report.json"
+          if [ -s models/replay-diagnostic-model.json ]; then
+            if ! python training/compare_models.py --data-root . \
+              --incumbent models/replay-diagnostic-model.json \
+              --candidate "$CANDIDATE" \
+              --merged-output "$RUN_DIR/replay-diagnostic-model.merged.json" \
+              --report-output "$REPORT" \
+              --min-relative-improvement 0.01; then
+              echo "Independent comparison could not finish; candidate remains archived and champion is untouched."
+              printf '{"quality_gate":"not_completed","promotion_allowed":false,"promotion_requires_user_approval":true,"champion_modified":false}\n' > "$REPORT"
+            fi
+          else
+            python - "$CANDIDATE" "$REPORT" <<'PY'
+          import json,sys
+          m=json.load(open(sys.argv[1],encoding="utf-8"))
+          t=m.get("training",{})
+          json.dump({"quality_gate":"first_model_validation","validation_improved":bool(t.get("validation_improved")),
+            "promotion_allowed":False,"promotion_requires_user_approval":True},open(sys.argv[2],"w",encoding="utf-8"),indent=2)
+          PY
+          fi
+          python - "$REPORT" <<'PY'
+          import json,sys
+          p=sys.argv[1]; d=json.load(open(p,encoding="utf-8"))
+          d["promotion_requires_user_approval"]=True
+          d["champion_modified"]=False
+          json.dump(d,open(p,"w",encoding="utf-8"),ensure_ascii=False,indent=2)
+          PY
+      - name: Save last-trained checkpoint (not champion)
+        if: success()
+        env:
+          RUN_DIR: models/checkpoints/run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+        working-directory: dataset
+        run: |
+          if [ "$(cat "$RUN_DIR/warm-start-eligible.txt")" = "true" ]; then
+            cp "$RUN_DIR/replay-diagnostic-model.candidate.json" models/replay-diagnostic-last-trained.json
+            echo "Updated warm-start checkpoint only; champion model remains unchanged."
+          else
+            echo "Kept previous warm-start checkpoint because validation did not improve."
+          fi
+          cat > "$RUN_DIR/manifest.json" <<EOF
+          {
+            "run_id": "${GITHUB_RUN_ID}",
+            "run_attempt": ${GITHUB_RUN_ATTEMPT},
+            "executor": "github-actions",
+            "candidate": "$RUN_DIR/replay-diagnostic-model.candidate.json",
+            "warm_start_updated": $( [ "$(cat "$RUN_DIR/warm-start-eligible.txt")" = "true" ] && echo true || echo false ),
+            "champion_modified": false,
+            "promotion_requires_user_approval": true
+          }
+          EOF
+      - name: Upload checkpoint artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replay-model-training-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dataset/models/checkpoints/run-${{ github.run_id }}-attempt-${{ github.run_attempt }}/
+          retention-days: 90
+          if-no-files-found: warn
+      - name: Publish checkpoint files
+        if: success()
+        working-directory: dataset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          RUN_DIR="models/checkpoints/run-${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}"
+          git add "$RUN_DIR/replay-diagnostic-model.candidate.json" "$RUN_DIR/quality-gate-report.json" "$RUN_DIR/manifest.json" "$RUN_DIR/warm-start-eligible.txt"
+          if [ -f models/replay-diagnostic-last-trained.json ]; then
+            git add models/replay-diagnostic-last-trained.json
+          fi
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No checkpoint changes to publish."
+            exit 0
+          fi
+          git commit -m "Save replay model training checkpoint"
+          pushed=false
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then pushed=true; break; fi
+            echo "Checkpoint push attempt $attempt raced with another main update; retrying."
+            sleep 3
+          done
+          if [ "$pushed" != "true" ]; then echo "Unable to publish training checkpoint after 3 attempts."; exit 1; fi
+      - name: Report failed run to telemetry
+        if: failure()
+        env:
+          TELEMETRY_INGEST_TOKEN: ${{ secrets.TELEMETRY_INGEST_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -n "$TELEMETRY_INGEST_TOKEN" ]; then
+            python - <<'PY'
+          import json,os,urllib.request
+          data={"event":"failed","run_id":os.environ["RUN_ID"],"run_attempt":int(os.environ["RUN_ATTEMPT"]),
+            "run_url":os.environ["RUN_URL"],"error":"GitHub Actions training workflow failed. See workflow logs."}
+          req=urllib.request.Request("https://osu-ai-training-telemetry.anton4ik837.workers.dev/api/workflow",
+            data=json.dumps(data).encode(),headers={"Authorization":"Bearer "+os.environ["TELEMETRY_INGEST_TOKEN"],
+            "Content-Type":"application/json"},method="POST")
+          try:
+            with urllib.request.urlopen(req,timeout=15) as r: print(r.status,r.read().decode())
+          except Exception as e: print("Telemetry failure report could not be sent:",e)
+          PY
+          fi
