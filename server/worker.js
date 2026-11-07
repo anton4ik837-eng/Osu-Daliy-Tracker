@@ -439,7 +439,7 @@ export default {
     // Register files committed by the scheduled collector so consent withdrawal
     // can remove exactly this participant's contributions from the private dataset.
     if (url.pathname === "/api/internal/replay-files" && request.method === "POST") {
-      const expected = typeof env.INGEST_TOKEN === "string" ? env.INGEST_TOKEN.trim() : "";
+      const expected = (typeof env.REPLAY_CONSENT_TOKEN === "string" ? env.REPLAY_CONSENT_TOKEN : typeof env.INGEST_TOKEN === "string" ? env.INGEST_TOKEN : "").trim();
       const supplied = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
       if (!expected || !supplied || supplied !== expected) return apiJson({ error: "unauthorized" }, 401);
       if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
@@ -475,7 +475,7 @@ export default {
     // Private server-to-server consent registry for the scheduled dataset collector.
     // Never expose this endpoint to app clients: it is protected by INGEST_TOKEN.
     if (url.pathname === "/api/internal/replay-consents" && request.method === "GET") {
-      const expected = typeof env.INGEST_TOKEN === "string" ? env.INGEST_TOKEN.trim() : "";
+      const expected = (typeof env.REPLAY_CONSENT_TOKEN === "string" ? env.REPLAY_CONSENT_TOKEN : typeof env.INGEST_TOKEN === "string" ? env.INGEST_TOKEN : "").trim();
       const supplied = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
       if (!expected || !supplied || supplied !== expected) return apiJson({ error: "unauthorized" }, 401);
       if (!env.OAUTH_KV) return apiJson({ error: "consent_store_unavailable" }, 503);
