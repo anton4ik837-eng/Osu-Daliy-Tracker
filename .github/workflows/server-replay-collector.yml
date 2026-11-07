@@ -136,7 +136,7 @@ jobs:
           REPLAY_CONSENT_TOKEN: ${{ secrets.REPLAY_CONSENT_TOKEN }}
         run: |
           python - <<'PY'
-          import json, os, subprocess, urllib.error, urllib.request
+          import hashlib, json, os, subprocess, urllib.error, urllib.request
           from pathlib import Path
           pending_path = Path("metadata/replay_registration_pending.json")
           pending = json.loads(pending_path.read_text(encoding="utf-8"))
@@ -146,8 +146,10 @@ jobs:
               user_id = item.get("user_id")
               if not path.startswith("replays/") or not path.endswith(".osr") or not isinstance(user_id, int):
                   raise SystemExit("Invalid pending replay registration entry.")
-              blob_sha = subprocess.check_output(["git", "rev-parse", "HEAD:" + path], text=True).strip()
-              records.append({"user_id": user_id, "path": path, "sha": blob_sha})
+              # The OAuth Worker validates the replay payload's SHA-256 (64 hex),
+              # not Git's blob SHA (40 hex). Hash the actual .osr bytes.
+              content_sha256 = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+              records.append({"user_id": user_id, "path": path, "sha": content_sha256})
           if not records:
               print("No pending replay files to register.")
               raise SystemExit(0)
