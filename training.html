@@ -303,5 +303,5 @@ else{$('workflowSteps').innerHTML='<div class="empty">Ожидается пуб�
 }else{$('workflowSteps').innerHTML='<div class="empty">Worker пока не предоставляет снимок этапов. Требуется обновление Worker.</div>';}}catch(_){$('workflowSteps').innerHTML='<div class="empty">Не удалось получить снимок этапов обучения.</div>';}
 if(adminSession) await loadLocalTraining();
 }catch(e){$('runStatus').textContent='Не удалось обновить данные';$('statusDot').className='dot bad';$('dataNote').textContent='Ошибка обновления: '+e.message;}finally{$('refresh').disabled=false}}
-$('refresh').addEventListener('click',refresh);initAuth();refresh();setInterval(refresh,60000);
+$('refresh').addEventListener('click',refresh);initAuth();refresh();setInterval(refresh,10000);
 </script></body></html>
