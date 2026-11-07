@@ -59,7 +59,9 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+          cache-dependency-path: dataset/training/requirements.txt
       - name: Install training dependency
+        working-directory: dataset
         run: python -m pip install -r training/requirements.txt
       - name: Validate trainer and training parameters
         env:
