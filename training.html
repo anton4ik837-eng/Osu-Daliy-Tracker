@@ -35,19 +35,19 @@
 <section class="hero"><div class="eyebrow">MODEL DEVELOPMENT / LIVE TELEMETRY</div><h1>AI TRAINING<br><span style="color:var(--ice)">MONITOR</span></h1><p>BUILD 2026.11.03 · Датасет, архитектура, параметры сети, train / validation / test и качество модели. Ночное расписание доступно владельцу после входа через GitHub.</p>
 <div class="statusrow"><span class="status"><i class="dot" id="statusDot"></i><b id="runStatus">Загрузка состояния…</b></span><span class="status" id="updated">Обновлено: —</span><span class="actions"><button class="btn" id="refresh">Обновить</button></span></div></section>
 <section class="card" id="accountPanel" style="margin:14px 0"><div class="statusrow"><div><b id="accountLabel">Гость · доступен мониторинг</b><div class="sub" id="accountHint">Мониторинг открыт всем. Ночное обучение и запуск циклов появятся здесь после входа через GitHub под аккаунтом владельца anton4ik837-eng.</div></div><button class="btn" id="loginButton">Войти через GitHub</button><button class="btn" id="logoutButton" style="display:none">Выйти</button></div></section>
-<section class="card" id="adminPanel" style="display:none;margin:14px 0"><div class="section" style="margin-top:0"><h2>Управление обучением на планшете</h2><p>Сайт ставит задачу в очередь. Python и NumPy выполняют обучение локально в Termux; GitHub Actions для этого не запускается.</p></div>
+<section class="card" id="adminPanel" style="display:none;margin:14px 0"><div class="section" style="margin-top:0"><h2>Управление обучением на GitHub Actions</h2><p>Сайт запускает GitHub Actions runner в приватном репозитории. Планшет и Termux для обучения больше не нужны.</p></div>
 <div class="metric-list" style="grid-template-columns:repeat(auto-fit,minmax(145px,1fr))">
 <label class="metric-row">Режим <select id="trainMode"><option value="continue">Продолжить обучение</option><option value="fresh">Обучение с нуля</option></select></label>
-<label class="metric-row">Архитектура <select id="hiddenUnits"><option value="32">32 нейрона</option><option value="64" selected>64 нейрона</option><option value="128">128 нейронов</option><option value="256">256 нейронов</option></select></label>
+<label class="metric-row">Архитектура <select id="hiddenUnits"><option value="32">32 нейрона</option><option value="64">64 нейрона</option><option value="128">128 нейронов</option><option value="256" selected>256 нейронов</option><option value="512">512 нейронов</option></select></label>
 <label class="metric-row">Макс. эпохи <input id="trainEpochs" type="number" min="50" max="400" value="300"></label>
 <label class="metric-row">Patience (0 = выкл.) <input id="trainPatience" type="number" min="0" max="50" value="0"></label>
 <label class="metric-row">Trials <input id="trainTrials" type="number" min="1" max="5" value="2"></label>
 <label class="metric-row">Learning Rate <input id="trainLearningRate" type="number" min="0.00001" max="0.005" step="0.00001" value="0.00025"></label></div>
 <div class="sub" style="margin-top:6px">Learning Rate — начальная скорость обучения (0.00001–0.005). При плато тренер автоматически уменьшает её. Trials сравнивают несколько запусков по validation loss.</div>
-<div class="actions" style="margin-top:12px"><button class="btn" id="launchTraining">Запустить на планшете</button><button class="btn" id="stopTraining" disabled>Остановить</button><span class="sub" id="launchStatus"></span></div>
+<div class="actions" style="margin-top:12px"><button class="btn" id="launchTraining">Запустить на GitHub</button><button class="btn" id="stopTraining" disabled>Остановить</button><span class="sub" id="launchStatus"></span></div>
 <div class="metric-list" style="margin-top:12px">
-<div class="metric-row"><span>Подключение планшета</span><b id="localDeviceStatus">Проверка…</b></div>
-<div class="metric-row"><span>Локальное обучение</span><b id="localJobStatus">Ожидание</b></div>
+<div class="metric-row"><span>GitHub Actions runner</span><b id="localDeviceStatus">Проверка…</b></div>
+<div class="metric-row"><span>Workflow</span><b id="localJobStatus">Ожидание</b></div>
 <div class="metric-row"><span>Задача</span><b id="localRunId">—</b></div>
 <div class="metric-row" id="localJobErrorRow" hidden><span>Причина ошибки</span><b id="localJobError" style="max-width:70%;text-align:right;overflow-wrap:anywhere"></b></div>
 </div>
@@ -58,7 +58,7 @@
 <button class="btn" id="analyzeCoachVideo">Анализировать видео</button>
 </div>
 <div class="sub" id="coachVideoStatus" style="margin-top:8px">Поддерживаются публичные видео YouTube. Видео и результаты не записываются в D1.</div>
-<div class="section" style="margin-top:24px"><h2>Ночное обучение</h2><p>Планировщик добавляет задачу в очередь планшета. Для ночного обучения Termux Agent должен оставаться запущенным.</p></div>
+<div class="section" style="margin-top:24px"><h2>Ночное обучение</h2><p>Планировщик запускает отдельный GitHub Actions workflow в выбранное время. Локальный агент не требуется.</p></div>
 <div class="metric-list" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
 <label class="metric-row" style="align-items:center">Включить расписание <input id="nightEnabled" type="checkbox"></label>
 <label class="metric-row">Начало <input id="nightStart" type="time" value="23:00"></label>
@@ -240,36 +240,29 @@ async function initAuth(){
   try{const r=await fetch(API+'/api/auth/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket})});const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось завершить вход');adminSession=d.session;sessionStorage.setItem('osu_admin_session',adminSession);}catch(e){$('accountHint').textContent=e.message;}
  }
  if(adminSession){
-  try{const r=await fetch(API+'/api/auth/me',{headers:authHeaders()});const d=await r.json();if(r.ok&&d.authenticated){$('accountLabel').textContent='GitHub: '+d.login+ (d.is_admin?' · владелец':'');$('accountHint').textContent=d.is_admin?'Доступна панель управления обучением.':'Доступен только мониторинг.';$('loginButton').style.display='none';$('logoutButton').style.display='inline-block';$('adminPanel').style.display=d.is_admin?'block':'none';if(d.is_admin){loadNightSchedule();loadLocalTraining();}}else{adminSession='';sessionStorage.removeItem('osu_admin_session');}}catch(_){}
+  try{const r=await fetch(API+'/api/auth/me',{headers:authHeaders()});const d=await r.json();if(r.ok&&d.authenticated){$('accountLabel').textContent='GitHub: '+d.login+ (d.is_admin?' · владелец':'');$('accountHint').textContent=d.is_admin?'Доступна панель управления GitHub-обучением.':'Доступен только мониторинг.';$('loginButton').style.display='none';$('logoutButton').style.display='inline-block';$('adminPanel').style.display=d.is_admin?'block':'none';if(d.is_admin){loadNightSchedule();loadLocalTraining();}}else{adminSession='';sessionStorage.removeItem('osu_admin_session');}}catch(_){}
  }
 }
 $('loginButton').addEventListener('click',()=>location.href=API+'/auth/github/start');
 $('logoutButton').addEventListener('click',()=>{adminSession='';sessionStorage.removeItem('osu_admin_session');location.reload()});
 async function loadLocalTraining(){
  try{
-  const r=await fetch(API+'/api/admin/local-training?ts='+Date.now(),{headers:authHeaders(),cache:'no-store'});
-  const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось получить состояние планшета');
-  const device=d.device,job=d.job;
-  $('localDeviceStatus').textContent=device?(device.online?'Подключён · '+device.label:'Не в сети · '+device.label):'Не привязан';
-  $('localDeviceStatus').className=device&&device.online?'good':'bad';
-  const labels={queued:'В очереди',running:'Обучается',completed:'Завершено',failed:'Ошибка',stopped:'Остановлено'};
-  $('localJobStatus').textContent=job?(labels[job.status]||job.status):'Нет запусков';
-  $('localRunId').textContent=job?String(job.run_id).slice(0,24):'—';
-  const jobError=job&&job.last_error?String(job.last_error):'';
-  $('localJobErrorRow').hidden=!jobError;
-  $('localJobError').textContent=jobError;
-  $('stopTraining').disabled=!(job&&['queued','running'].includes(job.status));
-  if(job&&['queued','running'].includes(job.status)){
-   $('runStatus').textContent=job.status==='running'?'Обучение на планшете':'Задача ожидает планшет';
-   $('statusDot').className='dot live';
-   $('runDetails').innerHTML='<div class="metric-row"><span>Исполнитель</span><b>Termux / Android</b></div><div class="metric-row"><span>Локальная задача</span><b>'+esc(String(job.run_id))+'</b></div><div class="metric-row"><span>Режим</span><b>'+esc(job.config?.training_mode||'continue')+' · '+esc(String(job.config?.hidden_units||32))+' нейронов</b></div>';
-  }else if(job){
-   $('runStatus').textContent=labels[job.status]||job.status;
-   $('statusDot').className='dot '+(job.status==='failed'?'bad':'');
-  }
- }catch(e){
-  $('localDeviceStatus').textContent='Ошибка связи';$('localJobStatus').textContent=e.message;$('stopTraining').disabled=true;
- }
+  const r=await fetch(API+'/api/admin/training/status?ts='+Date.now(),{headers:authHeaders(),cache:'no-store'});
+  const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось получить состояние GitHub Actions');
+  const run=d.active_run||d.latest_run;
+  $('localDeviceStatus').textContent='GitHub Actions · '+(d.active?'активен':'готов');
+  $('localDeviceStatus').className='good';
+  const status=run?.status||'idle',conclusion=run?.conclusion;
+  const labels={queued:'В очереди GitHub',in_progress:'Обучается',completed:conclusion==='success'?'Завершено':conclusion==='cancelled'?'Остановлено':'Ошибка'};
+  $('localJobStatus').textContent=labels[status]||'Нет запусков';
+  $('localRunId').textContent=run?'#'+String(run.run_number||run.id):'—';
+  const jobError=run&&conclusion==='failure'?'Последний запуск завершился с ошибкой. Откройте логи GitHub Actions.':'';
+  $('localJobErrorRow').hidden=!jobError;$('localJobError').textContent=jobError;
+  $('stopTraining').disabled=!d.active;
+  if(d.active){$('runStatus').textContent=status==='in_progress'?'Обучение на GitHub runner':'Задача ожидает GitHub runner';$('statusDot').className='dot live';}
+  else if(run){$('runStatus').textContent=labels[status]||status;$('statusDot').className='dot '+(conclusion==='failure'?'bad':'');}
+  if(run?.html_url)$('runDetails').innerHTML+='<div class="metric-row"><span>Логи GitHub</span><b><a style="color:var(--ice)" target="_blank" rel="noopener" href="'+esc(run.html_url)+'">Открыть запуск</a></b></div>';
+ }catch(e){$('localDeviceStatus').textContent='Ошибка связи';$('localJobStatus').textContent=e.message;$('stopTraining').disabled=true;}
 }
 $('analyzeCoachVideo').addEventListener('click',async()=>{
  const button=$('analyzeCoachVideo'), url=$('coachVideoUrl').value.trim();
@@ -284,20 +277,20 @@ $('analyzeCoachVideo').addEventListener('click',async()=>{
  finally{button.disabled=false;}
 });
 $('launchTraining').addEventListener('click',async()=>{
- const button=$('launchTraining');button.disabled=true;$('launchStatus').textContent='Добавление задачи в очередь планшета…';
+ const button=$('launchTraining');button.disabled=true;$('launchStatus').textContent='Отправка задания в GitHub Actions…';
  try{
-  const r=await fetch(API+'/api/admin/local-training',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({training_mode:$('trainMode').value,epochs:Number($('trainEpochs').value),patience:Number($('trainPatience').value),trials:Number($('trainTrials').value),learning_rate:Number($('trainLearningRate').value),hidden_units:Number($('hiddenUnits').value)})});
+  const r=await fetch(API+'/api/admin/training/dispatch',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({training_mode:$('trainMode').value,epochs:Number($('trainEpochs').value),patience:Number($('trainPatience').value),trials:Number($('trainTrials').value),learning_rate:Number($('trainLearningRate').value),hidden_units:Number($('hiddenUnits').value)})});
   const d=await r.json();if(!r.ok)throw Error(d.error||'Ошибка запуска');
-  $('launchStatus').textContent='Задача передана планшету. GitHub Actions не запускался.';
+  $('launchStatus').textContent='Задание отправлено в GitHub Actions runner.';
   await loadLocalTraining();
  }catch(e){$('launchStatus').textContent='Ошибка: '+e.message;}finally{button.disabled=false;}
 });
 $('stopTraining').addEventListener('click',async()=>{
  const button=$('stopTraining');button.disabled=true;$('launchStatus').textContent='Отправка команды остановки…';
  try{
-  const r=await fetch(API+'/api/admin/local-training/stop',{method:'POST',headers:authHeaders()});
+  const r=await fetch(API+'/api/admin/training/cancel',{method:'POST',headers:authHeaders()});
   const d=await r.json();if(!r.ok)throw Error(d.error||'Не удалось остановить');
-  $('launchStatus').textContent=d.status==='stopped'?'Задача отменена.':'Планшет получил команду остановки.';
+  $('launchStatus').textContent=d.status==='stopped'?'Задача отменена.':'GitHub получил команду остановки.';
   await loadLocalTraining();
  }catch(e){$('launchStatus').textContent='Ошибка: '+e.message;}finally{button.disabled=false;}
 });
