@@ -2,7 +2,7 @@ name: Public-runner consented replay collection
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 */6 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
