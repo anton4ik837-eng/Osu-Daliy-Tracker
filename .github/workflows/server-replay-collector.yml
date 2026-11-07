@@ -1,6 +1,8 @@
 name: Public-runner consented replay collection
 
 on:
+  schedule:
+    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -103,6 +105,79 @@ jobs:
           target.write_text(json.dumps(pending, indent=2) + "\n", encoding="utf-8")
           print(f"Pending replay registrations: {len(pending['files'])}")
           PY
+      - name: Prepare replay dataset after collection
+        working-directory: dataset
+        timeout-minutes: 50
+        env:
+          REPLAY_PLAYER_SALT: ${{ secrets.REPLAY_PLAYER_SALT }}
+          OSU_CLIENT_ID: ${{ secrets.OSU_CLIENT_ID }}
+          OSU_CLIENT_SECRET: ${{ secrets.OSU_CLIENT_SECRET }}
+          OSU_HTTP_RETRIES: "3"
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund osu-parsers@4.1.7
+          python -m pip install -r training/requirements.txt
+          node --check tools/extract_replay_events.mjs
+          python -m py_compile tools/join_replay_beatmaps.py tools/analyze_replay_map_matches.py tools/extract_skill_features.py
+          node tools/extract_replay_events.mjs
+          python tools/join_replay_beatmaps.py --data-root . --map-dir beatmaps/source --delay 0.5
+          python tools/analyze_replay_map_matches.py --data-root .
+          python tools/extract_skill_features.py --data-root .
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          feature_dir = Path("processed/features")
+          matched_dir = Path("processed/matched")
+          event_dir = Path("processed/events")
+          bad = []
+          checked = 0
+          for path in sorted(feature_dir.glob("*.json")):
+              try:
+                  data = json.loads(path.read_text(encoding="utf-8"))
+                  if data.get("replay_id") != path.stem or data.get("schema_version") != 1:
+                      raise ValueError("invalid replay id or schema")
+                  if data.get("mode") not in ("standard", "mania"):
+                      raise ValueError("invalid mode")
+                  features = data.get("features")
+                  if not isinstance(features, dict) or not features:
+                      raise ValueError("missing numeric features")
+                  for key, value in features.items():
+                      if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
+                          raise ValueError(f"non-numeric feature: {key}")
+                  if not (matched_dir / path.name).is_file() or not (event_dir / path.name).is_file():
+                      raise ValueError("missing matched/event source")
+                  checked += 1
+              except Exception as exc:
+                  bad.append(f"{path.name}: {exc}")
+          print(f"VALID_FEATURE_RECORDS={checked}")
+          if bad:
+              print("\n".join(bad[:30]))
+              raise SystemExit(1)
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- processed
+          if ! git diff --cached --quiet; then
+            git commit -m "Prepare replay training dataset"
+            pushed=false
+            for attempt in 1 2 3; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then
+                pushed=true
+                break
+              fi
+              echo "Dataset publish attempt $attempt raced; retrying."
+              sleep 3
+            done
+            if [ "$pushed" != "true" ]; then
+              echo "Unable to publish processed dataset after 3 attempts."
+              exit 1
+            fi
+          else
+            echo "No new processed dataset records."
+          fi
+          echo "Dataset preparation finished; model training was not started."
           fi
           git add -A -- replays metadata
           if git diff --cached --quiet; then
