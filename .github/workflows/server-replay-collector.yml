@@ -1,0 +1,192 @@
+name: Public-runner consented replay collection
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only discover eligible scores; do not download"
+        type: boolean
+        required: true
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dataset-main-writer
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout public workflow repository
+        uses: actions/checkout@v4
+      - name: Checkout private replay dataset
+        uses: actions/checkout@v4
+        with:
+          repository: anton4ik837-eng/Osu-Replay-Dataset
+          ref: main
+          path: dataset
+          token: ${{ secrets.DATASET_GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate collector and extractor
+        working-directory: dataset
+        run: |
+          python -m py_compile tools/replay_collector.py
+          node --check tools/extract_replay_events.mjs
+      - name: Test replay filename compatibility
+        working-directory: dataset
+        run: python -m unittest training.tests.test_replay_collector -v
+      - name: Validate required server credentials
+        env:
+          OSU_CLIENT_ID: ${{ secrets.OSU_CLIENT_ID }}
+          OSU_CLIENT_SECRET: ${{ secrets.OSU_CLIENT_SECRET }}
+          REPLAY_CONSENT_TOKEN: ${{ secrets.REPLAY_CONSENT_TOKEN }}
+        run: |
+          test -n "$OSU_CLIENT_ID" || (echo "Missing OSU_CLIENT_ID"; exit 1)
+          test -n "$OSU_CLIENT_SECRET" || (echo "Missing OSU_CLIENT_SECRET"; exit 1)
+          test -n "$REPLAY_CONSENT_TOKEN" || (echo "Missing REPLAY_CONSENT_TOKEN"; exit 1)
+      - name: Collect from the server consent registry
+        working-directory: dataset
+        timeout-minutes: 15
+        env:
+          OSU_CLIENT_ID: ${{ secrets.OSU_CLIENT_ID }}
+          OSU_CLIENT_SECRET: ${{ secrets.OSU_CLIENT_SECRET }}
+          REPLAY_CONSENT_URL: https://osu-daily-tracker-oauth.anton4ik837.workers.dev/api/internal/replay-consents
+          REPLAY_CONSENT_TOKEN: ${{ secrets.REPLAY_CONSENT_TOKEN }}
+        run: |
+          FLAGS="--download"
+          # Scheduled runs and an explicitly named one-shot commit download.
+          # Other manual/push runs stay in discovery-only mode.
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            FLAGS=""
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "false" ]; then
+              FLAGS="--download"
+            fi
+            # A deliberately named commit can start a one-off live collection.
+            if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.event.head_commit.message }}" = "RUN_REPLAY_COLLECTION_NOW" ]; then
+              FLAGS="--download"
+            fi
+          fi
+          python tools/replay_collector.py --consent-url "$REPLAY_CONSENT_URL" --consent-token "$REPLAY_CONSENT_TOKEN" --state-file metadata/replay_collector_state.json --manifest-file "$RUNNER_TEMP/replay-manifest.json" --limit 30 --target-new 30 --delay 8 $FLAGS
+      - name: Commit new replay files and collector state
+        working-directory: dataset
+        id: commit-data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p replays metadata
+          # Persist registration metadata before publishing replay files so a
+          # transient Worker/Cloudflare failure never loses the retry queue.
+          if [ -f "$RUNNER_TEMP/replay-manifest.json" ]; then
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          source = Path(os.environ["RUNNER_TEMP"]) / "replay-manifest.json"
+          target = Path("metadata/replay_registration_pending.json")
+          pending = {"schema_version": 1, "files": []}
+          if target.exists():
+              pending = json.loads(target.read_text(encoding="utf-8"))
+          by_path = {item["path"]: item for item in pending.get("files", [])}
+          manifest = json.loads(source.read_text(encoding="utf-8"))
+          for item in manifest.get("files", []):
+              path = str(item.get("path", ""))
+              user_id = item.get("user_id")
+              if not path.startswith("replays/") or not path.endswith(".osr") or not isinstance(user_id, int):
+                  raise SystemExit("Invalid replay registration manifest entry.")
+              by_path[path] = {"user_id": user_id, "path": path}
+          pending["files"] = sorted(by_path.values(), key=lambda item: item["path"])
+          target.write_text(json.dumps(pending, indent=2) + "\n", encoding="utf-8")
+          print(f"Pending replay registrations: {len(pending['files'])}")
+          PY
+          fi
+          git add -A -- replays metadata
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No new replay files or state changes."
+          else
+            git commit -m "Collect consented osu! replays"
+            # Other workflows may update main while collection is running.
+            # Rebase our data-only commit onto the newest main and retry push.
+            pushed=false
+            for attempt in 1 2 3; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then
+                pushed=true
+                break
+              fi
+              echo "Push attempt $attempt raced with another main update; retrying."
+              sleep 2
+            done
+            if [ "$pushed" != "true" ]; then
+              echo "Unable to publish collector data after 3 attempts."
+              exit 1
+            fi
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Register pending replay files against active consent
+        if: hashFiles('dataset/metadata/replay_registration_pending.json') != ''
+        working-directory: dataset
+        env:
+          REPLAY_CONSENT_TOKEN: ${{ secrets.REPLAY_CONSENT_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, urllib.error, urllib.request
+          from pathlib import Path
+          pending_path = Path("metadata/replay_registration_pending.json")
+          pending = json.loads(pending_path.read_text(encoding="utf-8"))
+          records = []
+          for item in pending.get("files", []):
+              path = str(item.get("path", ""))
+              user_id = item.get("user_id")
+              if not path.startswith("replays/") or not path.endswith(".osr") or not isinstance(user_id, int):
+                  raise SystemExit("Invalid pending replay registration entry.")
+              blob_sha = subprocess.check_output(["git", "rev-parse", "HEAD:" + path], text=True).strip()
+              records.append({"user_id": user_id, "path": path, "sha": blob_sha})
+          if not records:
+              print("No pending replay files to register.")
+              raise SystemExit(0)
+          body = json.dumps({"files": records}).encode()
+          request = urllib.request.Request(
+              "https://osu-daily-tracker-oauth.anton4ik837.workers.dev/api/internal/replay-files",
+              data=body,
+              headers={
+                  "Authorization": "Bearer " + os.environ["REPLAY_CONSENT_TOKEN"],
+                  "Content-Type": "application/json",
+                  "Accept": "application/json",
+                  "User-Agent": "OsuReplayDatasetCollector/1.0 (+https://github.com/anton4ik837-eng/Osu-Replay-Dataset)",
+              },
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  result = json.loads(response.read().decode())
+          except urllib.error.HTTPError as exc:
+              detail = exc.read(1200).decode("utf-8", errors="replace")
+              print(f"Replay registration rejected: HTTP {exc.code}: {' '.join(detail.split())[:900]}")
+              raise
+          print(json.dumps(result))
+          if result.get("skipped", 0):
+              raise SystemExit("Some files were not registered because consent was no longer active.")
+          pending_path.unlink()
+          subprocess.run(["git", "add", "-u", str(pending_path)], check=True)
+          subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
+          subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
+          subprocess.run(["git", "commit", "-m", "Clear registered replay queue"], check=True)
+          pushed = False
+          for attempt in range(1, 4):
+              subprocess.run(["git", "fetch", "origin", "main"], check=True)
+              subprocess.run(["git", "rebase", "origin/main"], check=True)
+              result = subprocess.run(["git", "push", "origin", "HEAD:main"])
+              if result.returncode == 0:
+                  pushed = True
+                  break
+              print(f"Queue cleanup push attempt {attempt} raced; retrying.")
+          if not pushed:
+              raise SystemExit("Replay registration succeeded but pending-queue cleanup push failed.")
+          PY

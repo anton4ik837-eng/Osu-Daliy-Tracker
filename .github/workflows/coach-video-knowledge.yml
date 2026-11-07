@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: gemini-video-coach
+  group: dataset-main-writer
   cancel-in-progress: false
 
 jobs:
@@ -37,15 +37,15 @@ jobs:
           repository: anton4ik837-eng/Osu-Replay-Dataset
           ref: main
           path: dataset
-          token: ${{ secrets.DATASET_REPO_TOKEN }}
+          token: ${{ secrets.DATASET_GITHUB_TOKEN }}
 
       - name: Verify secrets
         env:
           GEMINI_TRAINING_KEY_3: ${{ secrets.GEMINI_TRAINING_KEY_3 }}
-          DATASET_REPO_TOKEN: ${{ secrets.DATASET_REPO_TOKEN }}
+          DATASET_GITHUB_TOKEN: ${{ secrets.DATASET_GITHUB_TOKEN }}
         run: |
           test -n "$GEMINI_TRAINING_KEY_3" || { echo "::error::GEMINI_TRAINING_KEY_3 is missing"; exit 1; }
-          test -n "$DATASET_REPO_TOKEN" || { echo "::error::DATASET_REPO_TOKEN is missing"; exit 1; }
+          test -n "$DATASET_GITHUB_TOKEN" || { echo "::error::DATASET_GITHUB_TOKEN is missing"; exit 1; }
 
       - name: Set up Python
         uses: actions/setup-python@v5
