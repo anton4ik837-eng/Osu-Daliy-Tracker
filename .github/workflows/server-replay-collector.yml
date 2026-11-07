@@ -1,7 +1,6 @@
 name: Public-runner consented replay collection
 
 on:
-  schedule:
   workflow_dispatch:
     inputs:
       dry_run:
