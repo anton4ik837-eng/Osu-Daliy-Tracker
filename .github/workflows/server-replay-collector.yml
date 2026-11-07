@@ -7,7 +7,7 @@ on:
         description: "Only discover eligible scores; do not download"
         type: boolean
         required: true
-        default: true
+        default: false
 
 permissions:
   contents: write
@@ -72,7 +72,7 @@ jobs:
               FLAGS="--download"
             fi
           fi
-          python tools/replay_collector.py --consent-url "$REPLAY_CONSENT_URL" --consent-token "$REPLAY_CONSENT_TOKEN" --state-file metadata/replay_collector_state.json --manifest-file "$RUNNER_TEMP/replay-manifest.json" --limit 30 --target-new 30 --delay 8 $FLAGS
+          python tools/replay_collector.py --consent-url "$REPLAY_CONSENT_URL" --consent-token "$REPLAY_CONSENT_TOKEN" --state-file metadata/replay_collector_state.json --manifest-file "$RUNNER_TEMP/replay-manifest.json" --queue-file metadata/replay_download_queue.json --queue-target 120 --queue-refill-threshold 30 --limit 30 --target-new 30 --delay 8 $FLAGS
       - name: Commit new replay files and collector state
         working-directory: dataset
         id: commit-data
