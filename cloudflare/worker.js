@@ -833,6 +833,18 @@ export default {
       try { return await cachedPublicJson(request, () => readWorkflowSnapshot(env.DB)); }
       catch (error) { return json({ error: "Workflow snapshot read failed.", detail: String(error) }, 500); }
     }
+    if (request.method === "POST" && url.pathname === "/telemetry-healthcheck") {
+      if (!env.INGEST_TOKEN) return json({ error: "INGEST_TOKEN secret is not configured." }, 503);
+      if ((request.headers.get("Authorization") || "") !== `Bearer ${env.INGEST_TOKEN}`)
+        return json({ error: "Unauthorized" }, 401);
+      if (!env.DB) return json({ error: "D1 binding DB is not configured." }, 503);
+      try {
+        await ensureSchema(env.DB);
+        return json({ ok: true, authenticated: true, database_ready: true });
+      } catch (error) {
+        return json({ error: "Telemetry database check failed.", detail: String(error) }, 500);
+      }
+    }
     if (request.method === "POST" && url.pathname === "/telemetry-ingest") {
       try { return await ingest(request, env); }
       catch (error) { return json({ error: "Training telemetry ingest failed.", detail: String(error) }, 500); }
