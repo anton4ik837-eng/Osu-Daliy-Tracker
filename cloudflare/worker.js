@@ -833,6 +833,10 @@ export default {
       try { return await cachedPublicJson(request, () => readWorkflowSnapshot(env.DB)); }
       catch (error) { return json({ error: "Workflow snapshot read failed.", detail: String(error) }, 500); }
     }
+    if (request.method === "POST" && url.pathname === "/telemetry-ingest") {
+      try { return await ingest(request, env); }
+      catch (error) { return json({ error: "Training telemetry ingest failed.", detail: String(error) }, 500); }
+    }
     if (request.method === "POST" && url.pathname === "/api/workflow") {
       try {
         // This route is also used for live training events because the legacy
