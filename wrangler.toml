@@ -1,0 +1,11 @@
+name = "osu-ai-training-telemetry"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "osu-ai-training-telemetry"
+database_id = "bd3cc98b-6dea-4a21-8c5a-0d8571c24d89"
+
+[triggers]
+crons = ["* * * * *"]
