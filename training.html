@@ -280,7 +280,7 @@ $('launchTraining').addEventListener('click',async()=>{
  const button=$('launchTraining');button.disabled=true;$('launchStatus').textContent='Отправка задания в GitHub Actions…';
  try{
   const r=await fetch(API+'/api/admin/training/dispatch',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({training_mode:$('trainMode').value,epochs:Number($('trainEpochs').value),patience:Number($('trainPatience').value),trials:Number($('trainTrials').value),learning_rate:Number($('trainLearningRate').value),hidden_units:Number($('hiddenUnits').value)})});
-  const d=await r.json();if(!r.ok)throw Error(d.error||'Ошибка запуска');
+  const d=await r.json();if(!r.ok)throw Error([d.error,d.detail].filter(Boolean).join(' — ')||'Ошибка запуска');
   $('launchStatus').textContent='Задание отправлено в GitHub Actions runner.';
   await loadLocalTraining();
  }catch(e){$('launchStatus').textContent='Ошибка: '+e.message;}finally{button.disabled=false;}
