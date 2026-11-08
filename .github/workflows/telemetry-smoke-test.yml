@@ -2,6 +2,9 @@ name: Telemetry connection smoke test
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Deploy training telemetry Worker (public repository only)"]
+    types: [completed]
 
 permissions:
   contents: read
