@@ -109,7 +109,7 @@ jobs:
           LEARNING_RATE: ${{ inputs.learning_rate }}
           HIDDEN_UNITS: ${{ inputs.hidden_units }}
           INIT_MODEL: ${{ steps.checkpoint.outputs.path }}
-          TELEMETRY_URL: https://osu-ai-training-telemetry.anton4ik837.workers.dev/api/workflow
+          TELEMETRY_URL: https://osu-ai-training-telemetry.anton4ik837.workers.dev/telemetry-ingest
           TELEMETRY_INGEST_TOKEN: ${{ secrets.TELEMETRY_INGEST_TOKEN }}
         working-directory: dataset
         run: |
@@ -290,7 +290,7 @@ jobs:
           import json,os,urllib.request
           data={"event":"failed","run_id":os.environ["RUN_ID"],"run_attempt":int(os.environ["RUN_ATTEMPT"]),
             "run_url":os.environ["RUN_URL"],"error":"GitHub Actions training workflow failed. See workflow logs."}
-          req=urllib.request.Request("https://osu-ai-training-telemetry.anton4ik837.workers.dev/api/workflow",
+          req=urllib.request.Request("https://osu-ai-training-telemetry.anton4ik837.workers.dev/telemetry-ingest",
             data=json.dumps(data).encode(),headers={"Authorization":"Bearer "+os.environ["TELEMETRY_INGEST_TOKEN"],
             "Content-Type":"application/json"},method="POST")
           try:
