@@ -1,0 +1,33 @@
+name: Telemetry connection smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Worker authentication and D1
+        env:
+          TELEMETRY_INGEST_TOKEN: ${{ secrets.TELEMETRY_INGEST_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$TELEMETRY_INGEST_TOKEN" || { echo "Missing TELEMETRY_INGEST_TOKEN repository secret"; exit 1; }
+          code=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "https://osu-ai-training-telemetry.anton4ik837.workers.dev/telemetry-healthcheck" \
+            -H "Authorization: Bearer $TELEMETRY_INGEST_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{}')
+          cat response.json
+          test "$code" = "200" || { echo "Telemetry health check returned HTTP $code"; exit 1; }
+          python - <<'PY'
+          import json
+          data=json.load(open("response.json",encoding="utf-8"))
+          assert data.get("ok") is True, data
+          assert data.get("authenticated") is True, data
+          assert data.get("database_ready") is True, data
+          print("Telemetry authentication and D1 are operational.")
+          PY
