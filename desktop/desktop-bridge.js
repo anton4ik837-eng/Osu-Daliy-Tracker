@@ -10,6 +10,8 @@
     }
   };
 
+  window.IsDesktopApp = true;
+
   window.NativeLogs = {
     append: ({ line } = {}) => invoke('appendLog', line),
     start: () => invoke('startLog'),
@@ -20,10 +22,26 @@
     open: ({ url } = {}) => invoke('openExternal', url)
   };
 
+  let lastOAuthUrl = null;
+  const oauthCallbacks = [];
+  const deliverOAuthUrl = url => {
+    if (!url || url === lastOAuthUrl) return;
+    lastOAuthUrl = url;
+    oauthCallbacks.forEach(callback => {
+      try { callback(url); } catch (error) { console.error('OAuth callback failed:', error); }
+    });
+  };
+
+  window.DesktopBridge?.onOAuthCallback?.(deliverOAuthUrl);
+  invoke('getLaunchUrl').then(deliverOAuthUrl).catch(() => {});
+
   window.NativeApp = {
-    addListener: () => Promise.resolve(),
+    addListener: (event, callback) => {
+      if (event === 'appUrlOpen' && typeof callback === 'function') oauthCallbacks.push(callback);
+      return Promise.resolve();
+    },
     removeAllListeners: () => Promise.resolve(),
-    getLaunchUrl: () => Promise.resolve(null)
+    getLaunchUrl: () => invoke('getLaunchUrl')
   };
 
   window.NativeFilesystem = {};

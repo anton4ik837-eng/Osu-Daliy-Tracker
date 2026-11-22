@@ -1,6 +1,6 @@
 {
   "name": "osu-daily-tracker-desktop",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "private": true,
   "description": "Desktop build of osu! Daily Tracker Replay Lab",
   "homepage": "https://github.com/anton4ik837-eng/Osu-Daliy-Tracker",
@@ -21,6 +21,9 @@
   "build": {
     "appId": "com.osudailytracker.desktop",
     "productName": "osu! Daily Tracker",
+    "protocols": [
+      { "name": "osu! Daily Tracker", "schemes": ["osudailytracker"] }
+    ],
     "files": [
       "main.js",
       "preload.js",
