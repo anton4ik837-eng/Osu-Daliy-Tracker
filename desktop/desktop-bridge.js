@@ -1,0 +1,41 @@
+// Desktop replacement for the Capacitor native bridge.
+// The web pages call these APIs through optional chaining, so keeping the same
+// names lets the desktop build reuse app/www without any Android-specific code.
+(function () {
+  const invoke = (method, ...args) => {
+    try {
+      return Promise.resolve(window.DesktopBridge?.[method]?.(...args));
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  };
+
+  window.NativeLogs = {
+    append: ({ line } = {}) => invoke('appendLog', line),
+    start: () => invoke('startLog'),
+    exportFile: options => invoke('exportLog', options)
+  };
+
+  window.NativeBrowser = {
+    open: ({ url } = {}) => invoke('openExternal', url)
+  };
+
+  window.NativeApp = {
+    addListener: () => Promise.resolve(),
+    removeAllListeners: () => Promise.resolve(),
+    getLaunchUrl: () => Promise.resolve(null)
+  };
+
+  window.NativeFilesystem = {};
+  window.NativeFilesystemDirectory = {};
+  window.NativeShare = {};
+
+  document.addEventListener('click', event => {
+    const link = event.target?.closest?.('a[href]');
+    if (!link) return;
+    const url = link.getAttribute('href') || '';
+    if (!/^https?:\/\//i.test(url)) return;
+    event.preventDefault();
+    invoke('openExternal', url);
+  }, true);
+})();
