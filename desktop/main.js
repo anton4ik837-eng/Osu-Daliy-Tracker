@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, Menu, safeStorage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
@@ -7,6 +7,17 @@ const { pipeline } = require('stream/promises');
 const PROTOCOL = 'osudailytracker';
 const OAUTH_API = 'https://osu-daily-tracker-oauth.anton4ik837.workers.dev';
 const logPath = path.join(app.getPath('userData'), 'osu-daily-tracker-log.jsonl');
+const secureStorePath = path.join(app.getPath('userData'), 'secure-store.json');
+
+function readSecureStore() {
+  try { return JSON.parse(fs.readFileSync(secureStorePath, 'utf8')); }
+  catch { return {}; }
+}
+function decodeSecureValue(value) {
+  const buffer = Buffer.from(value, 'base64');
+  const json = safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(buffer) : buffer.toString('utf8');
+  return JSON.parse(json);
+}
 let mainWindow = null;
 let pendingOAuthUrl = null;
 let handledHandoff = null;
@@ -124,6 +135,27 @@ ipcMain.handle('update:download', async (_event, url, name) => {
   return target;
 });
 
+ipcMain.handle('secure:get', (_event, key) => {
+  try { const value = readSecureStore()[String(key)]; return value ? decodeSecureValue(value) : null; }
+  catch { return null; }
+});
+ipcMain.handle('secure:set', (_event, key, value) => {
+  try {
+    const data = readSecureStore();
+    const json = JSON.stringify(value);
+    data[String(key)] = safeStorage.isEncryptionAvailable()
+      ? safeStorage.encryptString(json).toString('base64')
+      : Buffer.from(json).toString('utf8');
+    fs.writeFileSync(secureStorePath, JSON.stringify(data), { encoding: 'utf8', mode: 0o600 });
+    return true;
+  } catch { return false; }
+});
+ipcMain.handle('secure:clear', (_event, key) => {
+  try { const data = readSecureStore(); delete data[String(key)]; fs.writeFileSync(secureStorePath, JSON.stringify(data), 'utf8'); }
+  catch {}
+  return true;
+});
+
 ipcMain.handle('oauth:get-launch-url', () => pendingOAuthUrl);
 
 function createWindow() {
@@ -132,7 +164,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'osu! Daily Tracker 4.4.1 · Replay Lab',
+    title: 'osu! Daily Tracker 4.5.0 · Replay Lab',
     backgroundColor: '#0b0f17',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

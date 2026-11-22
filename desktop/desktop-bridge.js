@@ -17,9 +17,12 @@
     if (field) { field.textContent = String(text || ''); field.dataset.kind = 'info'; }
   });
 
-  window.DesktopBridge?.onOAuthSuccess?.(session => {
+  window.DesktopBridge?.onOAuthSuccess?.(async session => {
     window.__osuOAuthSession = session;
-    try { localStorage.setItem('osu-daily-tracker-oauth-session', JSON.stringify(session)); } catch (error) { /* ignored */ }
+    try { localStorage.removeItem('osu-daily-tracker-oauth-session'); } catch (error) { /* ignored */ }
+    if (window.DesktopBridge?.secureSet) {
+      try { await window.DesktopBridge.secureSet('oauth-session', session); } catch (error) { /* ignored */ }
+    } else try { localStorage.setItem('osu-daily-tracker-oauth-session', JSON.stringify(session)); } catch (error) { /* ignored */ }
     const field = document.getElementById('authStatus');
     if (field) { field.textContent = 'Вход подтверждён. Загружаем статистику…'; field.dataset.kind = 'info'; }
     if (typeof restoreOAuthSession === 'function') restoreOAuthSession();
