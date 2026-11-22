@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('DesktopBridge', {
   openExternal: url => ipcRenderer.invoke('desktop:open-external', url),
   getLaunchUrl: () => ipcRenderer.invoke('oauth:get-launch-url'),
   onOAuthCallback: callback => ipcRenderer.on('oauth:callback', (_event, url) => callback(url)),
-  onOAuthStatus: callback => ipcRenderer.on('oauth:status', (_event, text) => callback(text))
+  onOAuthStatus: callback => ipcRenderer.on('oauth:status', (_event, text) => callback(text)),
+  onOAuthSuccess: callback => ipcRenderer.on('oauth:success', (_event, session) => callback(session))
 });

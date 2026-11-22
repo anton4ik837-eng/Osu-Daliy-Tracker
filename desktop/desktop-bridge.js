@@ -17,6 +17,14 @@
     if (field) { field.textContent = String(text || ''); field.dataset.kind = 'info'; }
   });
 
+  window.DesktopBridge?.onOAuthSuccess?.(session => {
+    window.__osuOAuthSession = session;
+    try { localStorage.setItem('osu-daily-tracker-oauth-session', JSON.stringify(session)); } catch (error) { /* ignored */ }
+    const field = document.getElementById('authStatus');
+    if (field) { field.textContent = 'Вход подтверждён. Загружаем статистику…'; field.dataset.kind = 'info'; }
+    if (typeof restoreOAuthSession === 'function') restoreOAuthSession();
+  });
+
   window.NativeLogs = {
     append: ({ line } = {}) => invoke('appendLog', line),
     start: () => invoke('startLog'),

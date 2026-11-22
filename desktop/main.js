@@ -3,9 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 const PROTOCOL = 'osudailytracker';
+const OAUTH_API = 'https://osu-daily-tracker-oauth.anton4ik837.workers.dev';
 const logPath = path.join(app.getPath('userData'), 'osu-daily-tracker-log.jsonl');
 let mainWindow = null;
 let pendingOAuthUrl = null;
+let handledHandoff = null;
 
 Menu.setApplicationMenu(null);
 
@@ -20,14 +22,51 @@ function appendLogLine(line) {
   }
 }
 
-function deliverOAuthUrl(url) {
-  if (!url || typeof url !== 'string' || !url.startsWith(PROTOCOL + '://')) return;
-  pendingOAuthUrl = url;
-  appendLogLine(JSON.stringify({ time: new Date().toISOString(), event: 'oauth.deep_link_received', urlPrefix: url.slice(0, 120) }));
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('oauth:callback', url);
-    mainWindow.webContents.send('oauth:status', 'Получен ответ от osu!, завершаю вход…');
+function sendAuthStatus(text) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('oauth:status', text);
+}
+
+async function completeOAuth(handoff) {
+  if (!handoff || handoff === handledHandoff) return;
+  handledHandoff = handoff;
+  sendAuthStatus('Ответ от osu! получен. Обмениваю код на токен…');
+  appendLogLine(JSON.stringify({ time: new Date().toISOString(), event: 'oauth.exchange_started', handoffPrefix: handoff.slice(0, 8) }));
+  try {
+    const response = await fetch(OAUTH_API + '/oauth/exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ handoff })
+    });
+    const tokens = await response.json();
+    if (!response.ok || !tokens.access_token) throw new Error(tokens.error || 'Не удалось обменять временный код.');
+    const session = {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresAt: Date.now() + Number(tokens.expires_in || 0) * 1000
+    };
+    appendLogLine(JSON.stringify({ time: new Date().toISOString(), event: 'oauth.exchange_success' }));
+    sendAuthStatus('Токен получен. Загружаю профиль…');
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('oauth:success', session);
+  } catch (error) {
+    appendLogLine(JSON.stringify({ time: new Date().toISOString(), event: 'oauth.exchange_failed', message: String(error?.message || error) }));
+    sendAuthStatus('Не удалось завершить вход: ' + String(error?.message || error));
   }
+}
+
+function deliverOAuthUrl(url) {
+  if (!url || typeof url !== 'string' || !url.includes(PROTOCOL + '://')) return;
+  const index = url.indexOf(PROTOCOL + '://');
+  const clean = url.slice(index);
+  pendingOAuthUrl = clean;
+  appendLogLine(JSON.stringify({ time: new Date().toISOString(), event: 'oauth.deep_link_received', urlPrefix: clean.slice(0, 120) }));
+  let handoff = null;
+  try {
+    const parsed = new URL(clean);
+    handoff = parsed.searchParams.get('handoff');
+    const error = parsed.searchParams.get('error');
+    if (error) sendAuthStatus('osu! не завершил авторизацию: ' + error);
+  } catch (error) { /* ignored */ }
+  if (handoff) completeOAuth(handoff).catch(error => sendAuthStatus('Ошибка входа: ' + String(error?.message || error)));
 }
 
 function handleCommandLine(argv) {
@@ -73,7 +112,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'osu! Daily Tracker 4.0.5 · Replay Lab',
+    title: 'osu! Daily Tracker 4.0.6 · Replay Lab',
     backgroundColor: '#0b0f17',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
