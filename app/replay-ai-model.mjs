@@ -307,7 +307,7 @@ function renderModelPanel() {
   panel.dataset.replayAiModel = 'true';
   panel.dataset.signature = signature;
   panel.style.cssText = 'margin-top:14px;padding:14px;border:1px solid #45627a;border-radius:12px;background:linear-gradient(135deg,#17283a,#101722)';
-  const heading = element('div', '', isTrained ? 'Обученная модель Replay Lab' : 'Экспериментальная модель 2.2.0 Beta');
+  const heading = element('div', '', isTrained ? 'Обученная модель Replay Lab' : 'Экспериментальная модель ИИ Replay Lab');
   heading.style.cssText = 'font-weight:800;font-size:15px;color:#a9e7ff';
   panel.append(heading);
   const note = element('p', 'muted', (isTrained ? 'Обучена на размеченном датасете' : 'Не обучена на пользовательских реплеях') + ' · уверенность выборки: ' + result.confidence + '%');
@@ -395,9 +395,7 @@ if (typeof document !== 'undefined') {
     }
     renderModelPanel();
     loadTrainedArtifact();
-    document.title = 'Replay Lab · Beta 2.2.0';
-    const footer = document.querySelector('.foot');
-    if (footer) footer.textContent = 'Replay Lab · Beta 2.2.0';
+    // Keep the app's own title/footer version (set in replay.html) — do not stamp an old beta label here.
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
