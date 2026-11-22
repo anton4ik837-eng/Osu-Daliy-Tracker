@@ -5,7 +5,6 @@ const path = require('path');
 const PROTOCOL = 'osudailytracker';
 const logPath = path.join(app.getPath('userData'), 'osu-daily-tracker-log.jsonl');
 let mainWindow = null;
-let authWindow = null;
 let pendingOAuthUrl = null;
 
 Menu.setApplicationMenu(null);
@@ -24,8 +23,10 @@ function appendLogLine(line) {
 function deliverOAuthUrl(url) {
   if (!url || typeof url !== 'string' || !url.startsWith(PROTOCOL + '://')) return;
   pendingOAuthUrl = url;
+  appendLogLine(JSON.stringify({ time: new Date().toISOString(), event: 'oauth.deep_link_received', urlPrefix: url.slice(0, 120) }));
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('oauth:callback', url);
+    mainWindow.webContents.send('oauth:status', 'Получен ответ от osu!, завершаю вход…');
   }
 }
 
@@ -66,51 +67,13 @@ ipcMain.handle('desktop:open-external', async (_event, url) => {
 
 ipcMain.handle('oauth:get-launch-url', () => pendingOAuthUrl);
 
-ipcMain.handle('oauth:open-auth', (_event, url) => {
-  const target = String(url || '');
-  if (!/^https:\/\//i.test(target)) return false;
-  if (authWindow && !authWindow.isDestroyed()) authWindow.focus();
-  else {
-    authWindow = new BrowserWindow({
-      width: 900,
-      height: 720,
-      title: 'osu! · подтверждение аккаунта',
-      parent: mainWindow || undefined,
-      webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true }
-    });
-    authWindow.setMenu(null);
-    const capture = (event, nextUrl) => {
-      const value = String(nextUrl || '');
-      if (!value.includes(PROTOCOL + '://')) return;
-      event.preventDefault();
-      const index = value.indexOf(PROTOCOL + '://');
-      deliverOAuthUrl(value.slice(index));
-      if (authWindow && !authWindow.isDestroyed()) authWindow.close();
-      authWindow = null;
-    };
-    authWindow.webContents.on('will-navigate', capture);
-    authWindow.webContents.on('will-frame-navigate', capture);
-    authWindow.webContents.setWindowOpenHandler(({ url }) => {
-      if (String(url || '').includes(PROTOCOL + '://')) {
-        capture({ preventDefault() {} }, url);
-      } else if (/^https?:\/\//i.test(String(url || ''))) {
-        authWindow.loadURL(url);
-      }
-      return { action: 'deny' };
-    });
-    authWindow.on('closed', () => { authWindow = null; });
-    authWindow.loadURL(target);
-  }
-  return true;
-});
-
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'osu! Daily Tracker 4.0.4 · Replay Lab',
+    title: 'osu! Daily Tracker 4.0.5 · Replay Lab',
     backgroundColor: '#0b0f17',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

@@ -12,6 +12,11 @@
 
   window.IsDesktopApp = true;
 
+  window.DesktopBridge?.onOAuthStatus?.(text => {
+    const field = document.getElementById('authStatus');
+    if (field) { field.textContent = String(text || ''); field.dataset.kind = 'info'; }
+  });
+
   window.NativeLogs = {
     append: ({ line } = {}) => invoke('appendLog', line),
     start: () => invoke('startLog'),
