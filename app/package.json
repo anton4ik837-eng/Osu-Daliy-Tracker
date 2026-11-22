@@ -1,10 +1,11 @@
 {
   "name": "osu-daily-tracker-app",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "private": true,
   "description": "Android shell for osu! Daily Tracker",
   "scripts": {
     "build": "esbuild native-bridge.js --bundle --format=iife --outfile=www/native-bridge.bundle.js && esbuild mania-converter.mjs --bundle --format=iife --outfile=www/mania-converter.bundle.js && esbuild replay-analysis.mjs --bundle --format=iife --global-name=OsuReplayAnalysis --outfile=www/replay-analysis.bundle.js && esbuild replay-renderer-adapter.mjs --bundle --format=iife --global-name=OsuReplayRenderer --outfile=www/replay-renderer.bundle.js",
+    "version:sync": "node scripts/sync-version.mjs",
     "test:replay-inline": "node scripts/check-replay-inline.mjs",
     "test:replay-counts": "node scripts/check-replay-counts.mjs",
     "configure:android": "node scripts/configure-android.mjs",

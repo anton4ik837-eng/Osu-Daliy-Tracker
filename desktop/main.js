@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell, dialog, Menu } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { Readable } = require('stream');
+const { pipeline } = require('stream/promises');
 
 const PROTOCOL = 'osudailytracker';
 const OAUTH_API = 'https://osu-daily-tracker-oauth.anton4ik837.workers.dev';
@@ -102,6 +104,24 @@ ipcMain.handle('desktop:open-external', async (_event, url) => {
   if (!/^https?:\/\//i.test(value)) return false;
   await shell.openExternal(value);
   return true;
+});
+
+ipcMain.handle('update:download', async (_event, url, name) => {
+  const value = String(url || '');
+  const fileName = path.basename(String(name || 'update.bin'));
+  if (!/^https:\/\/(github\.com|objects\.githubusercontent\.com|release-assets\.githubusercontent\.com)\//i.test(value)) {
+    throw new Error('Разрешена загрузка только с GitHub Releases.');
+  }
+  if (!/\.(exe|AppImage|deb)$/i.test(fileName)) throw new Error('Неподдерживаемый тип файла обновления.');
+  const downloads = app.getPath('downloads');
+  fs.mkdirSync(downloads, { recursive: true });
+  const target = path.join(downloads, 'osu-daily-tracker-' + Date.now() + '-' + fileName);
+  const response = await fetch(value, { headers: { Accept: 'application/octet-stream' } });
+  if (!response.ok || !response.body) throw new Error('Не удалось скачать обновление (HTTP ' + response.status + ').');
+  await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(target));
+  appendLogLine(JSON.stringify({ time: new Date().toISOString(), event: 'update.downloaded', file: path.basename(target) }));
+  await shell.openPath(target);
+  return target;
 });
 
 ipcMain.handle('oauth:get-launch-url', () => pendingOAuthUrl);

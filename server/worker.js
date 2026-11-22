@@ -212,7 +212,11 @@ function validMode(value) {
   return ["osu", "taiko", "fruits", "mania"].includes(value) ? value : null;
 }
 
+let cachedPublicToken = { value: "", expiresAt: 0 };
+
 async function getPublicApiToken(env) {
+  const now = Date.now();
+  if (cachedPublicToken.value && cachedPublicToken.expiresAt > now + 60000) return cachedPublicToken.value;
   const clientId = typeof env.OSU_CLIENT_ID === "string" ? env.OSU_CLIENT_ID.trim() : "";
   const clientSecret = typeof env.OSU_CLIENT_SECRET === "string" ? env.OSU_CLIENT_SECRET.trim() : "";
   if (!clientId || !/^[0-9]+$/.test(clientId) || !clientSecret) {
@@ -231,7 +235,22 @@ async function getPublicApiToken(env) {
   if (!response.ok) throw new Error("osu_api_token_failed");
   const tokens = await response.json();
   if (!tokens.access_token) throw new Error("osu_api_token_invalid");
+  cachedPublicToken = {
+    value: tokens.access_token,
+    expiresAt: now + Math.max(60, Number(tokens.expires_in) || 0) * 1000
+  };
   return tokens.access_token;
+}
+
+// Single retry for transient osu! rate limits / server hiccups.
+async function fetchOsuWithRetry(url, options, label) {
+  let response = await fetch(url, options);
+  if (response.status === 429 || response.status === 503) {
+    const delay = osuRetryAfterSeconds(response, label === "scores" ? 2 : 1) * 1000;
+    await new Promise(resolve => setTimeout(resolve, Math.min(5000, delay)));
+    response = await fetch(url, options);
+  }
+  return response;
 }
 
 export default {
@@ -455,7 +474,7 @@ export default {
       const resolvedUser = /^[0-9]+$/.test(user) ? user : "@" + user;
       const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + token };
       const profileUrl = "https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(resolvedUser) + "/" + mode;
-      const profileResponse = await fetch(profileUrl, { headers });
+      const profileResponse = await fetchOsuWithRetry(profileUrl, { headers }, "profile");
       const profile = await profileResponse.json().catch(() => ({}));
       if (!profileResponse.ok || !profile.id) {
         return apiJson({ error: profile.error || "osu_user_not_found", stage: "user_lookup", upstream_status: profileResponse.status }, profileResponse.status === 404 ? 404 : 502);
@@ -466,7 +485,7 @@ export default {
       scoresUrl.searchParams.set("limit", String(limit));
       if (offset > 0) scoresUrl.searchParams.set("offset", String(offset));
       if (scoreType === "recent") scoresUrl.searchParams.set("include_fails", "1");
-      const response = await fetch(scoresUrl, { headers });
+      const response = await fetchOsuWithRetry(scoresUrl, { headers }, "scores");
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         return apiJson({ error: (payload && payload.error) || "osu_scores_failed", stage: scoreType + "_scores", upstream_status: response.status }, response.status === 404 ? 404 : 502);
@@ -492,16 +511,16 @@ export default {
       try { token = await getPublicApiToken(env); }
       catch (error) { return apiJson({ error: error.message || "osu_api_unavailable" }, 503); }
       const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + token };
-      const scoreResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId), { headers });
+      const scoreResponse = await fetchOsuWithRetry("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId), { headers }, "score");
       const score = await scoreResponse.json().catch(() => ({}));
       if (!scoreResponse.ok || !score.id) {
         return apiJson({ error: score.error || "score_not_found", stage: "score_lookup", upstream_status: scoreResponse.status }, scoreResponse.status === 404 ? 404 : 502);
       }
       // The API hides has_replay from non-owners, so let the download endpoint decide.
       const replayHeaders = { accept: "application/octet-stream", "x-api-version": "20220705", authorization: "Bearer " + token };
-      let download = await fetch("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId) + "/download", { headers: replayHeaders });
+      let download = await fetchOsuWithRetry("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId) + "/download", { headers: replayHeaders }, "download");
       if (download.status === 404) {
-        download = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", { headers: replayHeaders });
+        download = await fetchOsuWithRetry("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", { headers: replayHeaders }, "download-legacy");
       }
       if (!download.ok) {
         const contentType = download.headers.get("content-type") || "";
