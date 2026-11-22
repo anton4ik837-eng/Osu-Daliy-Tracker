@@ -3,6 +3,11 @@
   "version": "4.0.0",
   "private": true,
   "description": "Desktop build of osu! Daily Tracker Replay Lab",
+  "homepage": "https://github.com/anton4ik837-eng/Osu-Daliy-Tracker",
+  "author": {
+    "name": "anton4ik837-eng",
+    "email": "278468595+anton4ik837-eng@users.noreply.github.com"
+  },
   "main": "main.js",
   "scripts": {
     "prepare:www": "node prepare.js",
@@ -29,6 +34,7 @@
     },
     "linux": {
       "category": "Game",
+      "maintainer": "anton4ik837-eng <278468595+anton4ik837-eng@users.noreply.github.com>",
       "target": [
         { "target": "AppImage", "arch": ["x64"] },
         { "target": "deb", "arch": ["x64"] }
