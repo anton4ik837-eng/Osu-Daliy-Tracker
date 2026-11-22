@@ -25,7 +25,10 @@
   let lastOAuthUrl = null;
   const oauthCallbacks = [];
   const deliverOAuthUrl = url => {
-    if (!url || url === lastOAuthUrl) return;
+    if (!url || typeof url !== 'string') return;
+    // A cold start can deliver the URL before the page registers its handler.
+    // In that case keep it as pending so the did-finish-load delivery can replay it.
+    if (url === lastOAuthUrl && oauthCallbacks.length) return;
     lastOAuthUrl = url;
     oauthCallbacks.forEach(callback => {
       try { callback(url); } catch (error) { console.error('OAuth callback failed:', error); }

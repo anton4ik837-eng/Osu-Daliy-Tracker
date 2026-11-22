@@ -27,8 +27,11 @@ function deliverOAuthUrl(url) {
 }
 
 function handleCommandLine(argv) {
-  const url = (argv || []).find(arg => typeof arg === 'string' && arg.startsWith(PROTOCOL + '://'));
-  if (url) deliverOAuthUrl(url);
+  const normalized = (argv || []).map(arg => String(arg).replace(/^"+|"+$/g, ''));
+  const arg = normalized.find(value => value.includes(PROTOCOL + '://'));
+  if (!arg) return;
+  const index = arg.indexOf(PROTOCOL + '://');
+  deliverOAuthUrl(arg.slice(index));
 }
 
 ipcMain.handle('desktop:logs-append', (_event, line) => {
@@ -66,7 +69,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'osu! Daily Tracker · Replay Lab',
+    title: 'osu! Daily Tracker 4.0.2 · Replay Lab',
     backgroundColor: '#0b0f17',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
