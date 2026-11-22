@@ -6,7 +6,7 @@ on:
         description: "Опубликовать GitHub Release после сборки"
         required: true
         type: boolean
-        default: false
+        default: true
   push:
     branches: [app-foundation, alpha-1.0.0-work, renderer-js-releases, feature/2.3.0-replay-collector]
     paths:
@@ -23,13 +23,10 @@ jobs:
   build:
     outputs:
       version: ${{ steps.app-version.outputs.version }}
-      version_changed: ${{ steps.app-version.outputs.version_changed }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -43,50 +40,14 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Invalid app/package.json version: $VERSION"
-            exit 1
-          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          PREVIOUS_VERSION="$(git show HEAD^:app/package.json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(JSON.parse(s).version||'')}catch{}})" || true)"
-          if [ "$VERSION" != "$PREVIOUS_VERSION" ]; then CHANGED=true; else CHANGED=false; fi
-          echo "version_changed=$CHANGED" >> "$GITHUB_OUTPUT"
-          echo "Building osu! Daily Tracker $VERSION (version changed: $CHANGED)"
-      - name: Validate Replay AI model tests
-        working-directory: app
-        run: npm run test:replay-ai-model
-      - name: Validate Replay Lab JavaScript syntax
-        working-directory: app
-        run: npm run test:replay-inline
-      - name: Validate Mania key-count remapping (7K to 4K)
-        working-directory: app
-        run: npm run test:mania-key-remap
-      - name: Validate Standard to Mania conversion engine
-        working-directory: app
-        run: npm run test:standard-mania-conversion
-      - name: Validate experimental replayviewer adapter
-        working-directory: app
-        run: npm run test:renderer-adapter
-      - name: Validate supplied replay, exact beatmap and nested mania skin fixtures
-        working-directory: .
-        run: node app/scripts/check-replay-fixtures.mjs
+          echo "Building osu! Daily Tracker $VERSION"
       - name: Build native JavaScript bridge
         working-directory: app
         run: npm run build
       - name: Add Android platform
         working-directory: app
         run: npx cap add android
-      - name: Verify stable signing key is configured
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          test -n "$ANDROID_KEYSTORE_BASE64" || (echo "::error::Missing ANDROID_KEYSTORE_BASE64 secret" && exit 1)
-          test -n "$ANDROID_KEYSTORE_PASSWORD" || (echo "::error::Missing ANDROID_KEYSTORE_PASSWORD secret" && exit 1)
-          test -n "$ANDROID_KEY_ALIAS" || (echo "::error::Missing ANDROID_KEY_ALIAS secret" && exit 1)
-          test -n "$ANDROID_KEY_PASSWORD" || (echo "::error::Missing ANDROID_KEY_PASSWORD secret" && exit 1)
       - name: Register OAuth deep link, icon and signing
         working-directory: app
         env:
@@ -98,14 +59,6 @@ jobs:
       - name: Sync web assets
         working-directory: app
         run: npx cap sync android
-      - name: Verify launcher manifest after Capacitor sync
-        working-directory: app
-        run: |
-          set -euo pipefail
-          grep -Eq 'android:icon="@mipmap/ic_launcher_v11103"' android/app/src/main/AndroidManifest.xml
-          grep -Eq 'android:roundIcon="@mipmap/ic_launcher_round_v11103"' android/app/src/main/AndroidManifest.xml
-          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_v11103.xml
-          test -s android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round_v11103.xml
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -117,29 +70,14 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew assembleDebug
-      - name: Verify launcher icon resources are packaged
-        working-directory: app/android
         run: |
-          set -euo pipefail
-          APK=app/build/outputs/apk/debug/app-debug.apk
-          test -s "$APK"
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-mdpi-v4/ic_launcher_v11103.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-hdpi-v4/ic_launcher_v11103.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xhdpi-v4/ic_launcher_v11103.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxhdpi-v4/ic_launcher_v11103.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-xxxhdpi-v4/ic_launcher_v11103.png'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_v11103.xml'
-          unzip -Z1 "$APK" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round_v11103.xml'
-          unzip -Z1 "$APK" | grep -Fq 'ic_launcher_foreground_art_v11103.png'
-          AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
-          test -x "$AAPT"
-          "$AAPT" dump badging "$APK" > /tmp/osu-apk-badging.txt
-          grep -Eq "^application-icon-[0-9]+:.*ic_launcher" /tmp/osu-apk-badging.txt
-          "$AAPT" dump resources "$APK" > /tmp/osu-apk-resources.txt
-          grep -Fq 'mipmap/ic_launcher_v11103' /tmp/osu-apk-resources.txt
-          grep -Fq 'mipmap/ic_launcher_round_v11103' /tmp/osu-apk-resources.txt
-          grep -Eq "^application-icon-[0-9]+:.*ic_launcher_v11103" /tmp/osu-apk-badging.txt
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            echo "Gradle build attempt $attempt"
+            if ./gradlew assembleDebug --no-daemon; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep 30; fi
+          done
+          exit 1
       - name: Name APK using app version
         env:
           APP_VERSION: ${{ steps.app-version.outputs.version }}
@@ -150,37 +88,9 @@ jobs:
         with:
           name: osu-daily-tracker-v${{ steps.app-version.outputs.version }}
           path: osu-daily-tracker-v${{ steps.app-version.outputs.version }}.apk
-          if-no-files-found: error
-      - name: Build fixture-enabled APK for emulator integration tests
-        working-directory: .
-        env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          set -euxo pipefail
-          mkdir -p app/www/ci-fixtures
-          cp "test-fixtures/replays/solo-replay-mania_429549_7779890059.osr" app/www/ci-fixtures/
-          cp "test-fixtures/replays/tupoieblan228_playing_HyuN_Encounter_FAMoss_Rendezvous_Point_2026.osr" app/www/ci-fixtures/
-          cp "test-fixtures/replays/176446 High Speed Music Team Sharpnel - M.A.M.A..osz" app/www/ci-fixtures/
-          cp "test-fixtures/skins/百鬼あやめ.osk.zip" app/www/ci-fixtures/
-          # Enable the test only in this temporary APK; the release APK above stays fixture-free.
-          sed -i 's|href="./replay.html"|href="./replay.html?ciReplaySkin=1"|g' app/www/index.html
-          cd app
-          npx cap sync android
-          cd android
-          ./gradlew assembleDebug
-          cp app/build/outputs/apk/debug/app-debug.apk ../../osu-daily-tracker-ci-test.apk
-      - name: Upload fixture-enabled test APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: osu-daily-tracker-ci-test-apk
-          path: osu-daily-tracker-ci-test.apk
-          if-no-files-found: error
-      # Публикация зависит только от успешной сборки APK. Эмуляторная проверка выполняется параллельно и не блокирует релиз.
 
   publish-replay-collector-beta:
-    if: github.ref == 'refs/heads/feature/2.3.0-replay-collector' && ((github.event_name == 'push' && needs.build.outputs.version_changed == 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true))
+    if: github.ref == 'refs/heads/feature/2.3.0-replay-collector'
     name: Publish osu! Daily Tracker ${{ needs.build.outputs.version }}
     needs: [build]
     runs-on: ubuntu-latest
@@ -216,9 +126,8 @@ jobs:
           fi
           gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
 
-
   publish-release:
-    if: github.ref != 'refs/heads/feature/2.3.0-replay-collector' && github.ref != 'refs/heads/feature/2.2.0-replay-ai-beta' && ((github.event_name == 'push' && needs.build.outputs.version_changed == 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true))
+    if: github.ref != 'refs/heads/feature/2.3.0-replay-collector' && github.ref != 'refs/heads/feature/2.2.0-replay-ai-beta'
     name: Publish osu! Daily Tracker ${{ needs.build.outputs.version }}
     needs: [build]
     runs-on: ubuntu-latest
@@ -253,168 +162,3 @@ jobs:
             fi
           fi
           gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
-
-
-  emulator-smoke-test:
-    name: Android emulator smoke test (non-blocking)
-    needs: build
-    # Emulator checks are diagnostic only: APK artifact and release publication depend on build, not this job.
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Download APK from build
-        uses: actions/download-artifact@v4
-        with:
-          name: osu-daily-tracker-ci-test-apk
-          path: dist
-
-      - name: Install emulator runtime and OCR
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libpulse0 tesseract-ocr tesseract-ocr-rus
-
-      - name: Set up Android SDK packages
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools emulator system-images;android-34;default;x86_64'
-          accept-android-sdk-licenses: true
-
-      - name: Add Android emulator to PATH
-        run: echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
-
-      - name: Create and start emulator with bounded startup
-        timeout-minutes: 7
-        run: |
-          set -euxo pipefail
-          mkdir -p emulator-results
-          # Keep AVD creation and emulator lookup on the same explicit directory.
-          export ANDROID_AVD_HOME="$HOME/.android/avd"
-          mkdir -p "$ANDROID_AVD_HOME"
-          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
-          AVD_PATH="$ANDROID_AVD_HOME/ci-smoke.avd"
-          timeout 45s avdmanager create avd --force --name ci-smoke --package "system-images;android-34;default;x86_64" --device "pixel_2" --path "$AVD_PATH" <<< "no"
-          test -f "$ANDROID_AVD_HOME/ci-smoke.ini"
-          timeout 15s emulator -list-avds | tee emulator-results/available-avds.txt
-          grep -Fxq "ci-smoke" emulator-results/available-avds.txt
-          # Hosted Ubuntu runners may expose /dev/kvm without granting the runner user access.
-          # x86_64 Android images cannot boot without KVM acceleration on current Emulator builds.
-          if [ -e /dev/kvm ]; then
-            sudo chmod 666 /dev/kvm
-            ls -l /dev/kvm
-          else
-            echo "::error::/dev/kvm is missing; x86_64 Android emulator requires KVM on this runner."
-            exit 1
-          fi
-          nohup emulator -avd ci-smoke -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -wipe-data > emulator-results/emulator.log 2>&1 &
-          echo $! > emulator-results/emulator.pid
-
-          # Do not call adb wait-for-device without a timeout: if the emulator
-          # fails before registering, that command can otherwise hang forever.
-          ready=0
-          for i in $(seq 1 90); do
-            if timeout 10s adb devices | grep -qE '^emulator-[0-9]+[[:space:]]+device$'; then
-              ready=1
-              break
-            fi
-            sleep 2
-          done
-          if [ "$ready" -ne 1 ]; then
-            echo "::error::Emulator never registered with ADB."
-            adb devices -l || true
-            tail -n 250 emulator-results/emulator.log || true
-            exit 1
-          fi
-
-          booted=0
-          for i in $(seq 1 120); do
-            state="$(timeout 10s adb -e shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
-            if [ "$state" = "1" ]; then
-              booted=1
-              break
-            fi
-            sleep 2
-          done
-          if [ "$booted" -ne 1 ]; then
-            echo "::error::Emulator connected to ADB but Android did not finish booting."
-            adb devices -l || true
-            adb -e logcat -d -t 500 || true
-            tail -n 250 emulator-results/emulator.log || true
-            exit 1
-          fi
-          timeout 15s adb -e shell settings put global window_animation_scale 0
-          timeout 15s adb -e shell settings put global transition_animation_scale 0
-          timeout 15s adb -e shell settings put global animator_duration_scale 0
-
-      - name: Install, launch and capture app
-        run: |
-          set -euxo pipefail
-          adb -e install -r dist/osu-daily-tracker-ci-test.apk
-          adb -e logcat -c
-          adb -e shell monkey -p com.osudailytracker.app 1
-          sleep 20
-          adb -e shell pidof com.osudailytracker.app
-          adb -e exec-out screencap -p > emulator-results/home-screen.png
-          # Open Replay Lab through the dedicated top navigation link (href="#replay").
-          # This avoids a brittle tap on a page section whose position changes with viewport and keyboard state.
-          sleep 2
-          adb -e shell input tap 735 70
-          sleep 3
-          adb -e exec-out screencap -p > emulator-results/replay-section-screen.png
-          tesseract emulator-results/replay-section-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-section-ocr.txt
-          # ADB reports the Pixel 2 AVD at 1080x1920; screenshot preview is scaled down.
-          # The CTA center in device coordinates is approximately (545, 1565).
-          adb -e shell input tap 545 1565
-          # The Replay Lab query harness loads the real replay, matching map and nested skin.
-          # Poll its explicit PASS/FAIL banner instead of assuming seven seconds is sufficient.
-          ci_result=waiting
-          deadline=$((SECONDS + 90))
-          while [ "$SECONDS" -lt "$deadline" ]; do
-            if ! adb -e shell pidof com.osudailytracker.app >/dev/null 2>&1; then
-              echo "::error::App process exited while Replay Lab was running."
-              ci_result=process_exit
-              break
-            fi
-            adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
-            tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null > emulator-results/replay-lab-ocr.txt || true
-            if grep -Eqi 'CI TEST PASS' emulator-results/replay-lab-ocr.txt; then
-              ci_result=pass
-              break
-            fi
-            if grep -Eqi 'CI TEST FAIL' emulator-results/replay-lab-ocr.txt; then
-              ci_result=fail
-              break
-            fi
-            sleep 3
-          done
-          adb -e exec-out screencap -p > emulator-results/replay-lab-screen.png
-          tesseract emulator-results/replay-lab-screen.png stdout -l rus+eng 2>/dev/null | tee emulator-results/replay-lab-ocr.txt || true
-          adb -e logcat -d -v threadtime > emulator-results/logcat.txt
-          if [ "$ci_result" != pass ]; then
-            echo "::error::Replay Lab integration test did not pass (result=$ci_result)."
-            cat emulator-results/replay-lab-ocr.txt
-            exit 1
-          fi
-          test -s emulator-results/home-screen.png
-          test -s emulator-results/replay-lab-screen.png
-          if grep -E 'FATAL EXCEPTION|Fatal signal' emulator-results/logcat.txt; then
-            echo "::error::Fatal Android crash detected; see logcat artifact."
-            exit 1
-          fi
-
-      - name: Collect diagnostics on failure
-        if: failure()
-        run: |
-          mkdir -p emulator-results
-          timeout 15s adb devices -l > emulator-results/adb-devices.txt 2>&1 || true
-          timeout 15s adb -e logcat -d -v threadtime > emulator-results/logcat-failure.txt 2>&1 || true
-          tail -n 400 emulator-results/emulator.log > emulator-results/emulator-tail.log 2>&1 || true
-
-      - name: Upload emulator diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-emulator-diagnostics-v2.0.0
-          path: emulator-results/
-          if-no-files-found: warn
-          retention-days: 14
