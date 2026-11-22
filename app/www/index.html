@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>osu! Daily Tracker 4.7.1</title>
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>osu! Daily Tracker 4.8.0</title>
 <style>
 :root{color-scheme:dark;--theme-image:none;--bg:#0b0f17;--surface:#141b28;--surface2:#1b293b;--line:#2d4054;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--bg-glow:#20364b;--hero-start:#1b293b;--hero-mid:#101722;--hero-end:#172537;--button-text:#0b0f17;--chart-grid:#2d4054;--field-bg:#0b0f17;--card-bg:#101722;--border-strong:#38536b;--panel-start:#182536;--panel-end:#141b28;--topbar:#0b0f17ef;--topbar-line:#2d4054;--hero-border:#2d4054;--pill-bg:#172f42;--pill-line:#38536b;--success-line:#276448;--danger-line:#803b4b;--hero-copy:#c0d2e5;--watermark:#57c9e80b}
 *{box-sizing:border-box}html{width:100%;min-height:100%;scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}body{width:100%;min-width:0;margin:0;min-height:100vh;min-height:100dvh;overflow-x:hidden;background:radial-gradient(ellipse at 85% -10%,var(--bg-glow) 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.55 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.native-app .topbar{padding-top:env(safe-area-inset-top,0px)}.native-app .topinner{width:100%;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}.native-app .wrap{width:100%;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}.topbar{position:sticky;top:0;z-index:5;background:var(--topbar);border-bottom:1px solid var(--topbar-line);backdrop-filter:blur(16px)}.topinner{max-width:1050px;margin:auto;min-height:58px;padding:10px 18px;display:flex;align-items:center;gap:12px}.logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:-.04em;font-size:17px}.logo-mark{display:block;object-fit:cover;width:30px;height:30px;border-radius:9px;background:var(--pink);border:1px solid var(--border-strong)}.topnav{margin-left:auto;display:flex;gap:8px}.navlink{color:var(--muted);text-decoration:none;padding:8px 10px;border-radius:9px;font-size:13px}.navlink:hover,.navlink.active{color:var(--text);background:var(--surface2)}.wrap{max-width:1050px;margin:auto;padding:26px 16px calc(35px + env(safe-area-inset-bottom))}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--pink2);font-weight:850}.hero{position:relative;overflow:hidden;border:1px solid var(--hero-border);border-radius:22px;padding:clamp(22px,5vw,40px);background:linear-gradient(115deg,var(--hero-start) 0%,var(--hero-mid) 62%,var(--hero-end) 100%);box-shadow:0 18px 50px #0002}.hero:after{content:"osu!";position:absolute;right:-12px;bottom:-47px;font-size:clamp(100px,23vw,220px);font-weight:1000;letter-spacing:-.1em;color:var(--watermark);pointer-events:none}.hero h1{position:relative;z-index:1;font-size:clamp(34px,8vw,62px);line-height:.98;letter-spacing:-.065em;margin:13px 0}.hero h1 span{color:var(--pink)}.hero p{position:relative;z-index:1;max-width:620px;color:var(--hero-copy);margin:14px 0 0}.hero-actions{position:relative;z-index:1;display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.8fr);gap:16px;margin-top:16px}.panel{min-width:0;border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,var(--panel-start),var(--panel-end));padding:20px}.panel h2{font-size:19px;letter-spacing:-.025em;margin:0}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}.pill{white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--pink2);border:1px solid var(--pill-line);background:var(--pill-bg);border-radius:99px;padding:5px 9px}.muted,p{color:var(--muted)}.fine{font-size:12px}.label{display:block;font-size:12px;color:var(--muted);margin:16px 0 7px}input{width:100%;min-height:46px;border:1px solid #38536b;border-radius:11px;background:var(--field-bg);color:var(--text);padding:11px 13px;font:inherit;outline:none}input:focus{border-color:var(--pink);box-shadow:0 0 0 3px #57c9e81f}button,.button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border:1px solid #a9e7ff;border-radius:11px;padding:10px 15px;background:var(--pink);color:#0b0f17;font:inherit;font-weight:850;text-decoration:none;cursor:pointer;transition:transform .15s,filter .15s;width:100%;margin-top:11px}button:hover,.button:hover{filter:brightness(1.07);transform:translateY(-1px)}button:disabled{opacity:.55;cursor:wait;transform:none}.secondary,button.secondary{background:var(--surface2);border-color:var(--line);color:var(--text)}.oauth-button{background:linear-gradient(110deg,#57c9e8,#a9e7ff);font-size:15px}.osu-icon{font-weight:1000;font-size:18px;line-height:1}.status{border-radius:10px;padding:11px 12px;background:#0b0f17;border:1px solid var(--line);margin-top:12px;overflow-wrap:anywhere;font-size:13px}.status[data-kind=error]{border-color:var(--danger-line);color:var(--danger)}.status[data-kind=success]{border-color:var(--success-line);color:var(--good)}.profile{display:none;gap:13px;align-items:center;margin-top:18px}.profile img{width:68px;height:68px;object-fit:cover;border-radius:15px;background:var(--surface2);border:1px solid var(--border-strong)}.profile h3{margin:0;font-size:20px}.grow{flex:1;min-width:0}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}.stat{border:1px solid var(--chart-grid);border-radius:12px;padding:12px;background:var(--card-bg);min-width:0}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{display:block;font-size:clamp(17px,3vw,22px);letter-spacing:-.03em;overflow-wrap:anywhere}.actions{display:grid;grid-template-columns:1fr;gap:2px}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}.progress-list{display:grid;gap:11px;margin-top:14px}.progress-item{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:10px;font-size:13px}.progress-item:last-child{border-bottom:0;padding-bottom:0}.progress-item span{color:var(--muted)}.progress-item b{text-align:right}.chart{width:100%;height:auto;display:block;margin-top:12px}.feature{padding:13px 0;border-bottom:1px solid #2d4054}.feature:last-child{border:0;padding-bottom:0}.feature b{display:block;font-size:13px}.feature span{display:block;color:var(--muted);font-size:12px;margin-top:3px}.dot{display:inline-block;width:7px;height:7px;background:var(--pink);border-radius:50%;margin-right:7px}.foot{text-align:center;color:#91a3b9;font-size:11px;padding:24px 4px}.mode-switch{display:flex;gap:8px;margin-top:16px}.mode-button{width:auto;min-width:92px;margin:0;background:var(--card-bg);border-color:var(--border-strong);color:var(--muted)}.mode-button.active{background:var(--pill-bg);border-color:var(--pink);color:var(--text)}.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.chart-card{min-width:0;border:1px solid #2d4054;border-radius:12px;padding:12px;background:#101722}.chart-card h3{font-size:15px;margin:0}.chart-card p{margin:4px 0}.chart{width:100%;height:auto;display:block;margin-top:8px;overflow:visible}.settings-trigger{width:auto;min-height:40px;margin:0;padding:8px 12px;background:transparent;border:1px solid var(--line);color:var(--text);font-size:13px}.settings-trigger:hover{background:var(--surface2)}.settings-overlay{position:fixed;inset:0;z-index:30;background:#07060bd9;backdrop-filter:blur(8px);display:flex;justify-content:flex-end;align-items:stretch;padding:12px}.consent-overlay{z-index:50;justify-content:center;align-items:center;padding:18px}.consent-dialog{width:min(540px,100%);max-height:90dvh;border-radius:18px}.consent-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.consent-actions button{margin:0}.consent-dialog h2{font-size:21px;margin:0 0 8px}.consent-dialog ul{padding-left:20px;color:var(--muted);font-size:13px}.consent-dialog li{margin:6px 0}.settings-dialog{width:min(620px,100%);max-height:100%;overflow:auto;border:1px solid var(--line);border-radius:18px;background:var(--bg);padding:20px;box-shadow:0 24px 90px #0009}.settings-close{width:42px;min-width:42px;height:42px;margin:0;padding:0;font-size:25px}.update-box{border:1px solid var(--line);border-radius:12px;padding:13px;margin-top:16px;background:var(--card-bg)}.update-box h3{font-size:15px;margin:0}.update-box .status{margin-top:8px}.update-link{display:inline-flex;margin-top:8px;color:var(--pink2);overflow-wrap:anywhere}@media(max-width:560px){.settings-overlay{padding:0}.settings-dialog{border-radius:0;width:100%;padding:17px}.settings-trigger{padding:7px 9px}}.preset-controls{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.theme-preset-select{flex:1;min-width:180px;background:var(--field-bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit}.palette-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.palette-item{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:9px 10px;color:var(--muted);font-size:12px}.palette-item input[type=color]{width:38px;min-width:38px;height:32px;min-height:32px;padding:2px;border-radius:7px;cursor:pointer}.settings-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:10px}.settings-actions button,.settings-actions .button{margin-top:0}@media(max-width:720px){.chart-grid{grid-template-columns:1fr}}.hidden{display:none!important}@media(max-width:720px){.layout{grid-template-columns:minmax(0,1fr)}.wrap{padding-top:clamp(12px,3vw,18px)}.topinner{gap:8px}.topnav{gap:2px}.topnav .navlink{padding:8px 7px}.topnav .navlink:first-child{display:none}.hero{border-radius:18px;padding:clamp(18px,5vw,28px)}.panel{padding:clamp(13px,4vw,17px)}.chart-grid{min-width:0}.chart-card{min-width:0;overflow:hidden}}@media(min-width:560px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.actions{grid-template-columns:1fr 1fr}}
@@ -12,6 +12,25 @@
 </style>
 <style id="scrollbarTheme">
 body.has-theme-art{background-image:linear-gradient(90deg,rgba(4,8,16,.94) 0%,rgba(4,8,16,.7) 42%,rgba(4,8,16,.18) 100%),var(--theme-image);background-size:cover,auto 115%;background-position:center,right top;background-attachment:fixed,fixed;background-repeat:no-repeat}
+.activity-panel{margin-top:16px}
+.activity-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.activity-goal{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px}
+.activity-goal input{width:78px;background:var(--field-bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.activity-summary{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.activity-summary>div{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--card-bg);min-width:100px}
+.activity-summary small{display:block;color:var(--muted);font-size:11px}
+.activity-summary b{font-size:18px}
+.activity-progress{height:8px;border-radius:8px;background:var(--field-bg);border:1px solid var(--line);overflow:hidden;margin-bottom:12px}
+.activity-progress>div{height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--pink2));transition:width .3s ease}
+.activity-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,15px);grid-auto-columns:15px;gap:4px;overflow-x:auto;padding:2px 2px 8px}
+.activity-cell{width:15px;height:15px;border-radius:4px;background:var(--card-bg);border:1px solid var(--line)}
+.activity-cell[data-level="1"]{background:color-mix(in srgb,var(--pink) 25%,var(--card-bg));border-color:color-mix(in srgb,var(--pink) 35%,var(--line))}
+.activity-cell[data-level="2"]{background:color-mix(in srgb,var(--pink) 48%,var(--card-bg));border-color:color-mix(in srgb,var(--pink) 55%,var(--line))}
+.activity-cell[data-level="3"]{background:color-mix(in srgb,var(--pink) 72%,var(--card-bg));border-color:var(--pink)}
+.activity-cell[data-level="4"]{background:var(--pink);border-color:var(--pink2)}
+.activity-cell.is-today{outline:2px solid var(--pink2);outline-offset:1px}
+.activity-legend{display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:6px}
+.activity-legend i{width:13px;height:13px;border-radius:3px;display:inline-block;border:1px solid var(--line)}
 html{scrollbar-color:var(--line) var(--card-bg);scrollbar-width:thin}
 *{scrollbar-width:thin;scrollbar-color:var(--line) var(--card-bg)}
 *::-webkit-scrollbar{width:10px;height:10px}
@@ -51,6 +70,14 @@ html{scrollbar-color:var(--line) var(--card-bg);scrollbar-width:thin}
 
 </div>
 <section id="progressPanel" class="panel hidden" style="margin-top:16px"><div class="panel-head"><h2>История прогресса</h2><span class="pill" id="chartModeLabel">STD</span></div><div id="progress" class="progress-list"></div><div class="chart-grid"><div class="chart-card"><h3>Performance Points</h3><svg id="ppChart" class="chart" viewBox="0 0 600 220" role="img" aria-label="График истории PP"></svg></div><div class="chart-card"><h3>Глобальный ранг</h3><svg id="rankChart" class="chart" viewBox="0 0 600 220" role="img" aria-label="График истории глобального ранга"></svg></div></div></section>
+<section id="activityPanel" class="panel activity-panel hidden"><div class="panel-head"><h2>Календарь активности</h2><span class="pill" id="activityModeLabel">STD</span></div>
+ <p class="fine">Последние 12 недель. Дни с играми определяются по публичным результатам osu!; если они недоступны — по локальным обновлениям профиля.</p>
+ <div class="activity-head"><label class="activity-goal">Дневная цель · игр <input id="dailyGoalInput" type="number" min="1" max="200" value="5"></label><button id="refreshActivityButton" class="secondary" type="button">Обновить активность</button><span class="fine muted" id="activityStatus"></span></div>
+ <div class="activity-summary" id="activitySummary"></div>
+ <div class="activity-progress" title="Прогресс дневной цели"><div id="activityGoalBar"></div></div>
+ <div class="activity-grid" id="activityGrid" role="img" aria-label="Календарь активности за 12 недель"></div>
+ <div class="activity-legend"><span>меньше</span><i></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i><span>больше</span><span id="activityRange" style="margin-left:auto"></span></div>
+</section>
 <div id="settingsOverlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle"><div class="settings-dialog"><div class="panel-head"><h2 id="settingsTitle">Настройки</h2><button id="settingsCloseButton" class="secondary settings-close" type="button" aria-label="Закрыть настройки">×</button></div><span class="pill">Внешний вид</span>
 <p class="fine">Настрой каждый цвет интерфейса. Изменения сохраняются на этом устройстве.</p>
 
@@ -69,7 +96,7 @@ html{scrollbar-color:var(--line) var(--card-bg);scrollbar-width:thin}
 </div>
 <div class="settings-actions"><button id="resetThemeButton" class="secondary" type="button">Сбросить цвета</button><button id="disconnectButton" class="secondary" type="button">Отключить авторизацию</button><a class="button secondary" href="https://github.com/anton4ik837-eng/Osu-Daliy-Tracker" target="_blank" rel="noopener">Наш проект на GitHub ↗</a></div><div class="update-box"><div class="panel-head"><h3>Обновления приложения</h3><span class="pill">Alpha</span></div><p class="fine">Проверяем GitHub Releases, при ошибке API — публичную ленту релизов. На десктопе установщик можно скачать и открыть прямо отсюда.</p><button id="checkUpdateButton" class="secondary" type="button">Проверить обновления</button><div id="updateStatus" class="status" role="status" aria-live="polite">Проверка ещё не выполнялась.</div></div><div id="settingsStatus" class="fine muted" role="status"></div></div></div>
 <div id="replayConsentPrompt" class="settings-overlay consent-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="replayConsentTitle"><div class="settings-dialog consent-dialog"><span class="pill">Добровольное участие</span><h2 id="replayConsentTitle">Обучение Replay AI на твоих реплеях</h2><p class="fine">Передача реплеев включается только с твоего разрешения. Если отказаться, приложение продолжит работать как обычно. Датасет закрытый, но доступ к нему есть у сопровождающих проекта; старые версии файлов могут сохраняться в истории GitHub.</p><ul><li>Приложение проверяет только твои собственные Standard и Mania результаты каждые 30 минут, пока оно открыто.</li><li>За один запуск загружается не более 10 новых реплеев за одну сессию; дневной лимит — 600.</li><li>Имя файла обезличивается последовательным номером, а ник внутри OSR заменяется псевдонимом участника.</li><li>Файлы отправляются в приватный репозиторий датасета и используются для обучения и проверки Replay AI.</li><li>Согласие можно отозвать в настройках: новые загрузки остановятся, а файлы удалятся из актуальной версии датасета. Старые версии в истории коммитов могут сохраниться.</li></ul><div class="consent-actions"><button id="declineReplayConsentButton" class="secondary" type="button">Не согласен</button><button id="acceptReplayConsentButton" type="button">Согласен</button></div><div id="replayConsentPromptStatus" class="status" role="status" aria-live="polite">Без согласия сбор не выполняется.</div></div></div><section class="panel" id="replay" style="margin-top:16px"><div class="panel-head"><h2>Replay Lab</h2><span class="pill">Экспериментальный</span></div><a class="button secondary" href="./replay.html">Открыть Replay Lab ↗</a></section>
-<div class="foot">osu! Daily Tracker · 4.7.1</div>
+<div class="foot">osu! Daily Tracker · 4.8.0</div>
 </main>
 <script src="./native-bridge.bundle.js"></script>
 <script>window.addEventListener("DOMContentLoaded",()=>{if(window.NativeLogs?.start)window.NativeLogs.start().catch(error=>console.error("Не удалось создать папку логов:",error));});</script>
@@ -140,7 +167,7 @@ function applyTheme(theme,save=false){
  document.body.classList.toggle('has-theme-art',!!currentThemeImage);
  if(save){try{const stored={};Object.keys(THEME_DEFAULTS).forEach(k=>stored[k]=root.style.getPropertyValue(k).trim());stored.__image=currentThemeImage;localStorage.setItem(THEME_KEY,JSON.stringify(stored));$('settingsStatus').textContent=currentThemeImage?'Тема с иллюстрацией сохранена.':'Цветовая палитра сохранена.'}catch{$('settingsStatus').textContent='Не удалось сохранить палитру на устройстве.'}}
 }
-const APP_VERSION='4.7.1';
+const APP_VERSION='4.8.0';
 const RELEASES_API='https://api.github.com/repos/anton4ik837-eng/Osu-Daliy-Tracker/releases?per_page=15';
 const RELEASES_PAGE='https://github.com/anton4ik837-eng/Osu-Daliy-Tracker/releases';
 const RELEASES_ATOM=RELEASES_PAGE+'.atom';
@@ -288,7 +315,7 @@ async function runReplayCollection(type='recent',options={}){
   if(!session?.expiresAt||session.expiresAt<Date.now()+60000){session=await refreshOAuthSession(session);window.__osuOAuthSession=session;persistOAuthSession()}
   const r=await fetch(API_BASE+'/api/me/replay-sync?type='+encodeURIComponent(type),{method:'POST',headers:{Accept:'application/json',Authorization:'Bearer '+session.accessToken}});
   const d=await r.json();if(!r.ok){if(r.status===429&&d.error==='replay_sync_cooldown'){const retry=Number(d.retry_after)||60;setReplayCooldown(type,retry);$('replayConsentStatus').textContent='Эта кнопка будет доступна через '+retry+' сек.';return {error:'очередь на паузе',uploaded:Number(d.uploaded||0),daily_uploaded:Number(d.daily_uploaded||0),type};}else if(r.status===429){const retry=Number(d.retry_after)||60;setReplayCooldown(type,retry);const partial=Number(d.uploaded||0);$('replayConsentStatus').textContent='osu! API ограничил частоту запросов (HTTP 429). '+(partial?'До ограничения успело загрузиться: '+partial+' реплеев. ':'')+'Очередь сохранена; повтор через '+retry+' сек.';return {error:'HTTP 429',uploaded:partial,daily_uploaded:Number(d.daily_uploaded||0),type};}else throw Error(d.error||'Не удалось собрать реплеи');return}
-  const daily=Number(d.daily_uploaded||0);
+  const daily=Number(d.daily_uploaded||0);window.__osuRecordActivityReplays?.(Number(d.uploaded||0));
   if(d.skipped==='daily_limit')$('replayConsentStatus').textContent='Дневной лимит: '+daily+'/'+Number(d.daily_limit||600)+'. Продолжение после '+new Date(d.next_sync_at).toLocaleString('ru-RU')+'.';
   else $('replayConsentStatus').textContent=(type==='best'?'Лучшие':'Последние')+': +'+Number(d.uploaded||0)+' из 30 за запуск · '+(d.active_modes?.length>1?'до 15 STD + 15 Mania':d.active_modes?.length===1?'до 30 '+(d.active_modes[0]==='mania'?'Mania':'STD'):'режимы с активной игрой не найдены')+' · пропущено '+(Number(d.skipped?.unavailable||0)+Number(d.skipped?.already_present||0))+' · сегодня '+daily+'/'+Number(d.daily_limit||600)+'.';
    return {...d,type};
@@ -396,6 +423,69 @@ function renderCharts(data){
  renderLineChart('rankChart',rankPoints,'rank');
 }
 
+const ACTIVITY_KEY='osu-daily-tracker-activity-v2';
+function activityDayKey(value){const d=new Date(value||Date.now());if(!Number.isFinite(d.getTime()))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
+function activityScope(user,mode){return String(user||'')+':'+String(mode||'osu')}
+function readActivity(){try{return JSON.parse(localStorage.getItem(ACTIVITY_KEY)||'{}')||{}}catch{return{}}}
+function getActivityRecord(user,mode){return readActivity()[activityScope(user,mode)]||{days:{},scoreDays:{},scoresFetchedAt:0,goal:5,lastPlayCount:null}}
+function saveActivityRecord(user,mode,rec){try{const all=readActivity();all[activityScope(user,mode)]=rec;localStorage.setItem(ACTIVITY_KEY,JSON.stringify(all))}catch{}}
+function recordProfileActivity(data){
+ if(!data?.id)return;
+ const rec=getActivityRecord(data.id,activeMode),plays=Number(data.statistics?.play_count);
+ if(Number.isFinite(rec.lastPlayCount)&&Number.isFinite(plays)&&plays>rec.lastPlayCount){
+  const delta=Math.min(plays-rec.lastPlayCount,500);
+  if(delta>0){const day=activityDayKey(Date.now());const entry=rec.days[day]||(rec.days[day]={plays:0,pp:0,replays:0});entry.plays+=delta;}
+ }
+ if(Number.isFinite(plays))rec.lastPlayCount=plays;
+ const pp=Number(data.statistics?.pp);if(Number.isFinite(pp))rec.lastPp=pp;
+ saveActivityRecord(data.id,activeMode,rec);
+}
+window.__osuRecordActivityReplays=count=>{
+ const data=currentProfileData;if(!data?.id||!(Number(count)>0))return;
+ const rec=getActivityRecord(data.id,activeMode),day=activityDayKey(Date.now());
+ const entry=rec.days[day]||(rec.days[day]={plays:0,pp:0,replays:0});
+ entry.replays=(Number(entry.replays)||0)+Number(count);saveActivityRecord(data.id,activeMode,rec);renderActivity(data);
+};
+async function fetchActivityScores(data,force=false){
+ const rec=getActivityRecord(data.id,activeMode);
+ if(!force&&Date.now()-Number(rec.scoresFetchedAt||0)<6*3600*1000)return rec;
+ const mode=activeMode,base=API_BASE+'/api/users/'+encodeURIComponent(data.id)+'/scores',jobs=[];
+ for(const [type,pages] of [['recent',3],['best',2]])for(let page=0;page<pages;page++)jobs.push(fetch(base+'?mode='+encodeURIComponent(mode)+'&type='+type+'&limit=50&offset='+(page*50),{headers:{Accept:'application/json'}}).then(r=>r.ok?r.json():null).catch(()=>null));
+ const responses=await Promise.all(jobs),scores=[];
+ for(const body of responses)if(Array.isArray(body?.scores))scores.push(...body.scores);
+ if(scores.length){
+  const seen=new Set(),days={};
+  for(const score of scores){const id=String(score?.id||'');if(id&&seen.has(id))continue;if(id)seen.add(id);const day=activityDayKey(score?.ended_at);if(!day)continue;const entry=days[day]||(days[day]={plays:0,pp:0});entry.plays++;entry.pp+=Number(score?.pp)||0}
+  rec.scoreDays=days;
+ }
+ rec.scoresFetchedAt=Date.now();saveActivityRecord(data.id,activeMode,rec);return rec;
+}
+function renderActivity(data){
+ const panel=$('activityPanel');if(!panel||!data?.id)return;
+ panel.classList.remove('hidden');$('activityModeLabel').textContent=modeLabel(activeMode);
+ const rec=getActivityRecord(data.id,activeMode),goal=Math.max(1,Number(rec.goal)||5);
+ if($('dailyGoalInput').value!==String(goal))$('dailyGoalInput').value=String(goal);
+ const merged={};
+ for(const [day,entry] of Object.entries(rec.days||{}))merged[day]={plays:Number(entry?.plays)||0,pp:Number(entry?.pp)||0,replays:Number(entry?.replays)||0};
+ for(const [day,entry] of Object.entries(rec.scoreDays||{})){const cur=merged[day]||(merged[day]={plays:0,pp:0,replays:0});cur.plays=Math.max(cur.plays,Number(entry?.plays)||0);if(!cur.pp)cur.pp=Number(entry?.pp)||0}
+ const today=activityDayKey(Date.now()),dates=[];
+ for(let i=83;i>=0;i--){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-i);dates.push(activityDayKey(d))}
+ const maxPlays=Math.max(1,...dates.map(d=>merged[d]?.plays||0)),grid=$('activityGrid');grid.replaceChildren();
+ for(const day of dates){const plays=merged[day]?.plays||0,level=plays<=0?0:Math.min(4,Math.ceil(plays/maxPlays*4));
+  const cell=document.createElement('div');cell.className='activity-cell'+(day===today?' is-today':'');cell.dataset.level=String(level);
+  const d=new Date(day+'T12:00:00');cell.title=d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})+' · '+plays+' игр'+(merged[day]?.replays?' · '+merged[day].replays+' реплеев':'')+(merged[day]?.pp?' · '+fmt(merged[day].pp,0)+' pp':'');
+  grid.append(cell)}
+ let streak=0,anchor=today;if(!(merged[anchor]?.plays>0)){const y=new Date();y.setDate(y.getDate()-1);anchor=activityDayKey(y)}
+ while(merged[anchor]?.plays>0){streak++;const d=new Date(anchor+'T12:00:00');d.setDate(d.getDate()-1);anchor=activityDayKey(d)}
+ const week=dates.slice(-7).reduce((n,d)=>n+(merged[d]?.plays||0),0),best=dates.reduce((a,d)=>Math.max(a,merged[d]?.plays||0),0),todayPlays=merged[today]?.plays||0,activeDays=dates.filter(d=>(merged[d]?.plays||0)>0).length;
+ $('activitySummary').innerHTML=[['Сегодня',todayPlays],['За 7 дней',week],['Серия',streak+' дн.'],['Лучший день',best],['Активных дней',activeDays+'/84']].map(([k,v])=>'<div><small>'+esc(k)+'</small><b>'+esc(v)+'</b></div>').join('');
+ $('activityGoalBar').style.width=Math.min(100,todayPlays/goal*100)+'%';
+ $('activityRange').textContent=dates[0].slice(8)+'.'+dates[0].slice(5,7)+' — '+dates[dates.length-1].slice(8)+'.'+dates[dates.length-1].slice(5,7);
+ $('activityStatus').textContent='Источник: '+(Object.keys(rec.scoreDays||{}).length?'публичные результаты osu!':'локальные данные')+(rec.scoresFetchedAt?' · обновлено '+new Date(rec.scoresFetchedAt).toLocaleString('ru-RU'):'');
+}
+async function refreshActivity(data,force=false){if(!data?.id)return;try{await fetchActivityScores(data,force)}catch{}renderActivity(data)}
+$('dailyGoalInput')?.addEventListener('change',e=>{if(!currentProfileData)return;const rec=getActivityRecord(currentProfileData.id,activeMode);rec.goal=Math.max(1,Number(e.target.value)||5);e.target.value=String(rec.goal);saveActivityRecord(currentProfileData.id,activeMode,rec);renderActivity(currentProfileData)});
+$('refreshActivityButton')?.addEventListener('click',()=>{if(!currentProfileData)return;$('activityStatus').textContent='Обновляю публичные результаты…';refreshActivity(currentProfileData,true)});
 function renderProfile(data){
  currentProfileData=data;
  const s=data.statistics||{},rank=s.global_rank,countryRank=s.country_rank??s.rank?.country,code=data.country_code||data.country?.code;
@@ -406,7 +496,7 @@ function renderProfile(data){
  $('stats').innerHTML=[metric('Performance Points',fmt(s.pp,2)),metric('Глобальный ранг',rank?'#'+fmt(rank):'—'),metric('Ранг в стране',countryRank?'#'+fmt(countryRank):'—'),metric('Точность',s.hit_accuracy==null?'—':fmt(s.hit_accuracy,2)+'%'),metric('Игр сыграно',fmt(s.play_count)),metric('Макс. комбо',fmt(s.maximum_combo)),metric('Уровень',s.level?.current==null?'—':fmt(s.level.current)+' · '+fmt(s.level.progress)+'%'),metric('Всего попаданий',fmt(s.total_hits))].join('');
  $('openProfile').href=profileUrl(data.id,activeMode);$('openProfile').classList.remove('hidden');$('refreshButton').classList.remove('hidden');
  $('progress').innerHTML=[['Время в игре',fmt(Number(s.play_time||0)/3600,1)+' ч'],['Рейтинговый счёт',fmt(s.ranked_score)],['Всего очков',fmt(s.total_score)],['300 / 100 / 50',fmt(s.count_300)+' / '+fmt(s.count_100)+' / '+fmt(s.count_50)],['Промахи',fmt(s.count_miss)],['Медали S / SS / A',fmt(s.grade_counts?.s)+' / '+fmt((s.grade_counts?.ss||0)+(s.grade_counts?.ssh||0))+' / '+fmt(s.grade_counts?.a)]].map(([k,v])=>'<div class="progress-item"><span>'+esc(k)+'</span><b>'+esc(v)+'</b></div>').join('');
- $('progressPanel').classList.remove('hidden');renderCharts(data);loadWebsiteHistory(data);
+ $('progressPanel').classList.remove('hidden');renderCharts(data);loadWebsiteHistory(data);recordProfileActivity(data);renderActivity(data);refreshActivity(data);
 }
 async function loadProfile(value){
  const user=String(value||'').trim();if(!user)return;
