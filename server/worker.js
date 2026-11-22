@@ -434,7 +434,96 @@ export default {
       }});
     }
 
+    // Public score list for another osu! player, resolved by nickname or id.
+    // Uses the app's client-credentials token; no user secret is required.
+    const publicScoresMatch = url.pathname.match(/^\/api\/users\/([^/]+)\/scores$/);
+    if (publicScoresMatch && request.method === "GET") {
+      const user = decodeURIComponent(publicScoresMatch[1]).trim();
+      const mode = validMode(url.searchParams.get("mode") || "osu");
+      if (!user || user.length > 80) return apiJson({ error: "invalid_user" }, 400);
+      if (!mode) return apiJson({ error: "invalid_mode" }, 400);
+      const scoreType = url.searchParams.get("type") || "recent";
+      if (scoreType !== "recent" && scoreType !== "best") return apiJson({ error: "invalid_score_type" }, 400);
+      const limitRaw = Number.parseInt(url.searchParams.get("limit") || "20", 10);
+      const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, limitRaw)) : 20;
+      const offsetRaw = Number.parseInt(url.searchParams.get("offset") || "0", 10);
+      const offset = Number.isFinite(offsetRaw) ? Math.min(1000, Math.max(0, offsetRaw)) : 0;
+      let token;
+      try { token = await getPublicApiToken(env); }
+      catch (error) { return apiJson({ error: error.message || "osu_api_unavailable" }, 503); }
+      // osu! API v2 requires an @ prefix for username lookup; numeric ids pass through.
+      const resolvedUser = /^[0-9]+$/.test(user) ? user : "@" + user;
+      const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + token };
+      const profileUrl = "https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(resolvedUser) + "/" + mode;
+      const profileResponse = await fetch(profileUrl, { headers });
+      const profile = await profileResponse.json().catch(() => ({}));
+      if (!profileResponse.ok || !profile.id) {
+        return apiJson({ error: profile.error || "osu_user_not_found", stage: "user_lookup", upstream_status: profileResponse.status }, profileResponse.status === 404 ? 404 : 502);
+      }
+      // The scores route does not accept the @username form, so use the resolved id.
+      const scoresUrl = new URL("https://osu.ppy.sh/api/v2/users/" + encodeURIComponent(profile.id) + "/scores/" + scoreType);
+      scoresUrl.searchParams.set("mode", mode);
+      scoresUrl.searchParams.set("limit", String(limit));
+      if (offset > 0) scoresUrl.searchParams.set("offset", String(offset));
+      if (scoreType === "recent") scoresUrl.searchParams.set("include_fails", "1");
+      const response = await fetch(scoresUrl, { headers });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        return apiJson({ error: (payload && payload.error) || "osu_scores_failed", stage: scoreType + "_scores", upstream_status: response.status }, response.status === 404 ? 404 : 502);
+      }
+      if (!Array.isArray(payload)) {
+        return apiJson({ error: "osu_scores_unexpected_response", stage: scoreType + "_scores", upstream_status: response.status }, 502);
+      }
+      return apiJson({
+        user: { id: profile.id, username: profile.username },
+        scores: payload,
+        diagnostics: { endpoint: "/api/v2/users/{user}/scores/" + scoreType, type: scoreType, mode, limit, offset, include_fails: scoreType === "recent" ? 1 : null, upstream_status: response.status, returned_count: payload.length }
+      });
+    }
 
+    // Public replay download. osu! API allows downloading any score with a
+    // replay using a public-scope token; ownership is not required here.
+    const publicDownloadMatch = url.pathname.match(/^\/api\/scores\/([0-9]+)\/download$/);
+    if (publicDownloadMatch && request.method === "GET") {
+      const scoreId = publicDownloadMatch[1];
+      const mode = validMode(url.searchParams.get("mode") || "osu");
+      if (!mode) return apiJson({ error: "invalid_mode" }, 400);
+      let token;
+      try { token = await getPublicApiToken(env); }
+      catch (error) { return apiJson({ error: error.message || "osu_api_unavailable" }, 503); }
+      const headers = { accept: "application/json", "x-api-version": "20220705", authorization: "Bearer " + token };
+      const scoreResponse = await fetch("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId), { headers });
+      const score = await scoreResponse.json().catch(() => ({}));
+      if (!scoreResponse.ok || !score.id) {
+        return apiJson({ error: score.error || "score_not_found", stage: "score_lookup", upstream_status: scoreResponse.status }, scoreResponse.status === 404 ? 404 : 502);
+      }
+      // The API hides has_replay from non-owners, so let the download endpoint decide.
+      const replayHeaders = { accept: "application/octet-stream", "x-api-version": "20220705", authorization: "Bearer " + token };
+      let download = await fetch("https://osu.ppy.sh/api/v2/scores/" + encodeURIComponent(scoreId) + "/download", { headers: replayHeaders });
+      if (download.status === 404) {
+        download = await fetch("https://osu.ppy.sh/api/v2/scores/" + mode + "/" + encodeURIComponent(scoreId) + "/download", { headers: replayHeaders });
+      }
+      if (!download.ok) {
+        const contentType = download.headers.get("content-type") || "";
+        const body = await download.text().catch(() => "");
+        let upstreamError = null;
+        if (contentType.includes("json") && body) {
+          try { upstreamError = JSON.parse(body).error || null; } catch {}
+        }
+        return apiJson({
+          error: "osu_replay_download_failed", stage: "upstream_replay_download",
+          upstream_status: download.status, upstream_error: upstreamError,
+          upstream_body_excerpt: body.slice(0, 500), score_id: scoreId, mode
+        }, download.status === 401 ? 401 : download.status === 404 ? 404 : 502);
+      }
+      return new Response(download.body, { status: 200, headers: {
+        "access-control-allow-origin": "*", "access-control-allow-methods": "GET, OPTIONS",
+        "access-control-allow-headers": "content-type, authorization", "cache-control": "no-store",
+        "content-type": "application/octet-stream",
+        "content-disposition": 'attachment; filename="osu-score-' + scoreId + '.osr"',
+        "x-content-type-options": "nosniff"
+      }});
+    }
 
     // Register files committed by the scheduled collector so consent withdrawal
     // can remove exactly this participant's contributions from the private dataset.

@@ -39,6 +39,8 @@ The client ID is not a password, but storing both values as Worker secrets simpl
 - `GET /oauth/start?state=<32-128 URL-safe random chars>` — starts authorization.
 - `GET /oauth/callback` — registered osu! callback.
 - `POST /oauth/exchange` with JSON `{"handoff":"<64 hex chars>"}` — redeems the one-time handoff.
+- `GET /api/users/<nickname-or-id>/scores?type=recent|best&mode=osu|mania&limit=&offset=` — public score list for another player (uses the app's client-credentials token; usernames are resolved to ids before the scores request).
+- `GET /api/scores/<score-id>/download?mode=osu|mania` — public replay download. osu! API allows any score with a replay to be downloaded with a public-scope token; no user OAuth token is required.
 
 ## Current limitation
 
