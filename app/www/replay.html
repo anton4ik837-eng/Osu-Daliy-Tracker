@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10141d"><title>Replay Lab · 4.9.3</title>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10141d"><title>Replay Lab · 4.9.4</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--panel:#141b28;--line:#2d4054;--ice:#a9e7ff;--cyan:#57c9e8;--text:#f0f6ff;--muted:#91a3b9;--green:#42d392;--yellow:#f5c451;--red:#ff637d}*{box-sizing:border-box}body{margin:0;padding-top:env(safe-area-inset-top,0px);background:radial-gradient(ellipse at 80% 0%,#24384d 0,transparent 40%),var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}.wrap{max-width:1100px;margin:auto;padding:12px 22px 22px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;padding:4px 0 10px;color:var(--muted);font-size:11px;letter-spacing:.16em}.top a{color:var(--ice);text-decoration:none}.hero,.panel{background:#141b28eF;border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:16px}.eyebrow{color:var(--cyan);font-size:10px;letter-spacing:.22em}.hero h1{font-size:clamp(30px,5vw,48px);line-height:1;margin:12px 0}.muted,.hint{color:var(--muted);font-size:13px}.uploads{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.upload{border:1px dashed #4b6b82;border-radius:14px;padding:16px;background:#101722}.upload label{display:block;font-weight:700;margin-bottom:8px}.upload input{max-width:100%;width:100%;color:var(--muted)}input[type=file]{display:block;min-height:48px;padding:10px;border:1px solid #4b6b82;border-radius:10px;background:#0b111b;cursor:pointer;touch-action:manipulation}input[type=file]::file-selector-button{margin-right:10px;border:1px solid #4e7189;border-radius:8px;background:#183043;color:var(--ice);padding:8px 10px;font:inherit;cursor:pointer}button{border:1px solid #4e7189;border-radius:10px;background:#183043;color:var(--ice);font:inherit;font-weight:700;padding:10px 14px;cursor:pointer}button:disabled{opacity:.5;cursor:wait}button:focus,button:focus-visible,button:active{outline:none;box-shadow:none}button{-webkit-tap-highlight-color:transparent}a{-webkit-tap-highlight-color:transparent}.status{margin-top:14px;padding:12px 14px;background:#101722;border-radius:10px;color:var(--muted);white-space:pre-wrap}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
  .playfield-stage{position:relative;width:100%;max-width:920px;aspect-ratio:4/3;margin:0 auto;overflow:hidden;background:#071522;isolation:isolate}
@@ -72,7 +72,7 @@ html{scrollbar-color:var(--line) var(--r-inner);scrollbar-width:thin}
 <section class="panel" id="eventsPanel" hidden><h2>Задержка каждого нажатия</h2><p class="muted" id="eventSummary">Счётчики появятся после анализа реплея.</p><div class="event-table-controls" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:10px 0"><span id="eventRowsPageInfo" class="muted" aria-live="polite">Показаны события 0–0 из 0</span><div style="display:flex;gap:8px"><button id="eventRowsPrev" type="button" disabled>← Назад</button><button id="eventRowsNext" type="button" disabled>Далее →</button></div></div><div class="tablewrap"><table><thead><tr><th>#</th><th>Время карты</th><th>Отклонение</th><th>Тип объекта</th><th>Оценка</th></tr></thead><tbody id="eventRows"></tbody></table></div></section>
 <details class="panel compact-details" id="critiquePanel" hidden><summary>Рекомендации по игре</summary><div id="critiqueContent"></div></details>
 
-<div id="beatmapPicker" class="picker-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="beatmapPickerTitle"><div class="picker-dialog"><h2 id="beatmapPickerTitle">Выбери сложность</h2><p class="muted" id="beatmapPickerHint">MD5 реплея не совпал с архивом. Выбери нужную сложность вручную.</p><div id="beatmapPickerOptions" class="picker-list"></div><button id="beatmapPickerCancel" class="picker-cancel" type="button">Отмена</button></div></div><div class="foot muted" style="text-align:center;padding:24px">Replay Lab · 4.9.3</div>
+<div id="beatmapPicker" class="picker-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="beatmapPickerTitle"><div class="picker-dialog"><h2 id="beatmapPickerTitle">Выбери сложность</h2><p class="muted" id="beatmapPickerHint">MD5 реплея не совпал с архивом. Выбери нужную сложность вручную.</p><div id="beatmapPickerOptions" class="picker-list"></div><button id="beatmapPickerCancel" class="picker-cancel" type="button">Отмена</button></div></div><div class="foot muted" style="text-align:center;padding:24px">Replay Lab · 4.9.4</div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/lzma@2.3.2/src/lzma.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
@@ -1223,7 +1223,7 @@ const autoReplay=await fixture('tupoieblan228_playing_HyuN_Encounter_FAMoss_Rend
  const exSafe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
  const exFinite=value=>Number.isFinite(Number(value))?Number(value):null;
  const exClock=ms=>{const seconds=Math.max(0,Math.round(ms/1000));return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')};
- const exMods=mods=>{const bits=[[0,'NF'],[1,'EZ'],[3,'HD'],[4,'HR'],[6,'DT'],[8,'HT'],[9,'NC'],[10,'FL'],[13,'AP'],[14,'PF']],value=Number(mods)||0,list=bits.filter(([bit])=>value&(1<<bit)).map(([,name])=>name);return list.length?list.join('+'):'NM'};
+ const exMods=mods=>{if(Array.isArray(mods)){const names=mods.map(item=>typeof item==='string'?item:(item?.acronym||'')).filter(Boolean);return names.length?names.join('+'):'NM'}const bits=[[0,'NF'],[1,'EZ'],[3,'HD'],[4,'HR'],[6,'DT'],[8,'HT'],[9,'NC'],[10,'FL'],[13,'AP'],[14,'PF']],value=Number(mods)||0,list=bits.filter(([bit])=>value&(1<<bit)).map(([,name])=>name);return list.length?list.join('+'):'NM'};
 
  function exDifficulty(a,map,head){
   const objects=Math.max(1,(a?.objects||[]).length),duration=Math.max(1000,Number(a?.duration)||1000),nps=objects/(duration/1000),od=exFinite(map?.od)??5,bpm=exFinite(map?.bpm)||exFinite(a?.bpm)||120,mania=Number(head?.mode)===3||Number(map?.mode)===3,keys=Math.max(1,Number(map?.keys)||4);
@@ -1268,7 +1268,7 @@ const autoReplay=await fixture('tupoieblan228_playing_HyuN_Encounter_FAMoss_Rend
  }
  async function exLookupOsuScore(){
   const status=$('osuScoreStatus');if(!status)return;
-  if(!analysis||!playMap){status.textContent='Сначала загрузи реплей вместе с картой.';return}
+  if(!analysis){status.textContent='Сначала загрузи реплей.';return}
   const nick=(($('osuNickForPp')?.value)||'').trim()||String(parsedReplay?.player||'').trim();
   if(!nick){status.textContent='Укажи ник игрока osu!.';return}
   status.textContent='Ищу результат в osu!…';
@@ -1280,20 +1280,20 @@ const autoReplay=await fixture('tupoieblan228_playing_HyuN_Encounter_FAMoss_Rend
   const seenScoreIds=new Set();const uniqueScores=scores.filter(score=>{const id=String(score?.id||'');if(!id||seenScoreIds.has(id))return false;seenScoreIds.add(id);return true});
   scores.length=0;scores.push(...uniqueScores);
   const norm=value=>String(value||'').trim().toLowerCase().replace(/[\s_]+/g,' ');
-  const version=norm(playMap.version),title=norm(playMap.title),artist=norm(playMap.artist),player=norm(parsedReplay?.player);
-  const matches=scores.filter(score=>{
+  const version=norm(playMap?.version),title=norm(playMap?.title),artist=norm(playMap?.artist),player=norm(parsedReplay?.player),playedAt=Date.parse(parsedReplay?.playedAt||'');
+  const ranked=scores.map(score=>{
    const mapVersion=norm(score.beatmap?.version),mapTitle=norm(score.beatmapset?.title||score.beatmap?.beatmapset?.title),mapArtist=norm(score.beatmapset?.artist);
    const mapOk=(version&&mapVersion===version)||(title&&mapTitle===title&&(!artist||mapArtist===artist));
    const playerOk=!player||norm(score.user?.username)===player;
-   return mapOk&&playerOk;
-  });
-  const wantedMods=Number(parsedReplay?.mods)||0;
-  matches.sort((a,b)=>(Number(b.mods)===wantedMods)-(Number(a.mods)===wantedMods)||Number(b.pp||0)-Number(a.pp||0));
-  const found=matches[0]||null;window.replayOsuScore=found;exRenderPP();
-  status.textContent=found?('Найдено: '+(found.beatmap?.version||'карта')+' · '+Number(found.pp||0).toFixed(0)+' pp'):'Не нашли результат. Проверь ник или открой реплей из списка аккаунта.';
+   const endedAt=Date.parse(score.ended_at||'');
+   const timeOk=Number.isFinite(playedAt)&&Number.isFinite(endedAt)&&Math.abs(endedAt-playedAt)<=15000;
+   return {score,ok:playerOk&&(timeOk||mapOk),rank:(timeOk?0:1)+(mapOk?0:2)};
+  }).filter(item=>item.ok).sort((a,b)=>a.rank-b.rank||Number(b.score.pp||0)-Number(a.score.pp||0));
+  const found=ranked[0]?.score||null;window.replayOsuScore=found;exRenderPP();
+  status.textContent=found?('Найдено автоматически: '+(found.beatmap?.version||'карта')+' · '+Number(found.pp||0).toFixed(0)+' pp'):'Не нашли результат. Проверь ник или открой реплей из списка аккаунта.';
  }
  async function exTryAutoLookup(){
-  if(exAutoLookupRunning||window.replayOsuScore||!analysis||!playMap||!parsedReplay?.player)return;
+  if(exAutoLookupRunning||window.replayOsuScore||!analysis||!parsedReplay?.player)return;
   const key=[parsedReplay.beatmapMd5,parsedReplay.player,parsedReplay.playedAt].join('|');
   if(exAutoLookupKey===key)return;
   exAutoLookupKey=key;exAutoLookupRunning=true;
@@ -1348,9 +1348,8 @@ const autoReplay=await fixture('tupoieblan228_playing_HyuN_Encounter_FAMoss_Rend
   const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(Error('Не удалось создать PNG')),'image/png'));
   const url=URL.createObjectURL(blob),name=String(parsedReplay?.player||'replay').replace(/[^\wа-яА-ЯёЁ-]+/g,'_').slice(0,40);
   if(exCardUrl)URL.revokeObjectURL(exCardUrl);exCardUrl=url;exCardName='osu-replay-card-'+name+'-'+Date.now()+'.png';
-  const link=document.createElement('a');link.href=url;link.download=exCardName;document.body.appendChild(link);link.click();link.remove();
   const preview=$('cardPreview');if(preview){const image=$('cardPreviewImage');if(image)image.src=url;preview.hidden=false;preview.style.display='flex'}
-  setStatus('Карточка готова: открыта в приложении и сохранена в загрузках.');
+  setStatus('Карточка готова: открыта в приложении. Нажми «Скачать PNG», чтобы сохранить.');
  }
  async function exExportCard(){
   if(!analysis){setStatus('Сначала загрузи реплей и карту.');return}
