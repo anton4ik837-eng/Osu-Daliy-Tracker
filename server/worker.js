@@ -301,7 +301,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 4, deploy_marker: "mods-attributes-post-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 5, deploy_marker: "google-sync-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Download the complete public beatmapset archive by the replay checksum.
@@ -988,6 +988,95 @@ export default {
       const handoff = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
       await env.OAUTH_KV.put("handoff:" + handoff, JSON.stringify(tokens), { expirationTtl: 90 });
       return safeAppRedirect(env, { handoff });
+    }
+
+    // --- Google sign-in and cross-device sync ---
+    const googleRedirectUri = () => new URL("/oauth/google/callback", request.url).toString();
+
+    if (url.pathname === "/oauth/google/start" && request.method === "GET") {
+      const clientId = String(env.GOOGLE_CLIENT_ID || "").trim();
+      if (!clientId || !env.OAUTH_KV) return apiJson({ error: "google_not_configured" }, 503);
+      const state = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
+      await env.OAUTH_KV.put("google:state:" + state, JSON.stringify({ createdAt: Date.now() }), { expirationTtl: 600 });
+      const authorize = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+      authorize.searchParams.set("client_id", clientId);
+      authorize.searchParams.set("redirect_uri", googleRedirectUri());
+      authorize.searchParams.set("response_type", "code");
+      authorize.searchParams.set("scope", "openid email profile");
+      authorize.searchParams.set("state", state);
+      authorize.searchParams.set("access_type", "online");
+      authorize.searchParams.set("prompt", "select_account");
+      return new Response(null, { status: 302, headers: { location: authorize.toString(), "cache-control": "no-store" } });
+    }
+
+    if (url.pathname === "/oauth/google/callback" && request.method === "GET") {
+      const code = url.searchParams.get("code"), state = url.searchParams.get("state");
+      const oauthError = url.searchParams.get("error");
+      if (oauthError) return safeAppRedirect(env, { google_error: oauthError });
+      if (!code || !state || !env.OAUTH_KV) return safeAppRedirect(env, { google_error: "invalid_response" });
+      const stateKey = "google:state:" + state;
+      const stateData = await env.OAUTH_KV.get(stateKey);
+      if (!stateData) return safeAppRedirect(env, { google_error: "state_mismatch" });
+      await env.OAUTH_KV.delete(stateKey);
+      const clientId = String(env.GOOGLE_CLIENT_ID || "").trim(), clientSecret = String(env.GOOGLE_CLIENT_SECRET || "").trim();
+      if (!clientId || !clientSecret) return safeAppRedirect(env, { google_error: "not_configured" });
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, code, grant_type: "authorization_code", redirect_uri: googleRedirectUri() }),
+      });
+      if (!tokenResponse.ok) return safeAppRedirect(env, { google_error: "token_exchange_failed" });
+      const tokens = await tokenResponse.json();
+      if (!tokens.access_token) return safeAppRedirect(env, { google_error: "invalid_token_response" });
+      const infoResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", { headers: { authorization: "Bearer " + tokens.access_token, accept: "application/json" } });
+      const profile = await infoResponse.json().catch(() => ({}));
+      if (!infoResponse.ok || !profile.sub) return safeAppRedirect(env, { google_error: "userinfo_failed" });
+      const session = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
+      const user = { sub: profile.sub, email: profile.email || "", name: profile.name || "", picture: profile.picture || "" };
+      await env.OAUTH_KV.put("google:session:" + session, JSON.stringify({ ...user, createdAt: Date.now() }), { expirationTtl: 60 * 60 * 24 * 90 });
+      await env.OAUTH_KV.put("google:user:" + user.sub, JSON.stringify({ ...user, updatedAt: Date.now() }));
+      // Only our own opaque session token is handed to the app; Google tokens stay server-side.
+      return safeAppRedirect(env, { google_session: session });
+    }
+
+    const googleAuthUser = async () => {
+      const match = (request.headers.get("authorization") || "").match(/^Bearer\s+(.+)$/i);
+      if (!match || !env.OAUTH_KV) return null;
+      const raw = await env.OAUTH_KV.get("google:session:" + match[1].trim());
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    };
+
+    if (url.pathname === "/api/google/me" && request.method === "GET") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      return apiJson({ user: { sub: user.sub, email: user.email, name: user.name, picture: user.picture } });
+    }
+
+    if (url.pathname === "/api/google/sync" && (request.method === "GET" || request.method === "PUT")) {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      const key = "google:sync:" + user.sub;
+      if (request.method === "GET") {
+        const raw = await env.OAUTH_KV.get(key);
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch {}
+        return apiJson({ viewed: Array.isArray(data.viewed) ? data.viewed : [], theme: data.theme || null, dailyGoal: Number.isFinite(data.dailyGoal) ? data.dailyGoal : null, updatedAt: data.updatedAt || null });
+      }
+      let payload;
+      try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      const viewed = (Array.isArray(payload?.viewed) ? payload.viewed : []).slice(0, 300).map(item => ({
+        id: String(item?.id || "").slice(0, 80), md5: String(item?.md5 || "").slice(0, 40),
+        player: String(item?.player || "").slice(0, 80), map: String(item?.map || "").slice(0, 200),
+        pp: Number.isFinite(Number(item?.pp)) ? Number(item.pp) : null,
+        stars: Number.isFinite(Number(item?.stars)) ? Number(item.stars) : null,
+        viewedAt: Number(item?.viewedAt) || Date.now()
+      })).filter(item => item.id || item.md5);
+      const theme = payload?.theme && typeof payload.theme === "object" ? payload.theme : null;
+      const dailyGoal = Number.isFinite(Number(payload?.dailyGoal)) ? Math.max(1, Math.min(200, Number(payload.dailyGoal))) : null;
+      const data = { viewed, theme, dailyGoal, updatedAt: Date.now() };
+      await env.OAUTH_KV.put(key, JSON.stringify(data));
+      return apiJson({ ok: true, updatedAt: data.updatedAt });
     }
 
     if (url.pathname === "/oauth/refresh" && request.method === "POST") {
