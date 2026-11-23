@@ -301,7 +301,22 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 5, deploy_marker: "google-sync-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 6, deploy_marker: "google-login-2026-11-23b", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+    }
+
+    // Proxy GitHub Releases so the in-app update check works even when the device
+    // cannot reach api.github.com directly (common on mobile/captive networks).
+    if (url.pathname === "/api/releases" && request.method === "GET") {
+      try {
+        const upstream = await fetch("https://api.github.com/repos/anton4ik837-eng/Osu-Daliy-Tracker/releases?per_page=15", {
+          headers: { accept: "application/vnd.github+json", "user-agent": "osu-daily-tracker" },
+        });
+        if (!upstream.ok) return apiJson({ error: "github_http_" + upstream.status }, 502);
+        const releases = await upstream.json();
+        return new Response(JSON.stringify(releases), { status: 200, headers: { ...JSON_HEADERS, "access-control-allow-origin": "*" } });
+      } catch (error) {
+        return apiJson({ error: "github_unreachable", details: String(error?.message || error) }, 502);
+      }
     }
 
     // Download the complete public beatmapset archive by the replay checksum.
@@ -1042,11 +1057,14 @@ export default {
       appUrl.searchParams.set("google_session", session);
       const destination = appUrl.toString().replace(/&/g, "&amp;").replace(/"/g, "&quot;");
       const html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>osu! Daily Tracker — вход через Google</title>' +
-        '<style>body{font:16px/1.5 system-ui,sans-serif;background:#0b0f17;color:#fff7fc;max-width:520px;margin:8vh auto;padding:24px}code{display:block;word-break:break-all;background:#141b28;padding:12px;border-radius:8px;margin:12px 0}button,input{padding:10px;border-radius:8px;border:1px solid #38536b;background:#141b28;color:inherit}input{width:100%;box-sizing:border-box}</style></head><body>' +
-        '<h2>Вход через Google выполнен</h2><p>Приложение должно открыться автоматически. Если этого не произошло, скопируй код ниже и вставь его в настройках приложения (поле «Код входа из Google»).</p>' +
-        '<code>' + session + '</code><button type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText(' + JSON.stringify(session) + ')">Скопировать код</button>' +
-        '<p><a href="' + destination + '">Открыть приложение вручную</a></p>' +
-        '<script>setTimeout(function(){location.href=' + JSON.stringify(appUrl.toString()) + '},900)<\/script></body></html>';
+        '<style>body{font:16px/1.5 system-ui,sans-serif;background:#0b0f17;color:#fff7fc;max-width:520px;margin:6vh auto;padding:24px}h2{margin-top:0}code{display:block;word-break:break-all;background:#141b28;padding:14px;border-radius:8px;margin:12px 0;font-size:15px;user-select:all}button{display:block;width:100%;padding:14px;border-radius:10px;border:0;background:#57c9e8;color:#0b0f17;font-weight:700;font-size:16px;margin:10px 0;cursor:pointer}a{color:#a9e7ff}.muted{color:#91a3b9;font-size:14px}</style></head><body>' +
+        '<h2>Вход через Google выполнен</h2>' +
+        '<p>Скопируй код ниже, вернись в приложение и вставь его в Настройках → «Синхронизация Google» → поле «Код входа из страницы Google», затем нажми «Ввести код».</p>' +
+        '<code id="googleCode">' + session + '</code>' +
+        '<button type="button" onclick="var b=this;var c=document.getElementById(\'googleCode\').textContent;if(navigator.clipboard){navigator.clipboard.writeText(c).then(function(){b.textContent=\'Скопировано ✓\'},function(){b.textContent=\'Выдели код вручную\'})}else{b.textContent=\'Выдели код вручную\'}">Скопировать код</button>' +
+        '<p><a href="' + destination + '">Открыть приложение автоматически ↗</a></p>' +
+        '<p class="muted">Если переход в приложение не сработал — не переживай, ручной ввод кода работает одинаково надёжно.</p>' +
+        '</body></html>';
       return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
     }
 
