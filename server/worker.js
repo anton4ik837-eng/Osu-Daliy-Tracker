@@ -301,7 +301,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 8, deploy_marker: "oauth-diagnostics-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 9, deploy_marker: "token-exchange-diagnostics-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1023,6 +1023,32 @@ export default {
       });
     }
 
+    // Safe probe: uses a deliberately invalid code and reports only Google's error code.
+    // invalid_grant => client/secret and endpoint are fine; invalid_client => bad secret;
+    // 403/429 with a location message => Google blocks the Worker's egress region.
+    if (url.pathname === "/oauth/google/token-check" && request.method === "GET") {
+      const clientId = String(env.GOOGLE_CLIENT_ID || "").trim();
+      const clientSecret = String(env.GOOGLE_CLIENT_SECRET || "").trim();
+      if (!clientId || !clientSecret) return apiJson({ error: "not_configured" }, 503);
+      try {
+        const probe = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, code: "invalid_probe_code", grant_type: "authorization_code", redirect_uri: googleRedirectUri() }),
+        });
+        const text = await probe.text();
+        let parsed = {};
+        try { parsed = JSON.parse(text); } catch {}
+        return apiJson({
+          upstream_status: probe.status,
+          error: parsed.error || null,
+          error_description: parsed.error_description ? String(parsed.error_description).slice(0, 200) : null,
+        });
+      } catch (error) {
+        return apiJson({ error: "fetch_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      }
+    }
+
     // A failed callback must be visible to the user, not silently bounced back to the app.
     const googleErrorPage = (code) => {
       const messages = {
@@ -1080,7 +1106,12 @@ export default {
         headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, code, grant_type: "authorization_code", redirect_uri: googleRedirectUri() }),
       });
-      if (!tokenResponse.ok) return googleErrorPage("token_exchange_failed");
+      if (!tokenResponse.ok) {
+        const upstreamBody = await tokenResponse.text().catch(() => "");
+        let upstreamError = "";
+        try { upstreamError = String((JSON.parse(upstreamBody) || {}).error || "").replace(/[^a-z_]/gi, ""); } catch {}
+        return googleErrorPage("token_exchange_failed_http_" + tokenResponse.status + (upstreamError ? "_" + upstreamError : ""));
+      }
       const tokens = await tokenResponse.json();
       if (!tokens.access_token) return googleErrorPage("invalid_token_response");
       const infoResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", { headers: { authorization: "Bearer " + tokens.access_token, accept: "application/json" } });
