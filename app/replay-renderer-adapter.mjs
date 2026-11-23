@@ -110,6 +110,7 @@ export async function createReplayRendererSession({
   skinBytes = null,
   audioBuffer = null,
   pageZoom = 1,
+  maniaWithoutHidden = false,
 }) {
   if (!canvas || !audioContext || !replayBytes || !beatmapText) {
     throw new TypeError('canvas, audioContext, replayBytes and beatmapText are required.');
@@ -119,6 +120,15 @@ export async function createReplayRendererSession({
     ? replayBytes
     : await replayBytes.arrayBuffer();
   const replay = await parseReplay(replayBuffer);
+  // Fallback for the experimental renderer: some Hidden mania replays break the
+  // library's mod-overlay path. Keep the real replay for analysis, but retry the
+  // renderer build with the HD bit removed from its private copy.
+  if (maniaWithoutHidden && replay.mode === 3) {
+    replay.mods = (Number(replay.mods) || 0) & ~8;
+    if (Array.isArray(replay.scoreInfo?.mods)) {
+      replay.scoreInfo.mods = replay.scoreInfo.mods.filter(mod => String(mod?.acronym || '').toUpperCase() !== 'HD');
+    }
+  }
   const resolvedText = convertedManiaMap
     ? buildManiaOsuText(beatmapText, convertedManiaMap)
     : beatmapText;
