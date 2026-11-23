@@ -301,7 +301,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 6, deploy_marker: "google-login-2026-11-23b", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 7, deploy_marker: "oauth-poll-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -925,6 +925,7 @@ export default {
       // Keep failures visible as safe JSON instead of an opaque blank/500 browser page.
       try {
         await env.OAUTH_KV.put("state:" + state, "1", { expirationTtl: 600 });
+        await env.OAUTH_KV.put("osu:login:" + state, JSON.stringify({ status: "pending", createdAt: Date.now() }), { expirationTtl: 900 });
       } catch {
         return json({ error: "oauth_state_store_failed", stage: "oauth_start" }, 503);
       }
@@ -1002,6 +1003,9 @@ export default {
       // The token response is held only long enough for the app to redeem a one-time handoff.
       const handoff = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
       await env.OAUTH_KV.put("handoff:" + handoff, JSON.stringify(tokens), { expirationTtl: 90 });
+      // Polling fallback: on Android the deep-link return event is not always delivered
+      // to the WebView, so the app can also pick the tokens up by its original state.
+      await env.OAUTH_KV.put("osu:login:" + state, JSON.stringify({ status: "done", tokens, createdAt: Date.now() }), { expirationTtl: 600 });
       return safeAppRedirect(env, { handoff });
     }
 
@@ -1012,7 +1016,12 @@ export default {
       const clientId = String(env.GOOGLE_CLIENT_ID || "").trim();
       if (!clientId || !env.OAUTH_KV) return apiJson({ error: "google_not_configured" }, 503);
       const state = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
-      await env.OAUTH_KV.put("google:state:" + state, JSON.stringify({ createdAt: Date.now() }), { expirationTtl: 600 });
+      const loginId = String(url.searchParams.get("login_id") || "").trim();
+      const validLoginId = /^[a-f0-9]{16,64}$/i.test(loginId) ? loginId : null;
+      if (validLoginId) {
+        await env.OAUTH_KV.put("google:login:" + validLoginId, JSON.stringify({ status: "pending", createdAt: Date.now() }), { expirationTtl: 900 });
+      }
+      await env.OAUTH_KV.put("google:state:" + state, JSON.stringify({ createdAt: Date.now(), loginId: validLoginId }), { expirationTtl: 600 });
       const authorize = new URL("https://accounts.google.com/o/oauth2/v2/auth");
       authorize.searchParams.set("client_id", clientId);
       authorize.searchParams.set("redirect_uri", googleRedirectUri());
@@ -1032,6 +1041,8 @@ export default {
       const stateKey = "google:state:" + state;
       const stateData = await env.OAUTH_KV.get(stateKey);
       if (!stateData) return safeAppRedirect(env, { google_error: "state_mismatch" });
+      let stateInfo = {};
+      try { stateInfo = JSON.parse(stateData) || {}; } catch { stateInfo = {}; }
       await env.OAUTH_KV.delete(stateKey);
       const clientId = String(env.GOOGLE_CLIENT_ID || "").trim(), clientSecret = String(env.GOOGLE_CLIENT_SECRET || "").trim();
       if (!clientId || !clientSecret) return safeAppRedirect(env, { google_error: "not_configured" });
@@ -1050,6 +1061,11 @@ export default {
       const user = { sub: profile.sub, email: profile.email || "", name: profile.name || "", picture: profile.picture || "" };
       await env.OAUTH_KV.put("google:session:" + session, JSON.stringify({ ...user, createdAt: Date.now() }), { expirationTtl: 60 * 60 * 24 * 90 });
       await env.OAUTH_KV.put("google:user:" + user.sub, JSON.stringify({ ...user, updatedAt: Date.now() }));
+      // The app also polls for this result: on Android the deep-link/return event is
+      // not always delivered to the WebView, so polling is the reliable completion path.
+      if (stateInfo.loginId && /^[a-f0-9]{16,64}$/i.test(stateInfo.loginId)) {
+        await env.OAUTH_KV.put("google:login:" + stateInfo.loginId, JSON.stringify({ status: "done", session, createdAt: Date.now() }), { expirationTtl: 900 });
+      }
       // Only our own opaque session token is handed to the app; Google tokens stay server-side.
       // The page also shows the code so the flow can be completed manually if the deep link
       // is not delivered by the OS/browser.
@@ -1075,6 +1091,26 @@ export default {
       if (!raw) return null;
       try { return JSON.parse(raw); } catch { return null; }
     };
+
+    if (url.pathname === "/api/osu/poll" && request.method === "GET") {
+      const state = String(url.searchParams.get("state") || "").trim();
+      if (!validState(state)) return apiJson({ error: "invalid_state" }, 400);
+      const raw = await env.OAUTH_KV.get("osu:login:" + state);
+      if (!raw) return apiJson({ status: "unknown" });
+      let data = {};
+      try { data = JSON.parse(raw) || {}; } catch {}
+      return apiJson({ status: data.status === "done" ? "done" : "pending", tokens: data.status === "done" ? data.tokens : undefined });
+    }
+
+    if (url.pathname === "/api/google/poll" && request.method === "GET") {
+      const loginId = String(url.searchParams.get("login_id") || "").trim();
+      if (!/^[a-f0-9]{16,64}$/i.test(loginId)) return apiJson({ error: "invalid_login_id" }, 400);
+      const raw = await env.OAUTH_KV.get("google:login:" + loginId);
+      if (!raw) return apiJson({ status: "unknown" });
+      let data = {};
+      try { data = JSON.parse(raw) || {}; } catch {}
+      return apiJson({ status: data.status === "done" ? "done" : "pending", session: data.status === "done" ? data.session : undefined });
+    }
 
     if (url.pathname === "/api/google/me" && request.method === "GET") {
       const user = await googleAuthUser();
