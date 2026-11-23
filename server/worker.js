@@ -1036,7 +1036,18 @@ export default {
       await env.OAUTH_KV.put("google:session:" + session, JSON.stringify({ ...user, createdAt: Date.now() }), { expirationTtl: 60 * 60 * 24 * 90 });
       await env.OAUTH_KV.put("google:user:" + user.sub, JSON.stringify({ ...user, updatedAt: Date.now() }));
       // Only our own opaque session token is handed to the app; Google tokens stay server-side.
-      return safeAppRedirect(env, { google_session: session });
+      // The page also shows the code so the flow can be completed manually if the deep link
+      // is not delivered by the OS/browser.
+      const appUrl = new URL(env.APP_REDIRECT_URI || "osudailytracker://oauth");
+      appUrl.searchParams.set("google_session", session);
+      const destination = appUrl.toString().replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+      const html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>osu! Daily Tracker — вход через Google</title>' +
+        '<style>body{font:16px/1.5 system-ui,sans-serif;background:#0b0f17;color:#fff7fc;max-width:520px;margin:8vh auto;padding:24px}code{display:block;word-break:break-all;background:#141b28;padding:12px;border-radius:8px;margin:12px 0}button,input{padding:10px;border-radius:8px;border:1px solid #38536b;background:#141b28;color:inherit}input{width:100%;box-sizing:border-box}</style></head><body>' +
+        '<h2>Вход через Google выполнен</h2><p>Приложение должно открыться автоматически. Если этого не произошло, скопируй код ниже и вставь его в настройках приложения (поле «Код входа из Google»).</p>' +
+        '<code>' + session + '</code><button type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText(' + JSON.stringify(session) + ')">Скопировать код</button>' +
+        '<p><a href="' + destination + '">Открыть приложение вручную</a></p>' +
+        '<script>setTimeout(function(){location.href=' + JSON.stringify(appUrl.toString()) + '},900)<\/script></body></html>';
+      return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
     }
 
     const googleAuthUser = async () => {
