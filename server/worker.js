@@ -301,7 +301,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 10, deploy_marker: "google-autosync-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 11, deploy_marker: "in-app-profiles-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1202,6 +1202,78 @@ export default {
       const data = { viewed, theme, dailyGoal, updatedAt: Date.now() };
       await env.OAUTH_KV.put(key, JSON.stringify(data));
       return apiJson({ ok: true, updatedAt: data.updatedAt });
+    }
+
+    // --- In-app account profile: avatar/name live here, not in the Google account ---
+    const profileDefaults = (user) => ({
+      username: "user_" + String(user.sub || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toLowerCase(),
+      displayName: String(user.name || "").slice(0, 40) || "Игрок",
+      bio: "",
+      avatar: null,
+      updatedAt: null,
+    });
+    const readProfile = async (user) => {
+      const raw = await env.OAUTH_KV.get("google:profile:" + user.sub);
+      let data = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch {}
+      const base = profileDefaults(user);
+      return {
+        username: typeof data.username === "string" ? data.username : base.username,
+        displayName: typeof data.displayName === "string" && data.displayName.trim() ? data.displayName : base.displayName,
+        bio: typeof data.bio === "string" ? data.bio : "",
+        avatar: typeof data.avatar === "string" && data.avatar.startsWith("data:image/") ? data.avatar : null,
+        email: user.email || "",
+        googlePicture: user.picture || "",
+        updatedAt: data.updatedAt || null,
+      };
+    };
+
+    if (url.pathname === "/api/profile" && request.method === "GET") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      return apiJson({ profile: await readProfile(user) });
+    }
+
+    if (url.pathname === "/api/profile" && request.method === "PUT") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      let payload;
+      try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      const username = String(payload?.username || "").trim();
+      if (!/^[A-Za-z0-9_.-]{3,24}$/.test(username)) return apiJson({ error: "invalid_username" }, 400);
+      const displayName = String(payload?.displayName || "").trim().slice(0, 40);
+      if (!displayName) return apiJson({ error: "invalid_display_name" }, 400);
+      const bio = String(payload?.bio || "").trim().slice(0, 160);
+      let avatar = null;
+      const rawAvatar = payload?.avatar;
+      if (rawAvatar === null || rawAvatar === "") {
+        avatar = null;
+      } else if (typeof rawAvatar === "string" && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(rawAvatar)) {
+        let bytes = 0;
+        try { bytes = atob(rawAvatar.slice(rawAvatar.indexOf(",") + 1)).length; } catch { return apiJson({ error: "invalid_avatar" }, 400); }
+        if (bytes > 700000) return apiJson({ error: "avatar_too_large" }, 413);
+        avatar = rawAvatar;
+      } else return apiJson({ error: "invalid_avatar" }, 400);
+
+      const current = await readProfile(user);
+      const lower = username.toLowerCase();
+      const owner = await env.OAUTH_KV.get("google:username:" + lower);
+      if (owner && owner !== user.sub) return apiJson({ error: "username_taken" }, 409);
+      if (current.username.toLowerCase() !== lower) await env.OAUTH_KV.delete("google:username:" + current.username.toLowerCase());
+      await env.OAUTH_KV.put("google:username:" + lower, user.sub);
+      const profile = { username, displayName, bio, avatar, updatedAt: Date.now() };
+      await env.OAUTH_KV.put("google:profile:" + user.sub, JSON.stringify(profile));
+      return apiJson({ ok: true, profile: await readProfile(user) });
+    }
+
+    if (/^\/api\/profiles\/[A-Za-z0-9_.-]{3,24}$/.test(url.pathname) && request.method === "GET") {
+      const username = decodeURIComponent(url.pathname.split("/").pop()).toLowerCase();
+      const sub = await env.OAUTH_KV.get("google:username:" + username);
+      if (!sub) return apiJson({ error: "profile_not_found" }, 404);
+      const raw = await env.OAUTH_KV.get("google:profile:" + sub);
+      let data = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch {}
+      return apiJson({ profile: { username: data.username || username, displayName: data.displayName || "Игрок", bio: data.bio || "", avatar: data.avatar || null } });
     }
 
     if (url.pathname === "/oauth/refresh" && request.method === "POST") {
