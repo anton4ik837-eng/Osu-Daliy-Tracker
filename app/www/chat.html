@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.12.0</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0f17;--surface:#141b28;--surface2:#1b293b;--line:#2d4054;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,#20364b 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
+.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 16px;background:#0b0f17ef;border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
+.topbar a{color:var(--pink2);text-decoration:none;font-size:13px}.topbar b{font-size:16px}.topbar .spacer{flex:1}
+.wrap{max-width:1100px;margin:0 auto;padding:14px 12px 40px;display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px}
+@media(max-width:700px){.wrap{grid-template-columns:1fr}.rooms{max-height:260px;overflow:auto}}
+.panel{background:linear-gradient(155deg,#182536,#141b28);border:1px solid var(--line);border-radius:14px;padding:12px;min-width:0}
+.panel-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}.panel-head h2{font-size:15px;margin:0}.panel-head .spacer{flex:1}
+button,.button{border:1px solid var(--border-strong,#38536b);background:var(--surface2);color:var(--text);border-radius:9px;padding:8px 11px;font:inherit;cursor:pointer;text-decoration:none;display:inline-block}
+button:disabled{opacity:.5;cursor:not-allowed}input,textarea{background:var(--field);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;width:100%}
+.muted{color:var(--muted);font-size:12px}.status{min-height:18px;margin-top:8px;font-size:12px;color:var(--muted);word-break:break-word}.status[data-kind="error"]{color:var(--danger)}.status[data-kind="success"]{color:var(--good)}
+.rooms{display:flex;flex-direction:column;gap:6px}.room{display:flex;gap:9px;align-items:center;padding:9px;border:1px solid transparent;border-radius:10px;background:#101722;cursor:pointer;text-align:left;color:inherit;width:100%}
+.room:hover{background:var(--surface2)}.room.active{border-color:var(--pink);background:#173144}.room .info{min-width:0;flex:1}.room .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.room .last{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;background:var(--surface2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--pink2);flex:none;overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.chat-head{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:10px}.chat-head .name{font-weight:800}
+.messages{height:min(55vh,520px);overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
+.msg{max-width:82%;padding:8px 11px;border-radius:12px;background:#141b28;border:1px solid var(--line);word-break:break-word;white-space:pre-wrap}
+.msg.mine{align-self:flex-end;background:#17394d;border-color:#2d6b86}.msg .meta{font-size:11px;color:var(--pink2);margin-bottom:2px}.msg .time{font-size:10px;color:var(--muted);margin-top:3px;text-align:right}
+.composer{display:flex;gap:8px;margin-top:10px}.composer input{flex:1}
+.hint{padding:30px 10px;text-align:center;color:var(--muted)}
+.overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;background:#03070bcc}.overlay[hidden]{display:none}
+.dialog{width:min(440px,100%);background:linear-gradient(155deg,#1a293a,#101722);border:1px solid #42647a;border-radius:16px;padding:18px}
+.dialog h3{margin:0 0 10px;font-size:17px}.dialog label{display:block;margin:10px 0;font-size:12px;color:var(--muted)}.dialog label span{display:block;margin-bottom:4px}.dialog .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.online{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block}
+</style>
+</head>
+<body>
+<header class="topbar"><a href="./index.html">← Назад</a><b>Чат</b><span class="spacer"></span><span class="muted" id="sessionBadge">—</span></header>
+<main class="wrap">
+<section class="panel"><div class="panel-head"><h2>Беседы</h2><span class="spacer"></span><button id="newDmButton" type="button" title="Личный чат">+ ЛС</button><button id="newGroupButton" type="button" title="Группа">+ Группа</button></div><div id="roomList" class="rooms"><div class="hint">Загрузка…</div></div><div id="chatStatus" class="status" role="status"></div></section>
+<section class="panel"><div id="chatHead" class="chat-head"><div class="avatar" id="chatAvatar">?</div><div><div class="name" id="chatName">Выбери беседу</div><div class="muted" id="chatSub">Сообщения и звонки в одном месте</div></div></div><div id="messages" class="messages"><div class="hint">Выбери беседу слева, чтобы начать переписку.</div></div><div class="composer"><input id="messageInput" type="text" maxlength="4000" placeholder="Напиши сообщение…" disabled><button id="sendButton" type="button" disabled>Отправить</button></div><div id="sendStatus" class="status" role="status"></div></section>
+</main>
+<div id="dmOverlay" class="overlay" hidden><div class="dialog"><h3>Новый личный чат</h3><p class="muted">Введи юзернейм из профиля приложения.</p><label><span>Юзернейм</span><input id="dmUsername" type="text" maxlength="24" placeholder="например, miyabi"></label><div class="actions"><button id="dmCreate" type="button">Создать чат</button><button id="dmCancel" class="secondary" type="button">Отмена</button></div><div id="dmStatus" class="status"></div></div></div>
+<div id="groupOverlay" class="overlay" hidden><div class="dialog"><h3>Новая группа</h3><label><span>Название</span><input id="groupName" type="text" maxlength="60" placeholder="Моя команда"></label><label><span>Участники через запятую</span><input id="groupMembers" type="text" maxlength="400" placeholder="miyabi, rimuru"></label><div class="actions"><button id="groupCreate" type="button">Создать группу</button><button id="groupCancel" class="secondary" type="button">Отмена</button></div><div id="groupStatus" class="status"></div></div></div>
+<script>
+const API_BASE='https://osu-daily-tracker-oauth.anton4ik837.workers.dev';
+const SESSION_KEY='osu-daily-tracker-google-session';
+const $=id=>document.getElementById(id);
+const session=()=>{try{return localStorage.getItem(SESSION_KEY)||''}catch{return''}};
+let rooms=[],activeRoom=null,ws=null,reconnectTimer=null,me={sub:'',name:'',avatar:''};
+async function api(path,options={}){
+ const response=await fetch(API_BASE+path,{...options,headers:{...(options.headers||{}),Accept:'application/json',Authorization:'Bearer '+session()}});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||'HTTP '+response.status);
+ return data;
+}
+function avatarNode(src,name){
+ const box=document.createElement('div');box.className='avatar';
+ if(src){const img=document.createElement('img');img.src=src;img.alt='';box.append(img)}
+ else box.textContent=(String(name||'?').trim().charAt(0)||'?').toUpperCase();
+ return box;
+}
+function setStatus(id,text,kind='info'){const el=$(id);if(el){el.textContent=text;el.dataset.kind=kind}}
+function renderRooms(){
+ const host=$('roomList');host.replaceChildren();
+ if(!rooms.length){const p=document.createElement('div');p.className='hint';p.textContent='Бесед пока нет. Нажми «+ ЛС» или «+ Группа».';host.append(p);return}
+ for(const room of rooms){
+  const button=document.createElement('button');button.type='button';button.className='room'+(activeRoom?.id===room.id?' active':'');
+  button.append(avatarNode(room.avatar,room.name));
+  const info=document.createElement('div');info.className='info';
+  const name=document.createElement('div');name.className='name';name.textContent=room.name||'Беседа';
+  const last=document.createElement('div');last.className='last';last.textContent=room.last?room.last.name+': '+room.last.body:'Начни переписку';
+  info.append(name,last);button.append(info);
+  if(room.kind==='group'){const tag=document.createElement('span');tag.className='muted';tag.textContent='●';tag.title='Группа';button.append(tag)}
+  button.addEventListener('click',()=>openRoom(room.id));host.append(button);
+ }
+}
+async function loadRooms(){
+ if(!session()){setStatus('chatStatus','Войди через Google в основном приложении, чтобы пользоваться чатом.','error');return}
+ try{
+  const meData=await api('/api/google/me');
+  const profile=await api('/api/profile');
+  me={sub:meData.user?.sub||'',username:profile.profile?.username||'',name:profile.profile?.displayName||meData.user?.name||'',avatar:profile.profile?.avatar||meData.user?.picture||''};
+  $('sessionBadge').textContent='@'+(profile.profile?.username||'...');
+  const data=await api('/api/chat/rooms');rooms=data.rooms||[];renderRooms();
+  setStatus('chatStatus','','info');
+ }catch(error){setStatus('chatStatus','Не удалось загрузить беседы: '+error.message,'error')}
+}
+function renderMessages(){
+ const host=$('messages');host.replaceChildren();
+ if(!activeRoom){host.innerHTML='<div class="hint">Выбери беседу слева, чтобы начать переписку.</div>';return}
+ const items=activeRoom.messages||[];
+ if(!items.length){host.innerHTML='<div class="hint">Сообщений пока нет. Напиши первым.</div>';return}
+ for(const item of items){
+  const div=document.createElement('div');div.className='msg'+(item.sender===me.sub?' mine':'');
+  const meta=document.createElement('div');meta.className='meta';meta.textContent=item.name||'Игрок';
+  const body=document.createElement('div');body.textContent=item.body;
+  const time=document.createElement('div');time.className='time';time.textContent=new Date(item.createdAt||Date.now()).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  div.append(meta,body,time);host.append(div);
+ }
+ host.scrollTop=host.scrollHeight;
+}
+function connectSocket(){
+ if(ws||!activeRoom)return;
+ const url=API_BASE.replace(/^https/,'wss')+'/api/chat/ws/'+encodeURIComponent(activeRoom.id)+'?session='+encodeURIComponent(session());
+ try{ws=new WebSocket(url)}catch(error){setStatus('sendStatus','Не удалось подключиться: '+error.message,'error');return}
+ ws.onopen=()=>{setStatus('sendStatus','Подключено.','success');$('messageInput').disabled=false;$('sendButton').disabled=false};
+ ws.onmessage=event=>{
+  let data;try{data=JSON.parse(event.data)}catch{return}
+  if(data.type==='message'&&activeRoom){
+   activeRoom.messages=activeRoom.messages||[];
+   if(!activeRoom.messages.some(item=>item.id===data.id))activeRoom.messages.push(data);
+   renderMessages();
+  }
+ };
+ ws.onclose=()=>{ws=null;$('messageInput').disabled=true;$('sendButton').disabled=true;if(activeRoom){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connectSocket,3000)}};
+ ws.onerror=()=>setStatus('sendStatus','Ошибка соединения, пробуем снова…','error');
+}
+async function openRoom(roomId){
+ const room=rooms.find(item=>item.id===roomId);if(!room)return;
+ clearTimeout(reconnectTimer);if(ws){ws.onclose=null;ws.close();ws=null}
+ activeRoom={...room,messages:[]};
+ $('chatName').textContent=room.name||'Беседа';
+ $('chatSub').textContent=room.kind==='group'?'Группа':'Личный чат';
+ const avatar=avatarNode(room.avatar,room.name);avatar.id='chatAvatar';$('chatAvatar').replaceWith(avatar);
+ renderMessages();renderRooms();connectSocket();
+ try{const data=await api('/api/chat/rooms/'+encodeURIComponent(roomId)+'/messages?limit=60');activeRoom.messages=data.messages||[];renderMessages()}catch(error){setStatus('sendStatus','История недоступна: '+error.message,'error')}
+}
+function sendMessage(){
+ const input=$('messageInput'),body=input.value.trim();
+ if(!body||!ws||ws.readyState!==WebSocket.OPEN)return;
+ ws.send(JSON.stringify({type:'message',body}));input.value='';
+}
+$('sendButton').addEventListener('click',sendMessage);
+$('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendMessage()}});
+$('newDmButton').addEventListener('click',()=>{$('dmOverlay').hidden=false;$('dmUsername').focus()});
+$('dmCancel').addEventListener('click',()=>$('dmOverlay').hidden=true);
+$('newGroupButton').addEventListener('click',()=>{$('groupOverlay').hidden=false;$('groupName').focus()});
+$('groupCancel').addEventListener('click',()=>$('groupOverlay').hidden=true);
+$('dmCreate').addEventListener('click',async()=>{
+ const button=$('dmCreate');button.disabled=true;setStatus('dmStatus','Создаём чат…');
+ try{const data=await api('/api/chat/dm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('dmUsername').value.trim()})});$('dmOverlay').hidden=true;await loadRooms();await openRoom(data.roomId)}
+ catch(error){setStatus('dmStatus',error.message,'error')}
+ finally{button.disabled=false}
+});
+$('groupCreate').addEventListener('click',async()=>{
+ const button=$('groupCreate');button.disabled=true;setStatus('groupStatus','Создаём группу…');
+ try{
+  const members=$('groupMembers').value.split(',').map(x=>x.trim()).filter(Boolean);
+  const data=await api('/api/chat/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('groupName').value.trim(),members})});
+  $('groupOverlay').hidden=true;await loadRooms();await openRoom(data.roomId);
+ }catch(error){setStatus('groupStatus',error.message,'error')}
+ finally{button.disabled=false}
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&activeRoom&&(!ws||ws.readyState!==WebSocket.OPEN))connectSocket()});
+loadRooms();
+</script>
+</body>
+</html>

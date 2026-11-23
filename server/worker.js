@@ -1,4 +1,5 @@
 import { handleAiChat, handleAiResearch } from "./ai-gateway.js";
+export { ChatRoom } from "./chat-room.js";
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -301,7 +302,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 11, deploy_marker: "in-app-profiles-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 12, deploy_marker: "chat-mvp-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1274,6 +1275,122 @@ export default {
       let data = {};
       try { data = raw ? JSON.parse(raw) : {}; } catch {}
       return apiJson({ profile: { username: data.username || username, displayName: data.displayName || "Игрок", bio: data.bio || "", avatar: data.avatar || null } });
+    }
+
+    // --- Chat: Durable Object rooms, WebSocket upgrade and room management ---
+    const chatRoomStub = (roomId) => env.CHAT_ROOMS.get(env.CHAT_ROOMS.idFromName(roomId));
+    const googleAuthToken = async (token) => {
+      if (!token || !env.OAUTH_KV) return null;
+      const raw = await env.OAUTH_KV.get("google:session:" + String(token).trim());
+      try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+    };
+    const chatProfile = async (sub) => {
+      const raw = await env.OAUTH_KV.get("google:profile:" + sub);
+      let data = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch {}
+      return { sub, username: data.username || "user", name: data.displayName || "Игрок", avatar: data.avatar || null };
+    };
+    const chatRoomList = async (sub) => {
+      const raw = await env.OAUTH_KV.get("chat:rooms:" + sub);
+      let rooms = [];
+      try { rooms = raw ? JSON.parse(raw) : []; } catch {}
+      return Array.isArray(rooms) ? rooms.slice(0, 100) : [];
+    };
+    const addRoomFor = async (sub, descriptor) => {
+      const rooms = await chatRoomList(sub);
+      const index = rooms.findIndex(room => room.id === descriptor.id);
+      if (index >= 0) rooms[index] = { ...rooms[index], ...descriptor };
+      else rooms.unshift(descriptor);
+      await env.OAUTH_KV.put("chat:rooms:" + sub, JSON.stringify(rooms.slice(0, 100)));
+    };
+
+    if (url.pathname === "/api/chat/rooms" && request.method === "GET") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      return apiJson({ rooms: await chatRoomList(user.sub) });
+    }
+
+    if (url.pathname === "/api/chat/dm" && request.method === "POST") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      let payload;
+      try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      const username = String(payload?.username || "").replace(/^@/, "").trim().toLowerCase();
+      if (!/^[a-z0-9_.-]{3,24}$/.test(username)) return apiJson({ error: "invalid_username" }, 400);
+      const targetSub = await env.OAUTH_KV.get("google:username:" + username);
+      if (!targetSub || targetSub === user.sub) return apiJson({ error: "user_not_found" }, 404);
+      const pair = [user.sub, targetSub].sort();
+      const roomId = "dm:" + pair.join(":");
+      const me = await chatProfile(user.sub), other = await chatProfile(targetSub);
+      await chatRoomStub(roomId).fetch(new Request("https://chat-room/members?room=" + encodeURIComponent(roomId), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ members: [me, other] }),
+      }));
+      await addRoomFor(user.sub, { id: roomId, kind: "dm", name: other.name, username: other.username, avatar: other.avatar, with: targetSub, updatedAt: Date.now() });
+      await addRoomFor(targetSub, { id: roomId, kind: "dm", name: me.name, username: me.username, avatar: me.avatar, with: user.sub, updatedAt: Date.now() });
+      return apiJson({ ok: true, roomId });
+    }
+
+    if (url.pathname === "/api/chat/groups" && request.method === "POST") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      let payload;
+      try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      const name = String(payload?.name || "").trim().slice(0, 60);
+      if (!name) return apiJson({ error: "invalid_group_name" }, 400);
+      const usernames = Array.isArray(payload?.members) ? payload.members.slice(0, 50) : [];
+      const subs = new Set([user.sub]);
+      for (const item of usernames) {
+        const handle = String(item || "").replace(/^@/, "").trim().toLowerCase();
+        const sub = handle ? await env.OAUTH_KV.get("google:username:" + handle) : null;
+        if (sub) subs.add(sub);
+      }
+      if (subs.size < 2) return apiJson({ error: "need_members" }, 400);
+      const roomId = "grp:" + crypto.randomUUID().replaceAll("-", "");
+      const members = await Promise.all([...subs].map(chatProfile));
+      await chatRoomStub(roomId).fetch(new Request("https://chat-room/members?room=" + encodeURIComponent(roomId), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ members }),
+      }));
+      for (const member of members) {
+        await addRoomFor(member.sub, {
+          id: roomId, kind: "group", name, members: members.map(m => ({ sub: m.sub, name: m.name, username: m.username, avatar: m.avatar })),
+          updatedAt: Date.now(),
+        });
+      }
+      return apiJson({ ok: true, roomId });
+    }
+
+    let chatMatch = url.pathname.match(/^\/api\/chat\/rooms\/([^/]+)\/messages$/);
+    if (chatMatch && request.method === "GET") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      const roomId = decodeURIComponent(chatMatch[1]);
+      const rooms = await chatRoomList(user.sub);
+      if (!rooms.some(room => room.id === roomId)) return apiJson({ error: "forbidden" }, 403);
+      const target = new URL("https://chat-room/history");
+      target.searchParams.set("room", roomId);
+      target.searchParams.set("sub", user.sub);
+      for (const [key, value] of url.searchParams) target.searchParams.set(key, value);
+      return chatRoomStub(roomId).fetch(new Request(target.toString(), { headers: { "x-chat-sub": user.sub, "x-chat-room": roomId } }));
+    }
+
+    chatMatch = url.pathname.match(/^\/api\/chat\/ws\/([^/]+)$/);
+    if (chatMatch && request.headers.get("Upgrade") === "websocket") {
+      const user = await googleAuthToken(url.searchParams.get("session"));
+      if (!user) return new Response("unauthorized", { status: 401 });
+      const roomId = decodeURIComponent(chatMatch[1]);
+      const rooms = await chatRoomList(user.sub);
+      if (!rooms.some(room => room.id === roomId)) return new Response("forbidden", { status: 403 });
+      const target = new URL(request.url);
+      target.pathname = "/";
+      target.searchParams.set("room", roomId);
+      target.searchParams.set("sub", user.sub);
+      return chatRoomStub(roomId).fetch(new Request(target.toString(), {
+        headers: request.headers,
+      }));
     }
 
     if (url.pathname === "/oauth/refresh" && request.method === "POST") {
