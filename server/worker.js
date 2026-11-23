@@ -277,8 +277,31 @@ export default {
       return handleAiResearch(request, env);
     }
 
+    // Exact difficulty rating for a specific mods combination (e.g. HD+DT).
+    // The public token lives in the Worker, so the browser never sees client credentials.
+    if (/^\/api\/beatmaps\/[0-9]+\/difficulty$/.test(url.pathname) && request.method === "GET") {
+      const beatmapId = url.pathname.match(/^\/api\/beatmaps\/([0-9]+)\/difficulty$/)[1];
+      const modsRaw = Number.parseInt(url.searchParams.get("mods") || "0", 10);
+      const mods = Number.isFinite(modsRaw) && modsRaw >= 0 ? modsRaw : 0;
+      let token;
+      try { token = await getPublicApiToken(env); }
+      catch (error) { return apiJson({ error: error.message || "osu_api_unavailable" }, 503); }
+      const rulesetRaw = Number.parseInt(url.searchParams.get("ruleset_id") || "0", 10);
+      const rulesetId = Number.isFinite(rulesetRaw) && rulesetRaw >= 0 ? rulesetRaw : 0;
+      const apiUrl = "https://osu.ppy.sh/api/v2/beatmaps/" + encodeURIComponent(beatmapId) + "/attributes";
+      const headers = { accept: "application/json", "content-type": "application/json", "x-api-version": "20220705", authorization: "Bearer " + token };
+      const response = await fetchOsuWithRetry(apiUrl, { method: "POST", headers, body: JSON.stringify({ mods, ruleset_id: rulesetId }) }, "difficulty_attributes");
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.attributes) {
+        return apiJson({ error: "difficulty_lookup_failed", upstream_status: response.status }, response.status === 404 ? 404 : 502);
+      }
+      const attributes = payload.attributes;
+      const rating = Number(attributes.star_rating ?? attributes.difficulty_rating ?? attributes.stars);
+      return apiJson({ beatmap_id: beatmapId, mods, ruleset_id: rulesetId, difficulty_rating: Number.isFinite(rating) ? rating : null, attributes, diagnostics: { endpoint: "POST /api/v2/beatmaps/{beatmap}/attributes", upstream_status: response.status } });
+    }
+
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 3, deploy_marker: "ai-gateway-secrets-check-2026-10-31", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 4, deploy_marker: "mods-attributes-post-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Download the complete public beatmapset archive by the replay checksum.
