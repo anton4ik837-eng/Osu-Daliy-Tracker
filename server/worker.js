@@ -301,7 +301,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 7, deploy_marker: "oauth-poll-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 8, deploy_marker: "oauth-diagnostics-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1012,6 +1012,35 @@ export default {
     // --- Google sign-in and cross-device sync ---
     const googleRedirectUri = () => new URL("/oauth/google/callback", request.url).toString();
 
+    if (url.pathname === "/oauth/google/config-check" && request.method === "GET") {
+      return apiJson({
+        service: "osu-daily-tracker-oauth",
+        client_id_present: Boolean(String(env.GOOGLE_CLIENT_ID || "").trim()),
+        client_secret_present: Boolean(String(env.GOOGLE_CLIENT_SECRET || "").trim()),
+        kv_bound: Boolean(env.OAUTH_KV),
+        redirect_uri: googleRedirectUri(),
+        app_redirect_uri: env.APP_REDIRECT_URI || "osudailytracker://oauth",
+      });
+    }
+
+    // A failed callback must be visible to the user, not silently bounced back to the app.
+    const googleErrorPage = (code) => {
+      const messages = {
+        invalid_response: "Google вернул некорректный ответ.",
+        state_mismatch: "Не совпал защитный код запроса. Попробуй войти ещё раз.",
+        not_configured: "На сервере не настроен вход через Google.",
+        token_exchange_failed: "Не удалось обменять код авторизации на сессию. Проверь настройки OAuth-клиента в Google Cloud.",
+        invalid_token_response: "Google вернул некорректный ответ при обмене кода.",
+        userinfo_failed: "Не удалось получить профиль Google.",
+      };
+      const text = messages[code] || ("Ошибка входа: " + String(code));
+      const html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>osu! Daily Tracker — ошибка входа</title>' +
+        '<style>body{font:16px/1.5 system-ui,sans-serif;background:#0b0f17;color:#fff7fc;max-width:520px;margin:8vh auto;padding:24px}code{background:#141b28;padding:4px 8px;border-radius:6px}</style></head><body>' +
+        '<h2>Не удалось войти через Google</h2><p>' + text + '</p><p><code>' + String(code) + '</code></p>' +
+        '<p>Вернись в приложение и попробуй ещё раз.</p></body></html>';
+      return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    };
+
     if (url.pathname === "/oauth/google/start" && request.method === "GET") {
       const clientId = String(env.GOOGLE_CLIENT_ID || "").trim();
       if (!clientId || !env.OAUTH_KV) return apiJson({ error: "google_not_configured" }, 503);
@@ -1036,27 +1065,27 @@ export default {
     if (url.pathname === "/oauth/google/callback" && request.method === "GET") {
       const code = url.searchParams.get("code"), state = url.searchParams.get("state");
       const oauthError = url.searchParams.get("error");
-      if (oauthError) return safeAppRedirect(env, { google_error: oauthError });
-      if (!code || !state || !env.OAUTH_KV) return safeAppRedirect(env, { google_error: "invalid_response" });
+      if (oauthError) return googleErrorPage(oauthError);
+      if (!code || !state || !env.OAUTH_KV) return googleErrorPage("invalid_response");
       const stateKey = "google:state:" + state;
       const stateData = await env.OAUTH_KV.get(stateKey);
-      if (!stateData) return safeAppRedirect(env, { google_error: "state_mismatch" });
+      if (!stateData) return googleErrorPage("state_mismatch");
       let stateInfo = {};
       try { stateInfo = JSON.parse(stateData) || {}; } catch { stateInfo = {}; }
       await env.OAUTH_KV.delete(stateKey);
       const clientId = String(env.GOOGLE_CLIENT_ID || "").trim(), clientSecret = String(env.GOOGLE_CLIENT_SECRET || "").trim();
-      if (!clientId || !clientSecret) return safeAppRedirect(env, { google_error: "not_configured" });
+      if (!clientId || !clientSecret) return googleErrorPage("not_configured");
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, code, grant_type: "authorization_code", redirect_uri: googleRedirectUri() }),
       });
-      if (!tokenResponse.ok) return safeAppRedirect(env, { google_error: "token_exchange_failed" });
+      if (!tokenResponse.ok) return googleErrorPage("token_exchange_failed");
       const tokens = await tokenResponse.json();
-      if (!tokens.access_token) return safeAppRedirect(env, { google_error: "invalid_token_response" });
+      if (!tokens.access_token) return googleErrorPage("invalid_token_response");
       const infoResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", { headers: { authorization: "Bearer " + tokens.access_token, accept: "application/json" } });
       const profile = await infoResponse.json().catch(() => ({}));
-      if (!infoResponse.ok || !profile.sub) return safeAppRedirect(env, { google_error: "userinfo_failed" });
+      if (!infoResponse.ok || !profile.sub) return googleErrorPage("userinfo_failed");
       const session = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
       const user = { sub: profile.sub, email: profile.email || "", name: profile.name || "", picture: profile.picture || "" };
       await env.OAUTH_KV.put("google:session:" + session, JSON.stringify({ ...user, createdAt: Date.now() }), { expirationTtl: 60 * 60 * 24 * 90 });
