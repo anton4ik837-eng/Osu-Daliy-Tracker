@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.12.0</title>
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.12.1</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--surface:#141b28;--surface2:#1b293b;--line:#2d4054;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,#20364b 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
@@ -83,6 +83,13 @@ async function loadRooms(){
   setStatus('chatStatus','','info');
  }catch(error){setStatus('chatStatus','Не удалось загрузить беседы: '+error.message,'error')}
 }
+const cacheKey=id=>'chat-cache:'+id;
+function cacheMessages(roomId,messages){
+ try{localStorage.setItem(cacheKey(roomId),JSON.stringify((messages||[]).slice(-300)))}catch{}
+}
+function cachedMessages(roomId){
+ try{const raw=localStorage.getItem(cacheKey(roomId));const list=raw?JSON.parse(raw):[];return Array.isArray(list)?list:[]}catch{return[]}
+}
 function renderMessages(){
  const host=$('messages');host.replaceChildren();
  if(!activeRoom){host.innerHTML='<div class="hint">Выбери беседу слева, чтобы начать переписку.</div>';return}
@@ -107,8 +114,10 @@ function connectSocket(){
   if(data.type==='message'&&activeRoom){
    activeRoom.messages=activeRoom.messages||[];
    if(!activeRoom.messages.some(item=>item.id===data.id))activeRoom.messages.push(data);
+   cacheMessages(activeRoom.id,activeRoom.messages);
    renderMessages();
   }
+  if(data.type==='error')setStatus('chatStatus',data.message,'error');
  };
  ws.onclose=()=>{ws=null;$('messageInput').disabled=true;$('sendButton').disabled=true;if(activeRoom){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connectSocket,3000)}};
  ws.onerror=()=>setStatus('sendStatus','Ошибка соединения, пробуем снова…','error');
@@ -116,12 +125,20 @@ function connectSocket(){
 async function openRoom(roomId){
  const room=rooms.find(item=>item.id===roomId);if(!room)return;
  clearTimeout(reconnectTimer);if(ws){ws.onclose=null;ws.close();ws=null}
- activeRoom={...room,messages:[]};
+ activeRoom={...room,messages:cachedMessages(roomId)};
  $('chatName').textContent=room.name||'Беседа';
  $('chatSub').textContent=room.kind==='group'?'Группа':'Личный чат';
  const avatar=avatarNode(room.avatar,room.name);avatar.id='chatAvatar';$('chatAvatar').replaceWith(avatar);
  renderMessages();renderRooms();connectSocket();
- try{const data=await api('/api/chat/rooms/'+encodeURIComponent(roomId)+'/messages?limit=60');activeRoom.messages=data.messages||[];renderMessages()}catch(error){setStatus('sendStatus','История недоступна: '+error.message,'error')}
+ try{
+  const data=await api('/api/chat/rooms/'+encodeURIComponent(roomId)+'/messages?limit=300');
+  const merged=new Map();
+  for(const item of activeRoom.messages||[])if(item?.id)merged.set(item.id,item);
+  for(const item of data.messages||[])if(item?.id)merged.set(item.id,item);
+  activeRoom.messages=[...merged.values()].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  cacheMessages(roomId,activeRoom.messages);
+  renderMessages();
+ }catch(error){setStatus('chatStatus','История недоступна: '+error.message,'error');setStatus('sendStatus','История недоступна: '+error.message,'error')}
 }
 function sendMessage(){
  const input=$('messageInput'),body=input.value.trim();

@@ -302,7 +302,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 12, deploy_marker: "chat-mvp-2026-11-23", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 13, deploy_marker: "chat-history-fix-2026-11-24", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1370,6 +1370,30 @@ export default {
       const roomId = decodeURIComponent(chatMatch[1]);
       const rooms = await chatRoomList(user.sub);
       if (!rooms.some(room => room.id === roomId)) return apiJson({ error: "forbidden" }, 403);
+      // KV mirror is authoritative for the transcript: it is not affected by
+      // Durable Object eviction/restarts and survives any code deployment.
+      const rawHistory = await env.OAUTH_KV.get("chat:messages:" + roomId);
+      let mirrored = [];
+      try { mirrored = rawHistory ? JSON.parse(rawHistory) : []; } catch { mirrored = []; }
+      if (Array.isArray(mirrored) && mirrored.length) {
+        const merged = new Map();
+        for (const item of mirrored) if (item?.id) merged.set(item.id, item);
+        try {
+          const probe = await chatRoomStub(roomId).fetch(new Request("https://chat-room/info?room=" + encodeURIComponent(roomId), { headers: { "x-chat-sub": user.sub, "x-chat-room": roomId } }));
+          const info = await probe.json().catch(() => ({}));
+          if (info?.count && info.count > merged.size) {
+            const target = new URL("https://chat-room/history");
+            target.searchParams.set("room", roomId);
+            target.searchParams.set("sub", user.sub);
+            for (const [key, value] of url.searchParams) target.searchParams.set(key, value);
+            const response = await chatRoomStub(roomId).fetch(new Request(target.toString(), { headers: { "x-chat-sub": user.sub, "x-chat-room": roomId } }));
+            const data = await response.json().catch(() => ({}));
+            for (const item of data.messages || []) if (item?.id) merged.set(item.id, item);
+          }
+        } catch { /* DO is optional for history as long as KV mirror exists */ }
+        const items = [...merged.values()].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).slice(-300);
+        return apiJson({ messages: items, members: [], source: "kv" });
+      }
       const target = new URL("https://chat-room/history");
       target.searchParams.set("room", roomId);
       target.searchParams.set("sub", user.sub);

@@ -30,6 +30,7 @@ export class ChatRoom {
     const url = new URL(request.url);
     const sub = String(request.headers.get("x-chat-sub") || url.searchParams.get("sub") || "").trim();
     const roomId = String(request.headers.get("x-chat-room") || url.searchParams.get("room") || "").trim();
+    this.roomId = roomId;
 
     if (request.headers.get("Upgrade") === "websocket") {
       if (!sub) return new Response("unauthorized", { status: 401 });
@@ -69,7 +70,9 @@ export class ChatRoom {
     }
 
     if (url.pathname === "/info" && request.method === "GET") {
-      return Response.json({ roomId, members: this.listMembers() });
+      let count = 0;
+      try { count = Number(this.sql.exec(`SELECT COUNT(*) AS n FROM messages`).toArray()[0]?.n || 0); } catch {}
+      return Response.json({ roomId, count, lastError: this.lastError || null, members: this.listMembers() });
     }
 
     return Response.json({ error: "not_found" }, { status: 404 });
@@ -119,9 +122,26 @@ export class ChatRoom {
         id, sub, name, avatar, body, "text", now
       );
       seq = Number(this.sql.exec(`SELECT seq FROM messages WHERE id = ?`, id).toArray()[0]?.seq || 0);
-    } catch { return; }
+    } catch (error) {
+      this.lastError = String(error?.message || error);
+      this.broadcast({ type: "error", message: "Сообщение не сохранено: " + this.lastError });
+      return;
+    }
     const message = { type: "message", id, seq, sender: sub, name, avatar, body, kind: "text", createdAt: now };
     this.broadcast(message);
+    // KV is the durable history mirror: Durable Object SQLite is still the fast
+    // realtime store, but KV guarantees the transcript survives any DO reset.
+    try {
+      const key = "chat:messages:" + this.roomId;
+      const raw = await this.env.OAUTH_KV.get(key);
+      let history = [];
+      try { history = raw ? JSON.parse(raw) : []; } catch { history = []; }
+      if (!Array.isArray(history)) history = [];
+      history.push(message);
+      await this.env.OAUTH_KV.put(key, JSON.stringify(history.slice(-300)));
+    } catch (error) {
+      this.lastError = "kv_mirror: " + String(error?.message || error);
+    }
     this.touchRoomIndex(sub, message);
   }
 
@@ -151,7 +171,7 @@ export class ChatRoom {
         Promise.resolve(raw).then(value => {
           let rooms = [];
           try { rooms = value ? JSON.parse(value) : []; } catch { rooms = []; }
-          const roomId = String(this.state.id?.toString?.() || "");
+          const roomId = String(this.roomId || "");
           let found = false;
           for (const room of rooms) {
             if (room.id !== roomId) continue;
