@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Coop · osu! Daily Tracker 4.13.0</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0f17;--surface:#141b28;--surface2:#1b293b;--line:#2d4054;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,#20364b 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
+.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 16px;background:#0b0f17ef;border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.topbar a{color:var(--pink2);text-decoration:none;font-size:13px}.topbar b{font-size:16px}.topbar .spacer{flex:1}
+.wrap{max-width:980px;margin:0 auto;padding:16px 12px 50px}.panel{background:linear-gradient(155deg,#182536,#141b28);border:1px solid var(--line);border-radius:14px;padding:15px;margin-bottom:12px}
+.panel h2{font-size:16px;margin:0 0 6px}.muted{color:var(--muted);font-size:12px}
+button,.button{border:1px solid #38536b;background:var(--surface2);color:var(--text);border-radius:9px;padding:9px 12px;font:inherit;cursor:pointer;text-decoration:none;display:inline-block}button:disabled{opacity:.5;cursor:not-allowed}
+input,select{background:var(--field);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;width:100%}
+label{display:block;margin:10px 0;font-size:13px;color:var(--muted)}label span{display:block;margin-bottom:4px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.row>*{flex:1;min-width:140px}.row .btn-wrap{flex:none}
+.status{min-height:18px;margin-top:10px;font-size:12px;color:var(--muted);word-break:break-word}.status[data-kind="error"]{color:var(--danger)}.status[data-kind="success"]{color:var(--good)}
+.room{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:12px;background:#101722;margin-top:10px}.room.highlight{border-color:var(--pink);box-shadow:0 0 0 1px #57c9e855}
+.room .info{flex:1;min-width:0}.room .name{font-weight:800;font-size:15px;word-break:break-word}.room .meta{font-size:12px;color:var(--muted);margin-top:2px}.room .actions{display:flex;gap:8px;flex-wrap:wrap}
+.hint{padding:22px 8px;text-align:center;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header class="topbar"><a href="./index.html">← Назад</a><b>Coop-комнаты</b><span class="spacer"></span><a href="./chat.html">Чат</a></header>
+<main class="wrap">
+<section class="panel"><h2>Комнаты через приложение</h2><div class="muted">Создай комнату osu!(lazer) прямо здесь и отправь ссылку другу — у него откроется osu! сразу в этой комнате.</div><div id="hostStatus" class="status" role="status"></div><div id="hostActions" style="margin-top:10px"></div></section>
+<section class="panel"><h2>Создать комнату</h2><div class="muted">Нужен osu! аккаунт владельца приложения с правом создания комнат.</div><div class="row"><label style="flex:2"><span>Название</span><input id="roomName" type="text" maxlength="80" placeholder="Coop с другом"></label><label><span>Beatmap ID</span><input id="beatmapId" type="number" min="1" placeholder="1234567"></label></div><div class="row"><label><span>Режим</span><select id="ruleset"><option value="3">osu!mania</option><option value="0">osu!standard</option></select></label><label><span>Слотов</span><input id="slots" type="number" min="2" max="50" value="2"></label><div class="btn-wrap"><button id="createRoom" type="button">Создать</button></div></div><div id="createStatus" class="status" role="status"></div></section>
+<section class="panel"><h2>Активные комнаты</h2><div id="roomList"><div class="hint">Загрузка…</div></div><div class="row" style="margin-top:12px"><label><span>ID комнаты</span><input id="inviteRoom" type="number" min="1" placeholder="из списка выше"></label><label><span>osu! ID игрока</span><input id="inviteUser" type="number" min="1" placeholder="12345678"></label><div class="btn-wrap"><button id="inviteButton" type="button">Пригласить</button></div></div><div id="inviteStatus" class="status" role="status"></div></section>
+</main>
+<script>
+const API_BASE='https://osu-daily-tracker-oauth.anton4ik837.workers.dev';
+const GOOGLE_KEY='osu-daily-tracker-google-session';
+const OSU_KEY='osu-daily-tracker-oauth-session';
+const $=id=>document.getElementById(id);
+const googleSession=()=>{try{return localStorage.getItem(GOOGLE_KEY)||''}catch{return''}};
+const osuSession=()=>{try{return JSON.parse(localStorage.getItem(OSU_KEY)||'null')}catch{return null}};
+const setStatus=(id,text,kind='info')=>{const el=$(id);if(el){el.textContent=text;el.dataset.kind=kind}};
+async function api(path,options={},token){
+ const headers={...(options.headers||{}),Accept:'application/json'};
+ if(token)headers.Authorization='Bearer '+token;
+ const response=await fetch(API_BASE+path,{...options,headers});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||data.details||'HTTP '+response.status);
+ return data;
+}
+async function osuAccessToken(){
+ let session=osuSession();
+ if(!session||!session.accessToken)throw new Error('Сначала подключи аккаунт osu! на главной странице');
+ if(session.expiresAt&&session.expiresAt>Date.now()+30000)return session.accessToken;
+ const response=await fetch(API_BASE+'/oauth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refreshToken})});
+ const tokens=await response.json();
+ if(!response.ok||!tokens.access_token)throw new Error(tokens.error||'Не удалось обновить osu!-сессию');
+ const next={...session,accessToken:tokens.access_token,refreshToken:tokens.refresh_token||session.refreshToken,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};
+ try{localStorage.setItem(OSU_KEY,JSON.stringify(next))}catch{}
+ return next.accessToken;
+}
+function shareLink(id){return location.origin+location.pathname+'?room='+encodeURIComponent(id)}
+function openInOsu(id){
+ const url='osu://room/'+encodeURIComponent(id);
+ if(window.NativeOpener?.open){window.NativeOpener.open({url}).catch(()=>{location.href=url});return}
+ if(window.Capacitor?.isNativePlatform?.()&&window.NativeBrowser?.open){window.NativeBrowser.open({url}).catch(()=>{location.href=url});return}
+ location.href=url;
+}
+function renderRooms(rooms,focusId){
+ const host=$('roomList');host.replaceChildren();
+ if(!rooms.length){host.innerHTML='<div class="hint">Комнат пока нет. Создай первую выше.</div>';return}
+ for(const room of rooms){
+  const card=document.createElement('div');card.className='room'+(String(focusId)===String(room.id)?' highlight':'');
+  const info=document.createElement('div');info.className='info';
+  const name=document.createElement('div');name.className='name';name.textContent=room.name||('Комната '+room.id);
+  const meta=document.createElement('div');meta.className='meta';
+  meta.textContent='ID '+room.id+' · '+(room.rulesetId===3?'mania':'standard')+' · beatmap '+(room.beatmapId||'—')+(room.password?' · пароль: '+room.password:'');
+  info.append(name,meta);
+  const actions=document.createElement('div');actions.className='actions';
+  const play=document.createElement('button');play.type='button';play.textContent='Открыть в osu! ↗';play.addEventListener('click',()=>openInOsu(room.id));
+  const copy=document.createElement('button');copy.type='button';copy.textContent='Скопировать ссылку';copy.className='secondary';
+  copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(shareLink(room.id));setStatus('inviteStatus','Ссылка скопирована. Отправь её другу в чате.','success')}catch{setStatus('inviteStatus','Ссылка: '+shareLink(room.id),'info')}});
+  actions.append(play,copy);card.append(info,actions);host.append(card);
+ }
+}
+async function loadRooms(){
+ const focus=new URLSearchParams(location.search).get('room');
+ try{const data=await api('/api/coop/rooms',{},googleSession());renderRooms(data.rooms||[],focus);if(focus)setStatus('inviteStatus','Комната из ссылки подсвечена. Нажми «Открыть в osu!».','success')}
+ catch(error){setStatus('inviteStatus','Не удалось загрузить комнаты: '+error.message,'error')}
+}
+function renderHostState(){
+ const session=osuSession();
+ const box=$('hostActions');box.replaceChildren();
+ if(!googleSession()){setStatus('hostStatus','Войди через Google в основном приложении.','error');return}
+ if(!session){setStatus('hostStatus','osu! не подключён.','error')}
+ else if(!session.canHost){setStatus('hostStatus','Текущий osu!-логин не имеет прав создания комнат.','error')}
+ else{setStatus('hostStatus','osu! подключён с правами хоста. Можно создавать комнаты.','success');return}
+ const link=document.createElement('a');link.className='button';link.href='./index.html?rooms=1';link.textContent='Подключить osu! с правами хоста ↗';box.append(link);
+}
+$('createRoom').addEventListener('click',async()=>{
+ const button=$('createRoom');button.disabled=true;setStatus('createStatus','Создаём комнату в osu!…');
+ try{
+  const token=await osuAccessToken();
+  const data=await api('/api/coop/rooms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   name:$('roomName').value.trim()||'Coop с другом',beatmapId:Number($('beatmapId').value)||0,
+   rulesetId:Number($('ruleset').value)||3,maxParticipants:Number($('slots').value)||2,
+  })},token);
+  setStatus('createStatus','Комната '+data.room.id+' создана. Ссылка: '+shareLink(data.room.id),'success');
+  await loadRooms();
+ }catch(error){setStatus('createStatus','Не удалось создать: '+error.message,'error')}
+ finally{button.disabled=false}
+});
+$('inviteButton').addEventListener('click',async()=>{
+ const button=$('inviteButton');button.disabled=true;setStatus('inviteStatus','Отправляем приглашение…');
+ try{
+  const token=await osuAccessToken();
+  await api('/api/coop/rooms/'+$('inviteRoom').value+'/invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:Number($('inviteUser').value)||0})},token);
+  setStatus('inviteStatus','Приглашение отправлено.','success');
+ }catch(error){setStatus('inviteStatus','Не удалось пригласить: '+error.message,'error')}
+ finally{button.disabled=false}
+});
+renderHostState();loadRooms();
+</script>
+</body>
+</html>

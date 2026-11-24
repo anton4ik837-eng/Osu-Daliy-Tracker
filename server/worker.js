@@ -1,5 +1,6 @@
 import { handleAiChat, handleAiResearch } from "./ai-gateway.js";
 export { ChatRoom } from "./chat-room.js";
+import { makeRoom, invitePlayer } from "./referee-hub.js";
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -302,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 13, deploy_marker: "chat-history-fix-2026-11-24", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 14, deploy_marker: "coop-rooms-2026-11-24", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -924,8 +925,9 @@ export default {
       }
 
       // Keep failures visible as safe JSON instead of an opaque blank/500 browser page.
+      const wantsRooms = url.searchParams.get("rooms") === "1";
       try {
-        await env.OAUTH_KV.put("state:" + state, "1", { expirationTtl: 600 });
+        await env.OAUTH_KV.put("state:" + state, wantsRooms ? "rooms" : "1", { expirationTtl: 600 });
         await env.OAUTH_KV.put("osu:login:" + state, JSON.stringify({ status: "pending", createdAt: Date.now() }), { expirationTtl: 900 });
       } catch {
         return json({ error: "oauth_state_store_failed", stage: "oauth_start" }, 503);
@@ -935,7 +937,7 @@ export default {
       authorize.searchParams.set("client_id", clientId);
       authorize.searchParams.set("redirect_uri", redirectUri);
       authorize.searchParams.set("response_type", "code");
-      authorize.searchParams.set("scope", "public identify");
+      authorize.searchParams.set("scope", wantsRooms ? "public identify multiplayer.write_manage" : "public identify");
       authorize.searchParams.set("state", state);
 
       // Diagnostic mode runs the same state-store and URL-building path but returns the intended redirect as JSON.
@@ -1003,7 +1005,7 @@ export default {
 
       // The token response is held only long enough for the app to redeem a one-time handoff.
       const handoff = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
-      await env.OAUTH_KV.put("handoff:" + handoff, JSON.stringify(tokens), { expirationTtl: 90 });
+      await env.OAUTH_KV.put("handoff:" + handoff, JSON.stringify({ ...tokens, canHost: valid === "rooms" }), { expirationTtl: 90 });
       // Polling fallback: on Android the deep-link return event is not always delivered
       // to the WebView, so the app can also pick the tokens up by its original state.
       await env.OAUTH_KV.put("osu:login:" + state, JSON.stringify({ status: "done", tokens, createdAt: Date.now() }), { expirationTtl: 600 });
@@ -1415,6 +1417,82 @@ export default {
       return chatRoomStub(roomId).fetch(new Request(target.toString(), {
         headers: request.headers,
       }));
+    }
+
+    // --- Coop rooms created through osu!'s referee hub (lazer multiplayer) ---
+    const osuTokenFromRequest = () => {
+      const match = (request.headers.get("authorization") || "").match(/^Bearer\s+(.+)$/i);
+      return match ? match[1].trim() : "";
+    };
+    const coopRoomList = async () => {
+      const raw = await env.OAUTH_KV.get("coop:rooms");
+      let rooms = [];
+      try { rooms = raw ? JSON.parse(raw) : []; } catch {}
+      return Array.isArray(rooms) ? rooms.slice(0, 50) : [];
+    };
+
+    if (url.pathname === "/api/coop/rooms" && request.method === "GET") {
+      return apiJson({ rooms: await coopRoomList() });
+    }
+
+    if (url.pathname === "/api/coop/rooms" && request.method === "POST") {
+      const token = osuTokenFromRequest();
+      if (!token) return apiJson({ error: "osu_token_required" }, 401);
+      let payload;
+      try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      const name = String(payload?.name || "").trim().slice(0, 80);
+      const beatmapId = Number(payload?.beatmapId) || 0;
+      if (!name || !beatmapId) return apiJson({ error: "invalid_room" }, 400);
+      try {
+        const result = await makeRoom(token, {
+          name,
+          beatmapId,
+          rulesetId: Number(payload?.rulesetId) || 3,
+          maxParticipants: Number(payload?.maxParticipants) || 2,
+        });
+        const roomId = Number(result?.room_id || result?.roomId || 0);
+        if (!roomId) return apiJson({ error: "room_id_missing" }, 502);
+        const room = {
+          id: roomId,
+          name: result.name || name,
+          password: result.password || "",
+          beatmapId,
+          rulesetId: Number(payload?.rulesetId) || 3,
+          createdAt: Date.now(),
+          host: payload?.host || null,
+          osuLink: "osu://room/" + roomId,
+        };
+        const rooms = await coopRoomList();
+        rooms.unshift(room);
+        await env.OAUTH_KV.put("coop:rooms", JSON.stringify(rooms.slice(0, 50)));
+        await env.OAUTH_KV.put("coop:room:" + roomId, JSON.stringify(room), { expirationTtl: 60 * 60 * 24 * 7 });
+        return apiJson({ ok: true, room });
+      } catch (error) {
+        return apiJson({ error: "referee_hub_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      }
+    }
+
+    let coopMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)$/);
+    if (coopMatch && request.method === "GET") {
+      const raw = await env.OAUTH_KV.get("coop:room:" + coopMatch[1]);
+      if (!raw) return apiJson({ error: "room_not_found" }, 404);
+      return apiJson({ room: JSON.parse(raw) });
+    }
+
+    coopMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)\/invite$/);
+    if (coopMatch && request.method === "POST") {
+      const token = osuTokenFromRequest();
+      if (!token) return apiJson({ error: "osu_token_required" }, 401);
+      let payload;
+      try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      const userId = Number(payload?.userId) || 0;
+      if (!userId) return apiJson({ error: "invalid_user" }, 400);
+      try {
+        await invitePlayer(token, Number(coopMatch[1]), userId);
+        return apiJson({ ok: true });
+      } catch (error) {
+        return apiJson({ error: "invite_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      }
     }
 
     if (url.pathname === "/oauth/refresh" && request.method === "POST") {

@@ -271,12 +271,41 @@ public class NativeLogsPlugin extends Plugin {
 }
 `;
 await writeFile(javaDir + '/NativeLogsPlugin.java', pluginSource, 'utf8');
+
+const openerSource = `package ${javaPackage};
+
+import android.content.Intent;
+import android.net.Uri;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+
+@CapacitorPlugin(name = "NativeOpener")
+public class NativeOpenerPlugin extends Plugin {
+    @PluginMethod
+    public void open(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null || url.isEmpty()) { call.reject("empty_url"); return; }
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) { call.reject(String.valueOf(e.getMessage())); }
+    }
+}
+`;
+await writeFile(javaDir + '/NativeOpenerPlugin.java', openerSource, 'utf8');
+
 if (!mainActivity.includes('NativeLogsPlugin')) {
   mainActivity = mainActivity.replace('import com.getcapacitor.BridgeActivity;',
-    'import com.getcapacitor.BridgeActivity;\nimport ' + javaPackage + '.NativeLogsPlugin;');
+    'import com.getcapacitor.BridgeActivity;\nimport ' + javaPackage + '.NativeLogsPlugin;\nimport ' + javaPackage + '.NativeOpenerPlugin;');
   mainActivity = mainActivity.replace('public class MainActivity extends BridgeActivity {',
-    'public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(NativeLogsPlugin.class);\n        super.onCreate(savedInstanceState);\n    }');
+    'public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(NativeLogsPlugin.class);\n        registerPlugin(NativeOpenerPlugin.class);\n        super.onCreate(savedInstanceState);\n    }');
   if (!mainActivity.includes('registerPlugin(NativeLogsPlugin.class)')) throw new Error('Could not register NativeLogsPlugin.');
+  if (!mainActivity.includes('registerPlugin(NativeOpenerPlugin.class)')) throw new Error('Could not register NativeOpenerPlugin.');
   await writeFile(mainActivityPath, mainActivity, 'utf8');
 }
-console.log('Installed NativeLogsPlugin for Downloads/OsuDailyTracker.');
+console.log('Installed NativeLogsPlugin and NativeOpenerPlugin.');
