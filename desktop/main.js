@@ -55,7 +55,8 @@ async function completeOAuth(handoff) {
     const session = {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
-      expiresAt: Date.now() + Number(tokens.expires_in || 0) * 1000
+      expiresAt: Date.now() + Number(tokens.expires_in || 0) * 1000,
+      canHost: !!tokens.canHost
     };
     appendLogLine(JSON.stringify({ time: new Date().toISOString(), event: 'oauth.exchange_success' }));
     sendAuthStatus('Токен получен. Загружаю профиль…');
@@ -164,7 +165,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'osu! Daily Tracker 4.13.1 · Replay Lab',
+    title: 'osu! Daily Tracker 4.13.2 · Replay Lab',
     backgroundColor: '#0b0f17',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
