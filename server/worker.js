@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 14, deploy_marker: "coop-rooms-2026-11-24", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 15, deploy_marker: "coop-in-chat-2026-11-24", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1430,6 +1430,59 @@ export default {
       try { rooms = raw ? JSON.parse(raw) : []; } catch {}
       return Array.isArray(rooms) ? rooms.slice(0, 50) : [];
     };
+
+    const osuPublicToken = async () => {
+      const cached = await env.OAUTH_KV.get("osu:public-token");
+      if (cached) {
+        try { const parsed = JSON.parse(cached); if (parsed.expiresAt > Date.now() && parsed.token) return parsed.token; } catch {}
+      }
+      const clientId = String(env.OSU_CLIENT_ID || "").trim(), clientSecret = String(env.OSU_CLIENT_SECRET || "").trim();
+      if (!clientId || !clientSecret) throw new Error("osu_api_not_configured");
+      const response = await fetch("https://osu.ppy.sh/oauth/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+        body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials", scope: "public" }),
+      });
+      if (!response.ok) throw new Error("osu_token_http_" + response.status);
+      const tokens = await response.json();
+      const token = String(tokens.access_token || "");
+      if (!token) throw new Error("osu_token_missing");
+      await env.OAUTH_KV.put("osu:public-token", JSON.stringify({ token, expiresAt: Date.now() + (Number(tokens.expires_in || 3600) - 60) * 1000 }), { expirationTtl: 3600 });
+      return token;
+    };
+
+    if (url.pathname === "/api/coop/popular-beatmaps" && request.method === "GET") {
+      const mode = url.searchParams.get("mode") === "mania" ? "3" : "0";
+      try {
+        const token = await osuPublicToken();
+        const headers = { Authorization: "Bearer " + token, Accept: "application/json" };
+        let response = await fetch("https://osu.ppy.sh/api/v2/beatmaps/popular?m=" + mode + "&limit=25", { headers });
+        let items = [];
+        if (response.ok) {
+          const data = await response.json();
+          items = Array.isArray(data) ? data : (data.beatmaps || data.beatmapsets || []);
+        }
+        if (!items.length) {
+          response = await fetch("https://osu.ppy.sh/api/v2/beatmapsets/search?m=" + mode + "&s=plays.desc&c=popular", { headers });
+          if (response.ok) {
+            const data = await response.json();
+            const sets = Array.isArray(data?.beatmapsets) ? data.beatmapsets : [];
+            items = sets.flatMap(set => (set.beatmaps || []).map(beatmap => ({ ...beatmap, beatmapset: set })));
+          }
+        }
+        const maps = items.slice(0, 25).map(item => ({
+          id: Number(item.id || item.beatmap_id || 0),
+          artist: String(item.beatmapset?.artist || item.artist || ""),
+          title: String(item.beatmapset?.title || item.title || ""),
+          version: String(item.version || ""),
+          stars: Number(item.difficulty_rating || 0) || null,
+          plays: Number(item.playcount || item.beatmapset?.play_count || 0) || 0,
+        })).filter(map => map.id > 0);
+        return apiJson({ maps });
+      } catch (error) {
+        return apiJson({ error: "popular_beatmaps_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      }
+    }
 
     if (url.pathname === "/api/coop/rooms" && request.method === "GET") {
       return apiJson({ rooms: await coopRoomList() });

@@ -49,6 +49,7 @@ function waitForMessage(ws, predicate, timeoutMs = 20000) {
 export async function invokeReferee(accessToken, target, args = []) {
   const connectionToken = await negotiate(accessToken);
   const url = new URL(HUB + '/referee');
+  url.protocol = 'wss:';
   url.searchParams.set('id', connectionToken);
   // Browser-style auth: the official SignalR client passes the token in the query string.
   url.searchParams.set('access_token', accessToken);

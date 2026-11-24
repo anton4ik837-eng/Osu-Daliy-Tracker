@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.13.3</title>
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.14.0</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--surface:#141b28;--surface2:#1b293b;--line:#2d4054;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,#20364b 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
@@ -29,13 +29,29 @@ button:disabled{opacity:.5;cursor:not-allowed}input,textarea{background:var(--fi
 .dialog{width:min(440px,100%);background:linear-gradient(155deg,#1a293a,#101722);border:1px solid #42647a;border-radius:16px;padding:18px}
 .dialog h3{margin:0 0 10px;font-size:17px}.dialog label{display:block;margin:10px 0;font-size:12px;color:var(--muted)}.dialog label span{display:block;margin-bottom:4px}.dialog .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .online{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block}
+.panel{position:relative}
+.icon-btn{width:42px;flex:none;padding:8px;font-size:19px;line-height:1}
+.attach-menu{position:absolute;bottom:54px;left:12px;z-index:8;background:linear-gradient(155deg,#1a293a,#101722);border:1px solid #42647a;border-radius:12px;padding:6px;min-width:210px;box-shadow:0 12px 34px #0009;display:none}
+.attach-menu.open{display:block}
+.attach-menu button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:9px 10px;border-radius:8px}
+.attach-menu button:hover:not(:disabled){background:var(--surface2)}
+.attach-menu button:disabled{opacity:.45}
+.coop-mini{border:1px solid #42647a;border-radius:14px;background:linear-gradient(155deg,#1a293a,#101722);padding:12px;margin-bottom:10px;display:none}
+.coop-mini.open{display:block}.coop-mini h3{margin:0;font-size:14px}
+.coop-mini .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.coop-mini input{background:var(--field);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit;flex:1;min-width:110px}
+.map-tabs{display:flex;gap:6px;margin-top:9px}.map-tabs button{flex:1;padding:6px}
+.map-list{max-height:168px;overflow:auto;margin-top:8px;display:flex;flex-direction:column;gap:5px}
+.map-item{display:flex;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);border-radius:9px;padding:7px 9px;background:#101722;color:var(--text);cursor:pointer;font-size:12px;width:100%}
+.map-item.selected{border-color:var(--pink);background:#173144}
+.map-item .meta{color:var(--muted);font-size:11px;margin-left:auto;text-align:right;flex:none}
 </style>
 </head>
 <body>
-<header class="topbar"><a href="./index.html">← Назад</a><b>Чат</b><span class="spacer"></span><a href="./coop.html">Coop</a><span class="muted" id="sessionBadge">—</span></header>
+<header class="topbar"><a href="./index.html">← Назад</a><b>Чат</b><span class="spacer"></span><span class="muted" id="sessionBadge">—</span></header>
 <main class="wrap">
 <section class="panel"><div class="panel-head"><h2>Беседы</h2><span class="spacer"></span><button id="newDmButton" type="button" title="Личный чат">+ ЛС</button><button id="newGroupButton" type="button" title="Группа">+ Группа</button></div><div id="roomList" class="rooms"><div class="hint">Загрузка…</div></div><div id="chatStatus" class="status" role="status"></div></section>
-<section class="panel"><div id="chatHead" class="chat-head"><div class="avatar" id="chatAvatar">?</div><div><div class="name" id="chatName">Выбери беседу</div><div class="muted" id="chatSub">Сообщения и звонки в одном месте</div></div></div><div id="messages" class="messages"><div class="hint">Выбери беседу слева, чтобы начать переписку.</div></div><div class="composer"><input id="messageInput" type="text" maxlength="4000" placeholder="Напиши сообщение…" disabled><button id="sendButton" type="button" disabled>Отправить</button></div><div id="sendStatus" class="status" role="status"></div></section>
+<section class="panel"><div id="chatHead" class="chat-head"><div class="avatar" id="chatAvatar">?</div><div><div class="name" id="chatName">Выбери беседу</div><div class="muted" id="chatSub">Сообщения и звонки в одном месте</div></div></div><div id="messages" class="messages"><div class="hint">Выбери беседу слева, чтобы начать переписку.</div></div><div id="coopMini" class="coop-mini"><div style="display:flex;align-items:center;gap:8px"><h3>🎮 Coop-комната</h3><span style="flex:1"></span><button id="coopClose" class="secondary" type="button" style="padding:3px 9px">×</button></div><div id="coopHostStatus" class="muted" style="margin-top:5px">—</div><div id="coopHostLink" style="margin-top:6px"></div><div class="row"><input id="coopName" type="text" maxlength="80" placeholder="Название комнаты"><input id="coopSlots" type="number" min="2" max="50" value="2" style="flex:none;width:76px"></div><div class="map-tabs"><button id="mapTabStd" class="secondary" type="button">STD</button><button id="mapTabMania" type="button">MANIA</button></div><div id="mapList" class="map-list"><div class="muted">Загрузка карт…</div></div><div class="row"><button id="coopCreate" type="button">Создать комнату</button><button id="coopSendLink" class="secondary" type="button" disabled>Отправить ссылку в чат</button><button id="coopOpenOsu" class="secondary" type="button" disabled>Открыть в osu!</button></div><div id="coopStatus" class="status" role="status"></div></div><div class="composer"><button id="attachButton" class="icon-btn" type="button" title="Ещё">⋯</button><input id="messageInput" type="text" maxlength="4000" placeholder="Напиши сообщение…" disabled><button id="sendButton" type="button" disabled>Отправить</button></div><div id="attachMenu" class="attach-menu"><button id="menuCoop" type="button">🎮 Создать Coop-комнату</button><button type="button" disabled>📼 Отправить реплей — скоро</button><button type="button" disabled>🖼 Отправить фото — скоро</button></div><div id="sendStatus" class="status" role="status"></div></section>
 </main>
 <div id="dmOverlay" class="overlay" hidden><div class="dialog"><h3>Новый личный чат</h3><p class="muted">Введи юзернейм из профиля приложения.</p><label><span>Юзернейм</span><input id="dmUsername" type="text" maxlength="24" placeholder="например, miyabi"></label><div class="actions"><button id="dmCreate" type="button">Создать чат</button><button id="dmCancel" class="secondary" type="button">Отмена</button></div><div id="dmStatus" class="status"></div></div></div>
 <div id="groupOverlay" class="overlay" hidden><div class="dialog"><h3>Новая группа</h3><label><span>Название</span><input id="groupName" type="text" maxlength="60" placeholder="Моя команда"></label><label><span>Участники через запятую</span><input id="groupMembers" type="text" maxlength="400" placeholder="miyabi, rimuru"></label><div class="actions"><button id="groupCreate" type="button">Создать группу</button><button id="groupCancel" class="secondary" type="button">Отмена</button></div><div id="groupStatus" class="status"></div></div></div>
@@ -166,6 +182,87 @@ $('groupCreate').addEventListener('click',async()=>{
  }catch(error){setStatus('groupStatus',error.message,'error')}
  finally{button.disabled=false}
 });
+const OSU_KEY='osu-daily-tracker-oauth-session';
+const coopState={mode:'mania',mapId:0,room:null};
+async function readOsuSession(){
+ if(window.DesktopBridge?.secureGet){try{const s=await window.DesktopBridge.secureGet('oauth-session');if(s?.accessToken)return s}catch{}}
+ try{return JSON.parse(localStorage.getItem(OSU_KEY)||'null')}catch{return null}
+}
+async function writeOsuSession(session){
+ if(window.DesktopBridge?.secureSet){try{await window.DesktopBridge.secureSet('oauth-session',session);return}catch{}}
+ try{localStorage.setItem(OSU_KEY,JSON.stringify(session))}catch{}
+}
+async function renderCoopHost(){
+ const s=await readOsuSession(),host=$('coopHostStatus'),link=$('coopHostLink');
+ if(!s||!s.canHost){
+  host.textContent='Нужна авторизация osu! с правом создания комнат.';
+  link.replaceChildren();
+  const a=document.createElement('a');a.className='button secondary';a.href='./index.html?rooms=1';a.textContent='Подключить osu! с правами хоста ↗';link.append(a);
+ }else{host.textContent='osu! подключён с правами хоста.';link.replaceChildren()}
+}
+async function loadPopularMaps(mode){
+ const list=$('mapList');list.replaceChildren();
+ list.innerHTML='<div class="muted">Загрузка карт…</div>';
+ try{
+  const data=await api('/api/coop/popular-beatmaps?mode='+mode);
+  list.replaceChildren();
+  const maps=data.maps||[];
+  if(!maps.length){list.innerHTML='<div class="muted">Карты не найдены.</div>';return}
+  for(const map of maps){
+   const item=document.createElement('button');item.type='button';item.className='map-item'+(coopState.mapId===map.id?' selected':'');
+   const label=document.createElement('span');label.textContent=(map.artist?map.artist+' — ':'')+map.title+(map.version?' ['+map.version+']':'');
+   const meta=document.createElement('span');meta.className='meta';meta.textContent=(map.stars?Number(map.stars).toFixed(2)+'★ · ':'')+(map.plays?Number(map.plays).toLocaleString('ru-RU')+' игр':'');
+   item.append(label,meta);
+   item.addEventListener('click',()=>{coopState.mapId=map.id;list.querySelectorAll('.map-item').forEach(x=>x.classList.remove('selected'));item.classList.add('selected');setStatus('coopStatus','Выбрана карта: '+label.textContent,'success')});
+   list.append(item);
+  }
+ }catch(error){list.replaceChildren();setStatus('coopStatus','Карты не загрузились: '+error.message,'error')}
+}
+async function coopAccessToken(){
+ let s=await readOsuSession();
+ if(!s?.accessToken)throw new Error('Подключи osu! с правами хоста');
+ if(s.expiresAt&&s.expiresAt>Date.now()+30000)return s.accessToken;
+ const response=await fetch(API_BASE+'/oauth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refreshToken})});
+ const tokens=await response.json();
+ if(!response.ok||!tokens.access_token)throw new Error(tokens.error||'Не удалось обновить osu!-сессию');
+ const next={...s,accessToken:tokens.access_token,refreshToken:tokens.refresh_token||s.refreshToken,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};
+ await writeOsuSession(next);return next.accessToken;
+}
+function coopShareLink(id){return location.origin+location.pathname.replace(/chat\.html$/,'coop.html')+'?room='+encodeURIComponent(id)}
+function openCoopInOsu(id){
+ const url='osu://room/'+encodeURIComponent(id);
+ if(window.DesktopBridge?.openExternal){window.DesktopBridge.openExternal(url).catch(()=>{location.href=url});return}
+ if(window.NativeOpener?.open){window.NativeOpener.open({url}).catch(()=>{location.href=url});return}
+ location.href=url;
+}
+function toggleAttach(open){$('attachMenu').classList.toggle('open',!!open)}
+$('attachButton').addEventListener('click',()=>toggleAttach(!$('attachMenu').classList.contains('open')));
+$('menuCoop').addEventListener('click',()=>{
+ toggleAttach(false);$('coopMini').classList.add('open');
+ renderCoopHost();loadPopularMaps(coopState.mode);
+});
+$('coopClose').addEventListener('click',()=>$('coopMini').classList.remove('open'));
+$('mapTabMania').addEventListener('click',()=>{coopState.mode='mania';coopState.mapId=0;$('mapTabMania').removeAttribute('class');$('mapTabStd').className='secondary';loadPopularMaps('mania')});
+$('mapTabStd').addEventListener('click',()=>{coopState.mode='std';coopState.mapId=0;$('mapTabStd').removeAttribute('class');$('mapTabMania').className='secondary';loadPopularMaps('std')});
+$('coopCreate').addEventListener('click',async()=>{
+ const button=$('coopCreate');button.disabled=true;setStatus('coopStatus','Создаём комнату…');
+ try{
+  if(!coopState.mapId)throw new Error('Выбери карту из списка');
+  const token=await coopAccessToken();
+  const data=await api('/api/coop/rooms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('coopName').value.trim()||'Coop с другом',beatmapId:coopState.mapId,rulesetId:coopState.mode==='mania'?3:0,maxParticipants:Number($('coopSlots').value)||2})},token);
+  coopState.room=data.room;
+  $('coopSendLink').disabled=false;$('coopOpenOsu').disabled=false;
+  setStatus('coopStatus','Комната '+data.room.id+' создана. Пароль: '+(data.room.password||'—')+'. Ссылка: '+coopShareLink(data.room.id),'success');
+ }catch(error){setStatus('coopStatus','Не удалось создать: '+error.message,'error')}
+ finally{button.disabled=false}
+});
+$('coopSendLink').addEventListener('click',()=>{
+ if(!coopState.room||!ws||ws.readyState!==WebSocket.OPEN){setStatus('coopStatus','Чат не подключён.','error');return}
+ ws.send(JSON.stringify({type:'message',body:'Coop-комната: '+coopShareLink(coopState.room.id)+(coopState.room.password?' · пароль: '+coopState.room.password:'')}));
+ setStatus('coopStatus','Ссылка отправлена в чат.','success');
+});
+$('coopOpenOsu').addEventListener('click',()=>{if(coopState.room)openCoopInOsu(coopState.room.id)});
+document.addEventListener('click',e=>{if(!e.target.closest('.composer')&&!e.target.closest('#attachMenu'))toggleAttach(false)});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&activeRoom&&(!ws||ws.readyState!==WebSocket.OPEN))connectSocket()});
 loadRooms();
 </script>
