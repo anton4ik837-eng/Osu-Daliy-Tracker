@@ -6,7 +6,7 @@ on:
     paths:
       - 'server/worker.js'
       - 'server/ai-gateway.js'
-      - 'server/check-ai-gateway.mjs'
+      - 'server/referee-hub.js'
       - 'wrangler.toml'
       - '.github/workflows/deploy-worker.yml'
 
@@ -16,8 +16,6 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      DATASET_GITHUB_TOKEN: ${{ secrets.DATASET_GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,20 +23,8 @@ jobs:
         run: |
           node --input-type=module --check < server/worker.js
           node --input-type=module --check < server/ai-gateway.js
-          node server/check-ai-gateway.mjs
-      - name: Deploy Worker with replay dataset access
-        if: ${{ env.DATASET_GITHUB_TOKEN != '' }}
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config wrangler.toml
-          secrets: |
-            DATASET_GITHUB_TOKEN
-        env:
-          DATASET_GITHUB_TOKEN: ${{ secrets.DATASET_GITHUB_TOKEN }}
-      - name: Deploy Worker without replay dataset access
-        if: ${{ env.DATASET_GITHUB_TOKEN == '' }}
+          node --input-type=module --check < server/referee-hub.js
+      - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
