@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Coop · osu! Daily Tracker 4.13.0</title>
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Coop · osu! Daily Tracker 4.13.1</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--surface:#141b28;--surface2:#1b293b;--line:#2d4054;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,#20364b 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
@@ -33,6 +33,14 @@ const OSU_KEY='osu-daily-tracker-oauth-session';
 const $=id=>document.getElementById(id);
 const googleSession=()=>{try{return localStorage.getItem(GOOGLE_KEY)||''}catch{return''}};
 const osuSession=()=>{try{return JSON.parse(localStorage.getItem(OSU_KEY)||'null')}catch{return null}};
+async function readOsuSession(){
+ if(window.DesktopBridge?.secureGet){try{const session=await window.DesktopBridge.secureGet('oauth-session');if(session?.accessToken)return session}catch{}}
+ return osuSession();
+}
+async function writeOsuSession(session){
+ if(window.DesktopBridge?.secureSet){try{await window.DesktopBridge.secureSet('oauth-session',session);return}catch{}}
+ try{localStorage.setItem(OSU_KEY,JSON.stringify(session))}catch{}
+}
 const setStatus=(id,text,kind='info')=>{const el=$(id);if(el){el.textContent=text;el.dataset.kind=kind}};
 async function api(path,options={},token){
  const headers={...(options.headers||{}),Accept:'application/json'};
@@ -43,19 +51,20 @@ async function api(path,options={},token){
  return data;
 }
 async function osuAccessToken(){
- let session=osuSession();
+ let session=await readOsuSession();
  if(!session||!session.accessToken)throw new Error('Сначала подключи аккаунт osu! на главной странице');
  if(session.expiresAt&&session.expiresAt>Date.now()+30000)return session.accessToken;
  const response=await fetch(API_BASE+'/oauth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refreshToken})});
  const tokens=await response.json();
  if(!response.ok||!tokens.access_token)throw new Error(tokens.error||'Не удалось обновить osu!-сессию');
  const next={...session,accessToken:tokens.access_token,refreshToken:tokens.refresh_token||session.refreshToken,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};
- try{localStorage.setItem(OSU_KEY,JSON.stringify(next))}catch{}
+ await writeOsuSession(next);
  return next.accessToken;
 }
 function shareLink(id){return location.origin+location.pathname+'?room='+encodeURIComponent(id)}
 function openInOsu(id){
  const url='osu://room/'+encodeURIComponent(id);
+ if(window.DesktopBridge?.openExternal){window.DesktopBridge.openExternal(url).catch(()=>{location.href=url});return}
  if(window.NativeOpener?.open){window.NativeOpener.open({url}).catch(()=>{location.href=url});return}
  if(window.Capacitor?.isNativePlatform?.()&&window.NativeBrowser?.open){window.NativeBrowser.open({url}).catch(()=>{location.href=url});return}
  location.href=url;
@@ -82,8 +91,8 @@ async function loadRooms(){
  try{const data=await api('/api/coop/rooms',{},googleSession());renderRooms(data.rooms||[],focus);if(focus)setStatus('inviteStatus','Комната из ссылки подсвечена. Нажми «Открыть в osu!».','success')}
  catch(error){setStatus('inviteStatus','Не удалось загрузить комнаты: '+error.message,'error')}
 }
-function renderHostState(){
- const session=osuSession();
+async function renderHostState(){
+ const session=await readOsuSession();
  const box=$('hostActions');box.replaceChildren();
  if(!googleSession()){setStatus('hostStatus','Войди через Google в основном приложении.','error');return}
  if(!session){setStatus('hostStatus','osu! не подключён.','error')}
