@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 45, deploy_marker: "coop-bot-me-diag-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 46, deploy_marker: "coop-bot-playcount-all-modes-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1503,7 +1503,7 @@ export default {
             username = String(profile?.username || session?.username || "");
             playCount = Number(profile?.statistics?.play_count ?? profile?.play_count ?? 0) || 0;
             meKeys = Object.keys(profile || {});
-            statsSample = JSON.stringify(profile?.statistics || {}).slice(0, 200);
+            statsSample = "mode=" + String(profile?.statistics?.play_count ?? "?") + " all=" + JSON.stringify((Array.isArray(profile?.statistics_rulesets) ? profile.statistics_rulesets : Object.values(profile?.statistics_rulesets || {})).map(s => ({ mode: s?.mode, plays: s?.play_count }))).slice(0, 200) + " monthly=" + JSON.stringify((profile?.monthly_playcounts || []).slice(-3)).slice(0, 160);
             try {
               const channels = await fetch("https://osu.ppy.sh/api/v2/chat/channels?limit=1", { headers: { Authorization: "Bearer " + validToken, Accept: "application/json" } });
               chatRead = channels.ok;
