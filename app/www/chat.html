@@ -1,8 +1,9 @@
 <!doctype html>
 <html lang="ru">
 <head>
+<script src="./security.js"></script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.14.11</title>
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.15.0</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--bg-glow:#20364b;--surface:#141b28;--surface2:#1b293b;--card-bg:#101722;--panel-start:#182536;--panel-end:#141b28;--line:#2d4054;--border-strong:#38536b;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17;--theme-image:none}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,var(--bg-glow) 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
@@ -144,9 +145,14 @@ function renderMessages(){
  }
  host.scrollTop=host.scrollHeight;
 }
-function connectSocket(){
+async function connectSocket(){
  if(ws||!activeRoom)return;
- const url=API_BASE.replace(/^https/,'wss')+'/api/chat/ws/'+encodeURIComponent(activeRoom.id)+'?session='+encodeURIComponent(session());
+ let auth='session='+encodeURIComponent(session());
+ try{
+  const ticket=await api('/api/chat/ws-ticket');
+  if(ticket?.ticket)auth='ticket='+encodeURIComponent(ticket.ticket);
+ }catch{}
+ const url=API_BASE.replace(/^https/,'wss')+'/api/chat/ws/'+encodeURIComponent(activeRoom.id)+'?'+auth;
  try{ws=new WebSocket(url)}catch(error){setStatus('sendStatus','Не удалось подключиться: '+error.message,'error');return}
  ws.onopen=()=>{setStatus('sendStatus','Подключено.','success');$('messageInput').disabled=false;$('sendButton').disabled=false};
  ws.onmessage=event=>{

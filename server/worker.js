@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 21, deploy_marker: "coop-room-keepalive-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 22, deploy_marker: "security-pin-ws-ticket-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1403,9 +1403,26 @@ export default {
       return chatRoomStub(roomId).fetch(new Request(target.toString(), { headers: { "x-chat-sub": user.sub, "x-chat-room": roomId } }));
     }
 
+    if (url.pathname === "/api/chat/ws-ticket" && request.method === "GET") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      const ticket = crypto.randomUUID().replaceAll("-", "");
+      await env.OAUTH_KV.put("chat:ws-ticket:" + ticket, JSON.stringify(user), { expirationTtl: 120 });
+      return apiJson({ ticket });
+    }
+
     chatMatch = url.pathname.match(/^\/api\/chat\/ws\/([^/]+)$/);
     if (chatMatch && request.headers.get("Upgrade") === "websocket") {
-      const user = await googleAuthToken(url.searchParams.get("session"));
+      let user = null;
+      const ticket = String(url.searchParams.get("ticket") || "");
+      if (/^[a-f0-9]{32}$/i.test(ticket)) {
+        const rawTicket = await env.OAUTH_KV.get("chat:ws-ticket:" + ticket);
+        if (rawTicket) {
+          await env.OAUTH_KV.delete("chat:ws-ticket:" + ticket);
+          try { user = JSON.parse(rawTicket); } catch { user = null; }
+        }
+      }
+      if (!user) user = await googleAuthToken(url.searchParams.get("session"));
       if (!user) return new Response("unauthorized", { status: 401 });
       const roomId = decodeURIComponent(chatMatch[1]);
       const rooms = await chatRoomList(user.sub);
