@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.14.6</title>
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.14.7</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--bg-glow:#20364b;--surface:#141b28;--surface2:#1b293b;--card-bg:#101722;--panel-start:#182536;--panel-end:#141b28;--line:#2d4054;--border-strong:#38536b;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17;--theme-image:none}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,var(--bg-glow) 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
@@ -24,7 +24,7 @@ button:disabled{opacity:.5;cursor:not-allowed}input,textarea{background:var(--fi
 .chat-head{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:10px}.chat-head .name{font-weight:800}
 .messages{height:min(55vh,520px);overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
 .msg{max-width:82%;padding:8px 11px;border-radius:12px;background:var(--surface);border:1px solid var(--line);word-break:break-word;white-space:pre-wrap}
-.msg.mine{align-self:flex-end;background:color-mix(in srgb,var(--pink) 20%,var(--card-bg));border-color:color-mix(in srgb,var(--pink) 45%,var(--line))}.msg .meta{font-size:11px;color:var(--pink2);margin-bottom:2px}.msg .time{font-size:10px;color:var(--muted);margin-top:3px;text-align:right}
+.msg.mine{align-self:flex-end;background:color-mix(in srgb,var(--pink) 20%,var(--card-bg));border-color:color-mix(in srgb,var(--pink) 45%,var(--line))}.msg .meta{font-size:11px;color:var(--pink2);margin-bottom:2px}.msg .time{font-size:10px;color:var(--muted);margin-top:3px;text-align:right}.msg a{color:var(--pink2);text-decoration:underline;font-weight:600}
 .composer{display:flex;gap:8px;margin-top:10px}.composer input{flex:1}
 .hint{padding:30px 10px;text-align:center;color:var(--muted)}
 .overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;background:color-mix(in srgb,var(--bg) 82%,transparent)}.overlay[hidden]{display:none}
@@ -120,6 +120,16 @@ function cacheMessages(roomId,messages){
 function cachedMessages(roomId){
  try{const raw=localStorage.getItem(cacheKey(roomId));const list=raw?JSON.parse(raw):[];return Array.isArray(list)?list:[]}catch{return[]}
 }
+function appendLinkedText(host,text){
+ const re=/https?:\/\/[^\s<>"']+/g;let last=0,match;
+ while((match=re.exec(String(text||'')))){
+  if(match.index>last)host.append(document.createTextNode(String(text).slice(last,match.index)));
+  const a=document.createElement('a');a.href=match[0];a.target='_blank';a.rel='noopener noreferrer';
+  a.textContent=a.href.includes('/coop?room=')?'Открыть приглашение в мультиплеер ↗':match[0];
+  host.append(a);last=match.index+match[0].length;
+ }
+ if(last<String(text||'').length)host.append(document.createTextNode(String(text).slice(last)));
+}
 function renderMessages(){
  const host=$('messages');host.replaceChildren();
  if(!activeRoom){host.innerHTML='<div class="hint">Выбери беседу слева, чтобы начать переписку.</div>';return}
@@ -128,7 +138,7 @@ function renderMessages(){
  for(const item of items){
   const div=document.createElement('div');div.className='msg'+(item.sender===me.sub?' mine':'');
   const meta=document.createElement('div');meta.className='meta';meta.textContent=item.name||'Игрок';
-  const body=document.createElement('div');body.textContent=item.body;
+  const body=document.createElement('div');appendLinkedText(body,item.body);
   const time=document.createElement('div');time.className='time';time.textContent=new Date(item.createdAt||Date.now()).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   div.append(meta,body,time);host.append(div);
  }
@@ -242,7 +252,7 @@ async function coopAccessToken(){
  const next={...s,accessToken:tokens.access_token,refreshToken:tokens.refresh_token||s.refreshToken,expiresAt:Date.now()+Number(tokens.expires_in||0)*1000};
  await writeOsuSession(next);return next.accessToken;
 }
-function coopShareLink(id){return location.origin+location.pathname.replace(/chat\.html$/,'coop.html')+'?room='+encodeURIComponent(id)}
+function coopShareLink(id){return API_BASE+'/coop?room='+encodeURIComponent(id)}
 const withTimeout=(promise,ms=3500)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Error('timeout')),ms))]);
 async function openCoopInOsu(id){
  const url='osu://room/'+encodeURIComponent(id);
@@ -294,7 +304,7 @@ $('coopCreate').addEventListener('click',async()=>{
 });
 $('coopSendLink').addEventListener('click',async()=>{
  if(!coopState.room){setStatus('coopStatus','Сначала создай комнату.','error');return}
- const text='Coop-комната: '+coopShareLink(coopState.room.id)+(coopState.room.password?' · пароль: '+coopState.room.password:'');
+ const text='Вас пригласили в мультиплеер! Комната '+coopState.room.id+(coopState.room.password?' · пароль: '+coopState.room.password:'')+'\n'+coopShareLink(coopState.room.id);
  if(ws&&ws.readyState===WebSocket.OPEN){
   ws.send(JSON.stringify({type:'message',body:text}));
   setStatus('coopStatus','Ссылка отправлена в чат.','success');return;

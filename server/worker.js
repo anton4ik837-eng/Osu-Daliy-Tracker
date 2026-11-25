@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 17, deploy_marker: "coop-makeroom-variants-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 18, deploy_marker: "coop-invite-page-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1482,6 +1482,35 @@ export default {
       } catch (error) {
         return apiJson({ error: "popular_beatmaps_failed", details: String(error?.message || error).slice(0, 200) }, 502);
       }
+    }
+
+    if (url.pathname === "/coop" && request.method === "GET") {
+      const roomId = String(url.searchParams.get("room") || "").replace(/[^0-9]/g, "");
+      let room = null;
+      if (roomId) {
+        try {
+          const raw = await env.OAUTH_KV.get("coop:room:" + roomId);
+          if (raw) room = JSON.parse(raw);
+        } catch { /* ignore */ }
+      }
+      const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+      const id = esc(roomId || room?.id || "");
+      const password = esc(room?.password || "");
+      const name = esc(room?.name || "Coop-комната");
+      const beatmap = esc(room?.beatmapId || "—");
+      const ruleset = esc(room?.rulesetId === 3 ? "mania" : "standard");
+      const deepLink = id ? "osu://room/" + id : "";
+      const webLink = id ? "https://osu.ppy.sh/multiplayer/rooms/" + id : "";
+      const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Приглашение в мультиплеер · osu! Daily Tracker</title><style>
+      :root{color-scheme:dark;--bg:#0b0f17;--card:#141b28;--line:#2d4054;--ice:#a9e7ff;--cyan:#57c9e8;--text:#f0f6ff;--muted:#91a3b9}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 80% -10%,#20364b 0,transparent 40%),var(--bg);color:var(--text);font:16px/1.5 Inter,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px}.card{width:min(520px,100%);background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 20px 60px #0008}h1{margin:0 0 6px;font-size:24px}.sub{color:var(--muted);margin:0 0 18px}.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}.row span:first-child{color:var(--muted)}.value{font-variant-numeric:tabular-nums;word-break:break-all;text-align:right}.big{font-size:28px;color:var(--ice);font-weight:800}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}button,a.button{border:1px solid var(--cyan);background:var(--cyan);color:#08121c;border-radius:10px;padding:10px 14px;font:600 15px inherit;text-decoration:none;cursor:pointer}a.button.secondary,button.secondary{background:transparent;color:var(--ice)}.hint{margin-top:16px;color:var(--muted);font-size:14px}a{color:var(--ice)}#status{min-height:20px;margin-top:10px;color:var(--cyan)}
+      </style></head><body><div class="card"><h1>🎮 Вас пригласили в мультиплеер</h1><p class="sub">Комната создана через osu! Daily Tracker</p><div class="row"><span>Название</span><span class="value">${name}</span></div><div class="row"><span>ID комнаты</span><span class="value big">${id || "—"}</span></div>${password ? '<div class="row"><span>Пароль</span><span class="value">' + password + "</span></div>" : ""}<div class="row"><span>Режим / карта</span><span class="value">${ruleset} · ${beatmap}</span></div><div class="actions">${deepLink ? '<a class="button" href="' + deepLink + '">Открыть в osu! ↗</a>' : ""}${webLink ? '<a class="button secondary" href="' + webLink + '" target="_blank" rel="noopener">Страница на osu.ppy.sh ↗</a>' : ""}<button class="secondary" id="copyId" type="button">Скопировать ID</button>${password ? '<button class="secondary" id="copyPw" type="button">Скопировать пароль</button>' : ""}</div><div class="hint">Если игра не открылась: запусти lazer → «Мультиплеер» → найди комнату по ID${password ? " и введи пароль" : ""}.</div><div id="status"></div></div><script>
+      function copy(text){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(()=>done('Скопировано: '+text),()=>fallback(text))}else fallback(text)}
+      function fallback(text){var i=document.createElement('textarea');i.value=text;i.style.position='fixed';i.style.opacity='0';document.body.appendChild(i);i.select();try{document.execCommand('copy');done('Скопировано: '+text)}catch(e){done('Не удалось скопировать')}i.remove()}
+      function done(text){document.getElementById('status').textContent=text}
+      document.getElementById('copyId')&&document.getElementById('copyId').addEventListener('click',function(){copy('${id}')});
+      document.getElementById('copyPw')&&document.getElementById('copyPw').addEventListener('click',function(){copy('${password}')});
+      </script></body></html>`;
+      return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
     }
 
     if (url.pathname === "/api/coop/rooms" && request.method === "GET") {
