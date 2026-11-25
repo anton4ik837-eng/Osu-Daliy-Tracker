@@ -115,7 +115,7 @@ export async function makeRoomPersistent(accessToken, request, holdMs = 15 * 60 
     const timer = setTimeout(() => { try { ws.close(); } catch {} resolve(); }, holdMs);
     ws.addEventListener('close', () => { clearTimeout(timer); resolve(); });
   });
-  return { result, passwordCleared, keepAlive, close: () => { try { ws.close(); } catch {} } };
+  return { result, passwordCleared, keepAlive, call, close: () => { try { ws.close(); } catch {} } };
 }
 
 export async function makeRoom(accessToken, { name, beatmapId, rulesetId = 3, maxParticipants = 2 }) {

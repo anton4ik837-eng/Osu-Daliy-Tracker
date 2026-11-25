@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 25, deploy_marker: "coop-shared-bot-session-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 26, deploy_marker: "coop-autostart-bot-panel-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1587,6 +1587,21 @@ export default {
       }
     }
 
+    let closeRoomMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)\/close$/);
+    if (closeRoomMatch && request.method === "POST") {
+      const token = await botOsuToken();
+      if (!token) return apiJson({ error: "bot_session_required" }, 503);
+      try {
+        await invokeReferee(token, "CloseRoom", [Number(closeRoomMatch[1])]);
+        const rooms = (await coopRoomList()).filter(room => String(room?.id) !== closeRoomMatch[1]);
+        await env.OAUTH_KV.put("coop:rooms", JSON.stringify(rooms.slice(0, 50)));
+        await env.OAUTH_KV.delete("coop:room:" + closeRoomMatch[1]);
+        return apiJson({ ok: true });
+      } catch (error) {
+        return apiJson({ error: "coop_close_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      }
+    }
+
     let setMapMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)\/beatmap$/);
     if (setMapMatch && request.method === "POST") {
       const token = await botOsuToken();
@@ -1678,6 +1693,25 @@ export default {
                   } catch { /* keep waiting */ }
                 }
                 created.close();
+              })());
+              const roomIdForAutoStart = Number(created.result?.room_id || 0);
+              ctx.waitUntil((async () => {
+                let countdownStarted = false;
+                for (let tick = 0; tick < 300; tick++) {
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  try {
+                    const info = await invokeReferee(token, "JoinRoom", [roomIdForAutoStart]);
+                    const players = Array.isArray(info?.players) ? info.players : [];
+                    const allReady = players.length > 0 && players.every(player => String(player?.status || "").toLowerCase() === "ready");
+                    if (allReady && !countdownStarted) {
+                      await invokeReferee(token, "StartMatch", [roomIdForAutoStart, { countdown: 10 }]);
+                      countdownStarted = true;
+                    } else if (!allReady && countdownStarted) {
+                      try { await invokeReferee(token, "StopMatchCountdown", [roomIdForAutoStart]); } catch {}
+                      countdownStarted = false;
+                    }
+                  } catch { /* keep polling */ }
+                }
               })());
             }
             break;
