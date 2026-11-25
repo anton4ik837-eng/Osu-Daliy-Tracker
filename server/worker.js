@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 26, deploy_marker: "coop-autostart-bot-panel-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 27, deploy_marker: "coop-slot-for-bot-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1658,7 +1658,8 @@ export default {
       } catch { /* name check is best-effort */ }
       try {
         const rulesetId = Number(payload?.rulesetId) || 3;
-        const maxParticipants = Number(payload?.maxParticipants) || 2;
+        // The bot is seated as host/referee, so add one slot for it.
+        const maxParticipants = Math.max(0, Math.min(50, (Number(payload?.maxParticipants) || 2) + 1));
         const variants = [
           { label: "numbers", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: 0, queue_mode: 1, max_participants: maxParticipants } },
           { label: "string-enums", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "all_players", max_participants: maxParticipants } },
@@ -1697,6 +1698,7 @@ export default {
               const roomIdForAutoStart = Number(created.result?.room_id || 0);
               ctx.waitUntil((async () => {
                 let countdownStarted = false;
+                let countdownTicks = 0;
                 for (let tick = 0; tick < 300; tick++) {
                   await new Promise(resolve => setTimeout(resolve, 2000));
                   try {
@@ -1706,9 +1708,12 @@ export default {
                     if (allReady && !countdownStarted) {
                       await invokeReferee(token, "StartMatch", [roomIdForAutoStart, { countdown: 10 }]);
                       countdownStarted = true;
+                      countdownTicks = 0;
                     } else if (!allReady && countdownStarted) {
                       try { await invokeReferee(token, "StopMatchCountdown", [roomIdForAutoStart]); } catch {}
                       countdownStarted = false;
+                    } else if (countdownStarted && ++countdownTicks >= 5) {
+                      break;
                     }
                   } catch { /* keep polling */ }
                 }
