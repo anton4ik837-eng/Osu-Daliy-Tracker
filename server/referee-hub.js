@@ -111,6 +111,13 @@ export async function makeRoomPersistent(accessToken, request, holdMs = 15 * 60 
     await call('ChangeRoomSettings', [Number(result?.room_id || 0), { name: null, password: '' }]);
     passwordCleared = true;
   } catch { /* keep generated password */ }
+  try {
+    await call('EditCurrentPlaylistItem', [Number(result?.room_id || 0), {
+      beatmap_id: Number(request.beatmap_id || 0),
+      ruleset_id: Number(request.ruleset_id || 3),
+      freestyle: true,
+    }]);
+  } catch { /* free mods are best-effort */ }
   const keepAlive = new Promise(resolve => {
     const timer = setTimeout(() => { try { ws.close(); } catch {} resolve(); }, holdMs);
     ws.addEventListener('close', () => { clearTimeout(timer); resolve(); });

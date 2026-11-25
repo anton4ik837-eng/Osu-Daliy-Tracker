@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 31, deploy_marker: "coop-chat-commands-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 33, deploy_marker: "coop-chat-scope-check-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1491,21 +1491,26 @@ export default {
 
     if (url.pathname === "/api/coop/bot-session" && request.method === "GET") {
       const raw = await env.OAUTH_KV.get("coop:bot-session");
-      let configured = false, username = "";
+      let configured = false, username = "", chatRead = false;
       if (raw) {
         try {
           const session = JSON.parse(raw);
-          const probe = await fetch("https://osu.ppy.sh/api/v2/me", { headers: { Authorization: "Bearer " + session?.accessToken, Accept: "application/json" } });
+          const validToken = await botOsuToken();
+          const probe = await fetch("https://osu.ppy.sh/api/v2/me", { headers: { Authorization: "Bearer " + validToken, Accept: "application/json" } });
           if (probe.ok) {
             const profile = await probe.json().catch(() => ({}));
             configured = Boolean(session?.refreshToken);
             username = String(profile?.username || session?.username || "");
+            try {
+              const channels = await fetch("https://osu.ppy.sh/api/v2/chat/channels?limit=1", { headers: { Authorization: "Bearer " + validToken, Accept: "application/json" } });
+              chatRead = channels.ok;
+            } catch {}
           } else {
             await env.OAUTH_KV.delete("coop:bot-session");
           }
         } catch { /* ignore */ }
       }
-      return apiJson({ configured, username });
+      return apiJson({ configured, username, chat_read: chatRead });
     }
 
     if (url.pathname === "/api/coop/bot-session/disconnect" && request.method === "POST") {
@@ -1760,13 +1765,21 @@ export default {
                       const argument = parts[1] || "";
                       let reply = "";
                       try {
-                        if (command === "!help") reply = "Команды: !start, !map <beatmap_id>, !close";
+                        if (command === "!help") reply = "Команды: !start, !map <beatmap_id>, !dt, !close";
                         else if (command === "!start") {
                           await invokeReferee(chatToken, "StartMatch", [roomIdForChat, {}]);
                           reply = "Матч запущен.";
                         } else if (command === "!map" && Number(argument)) {
                           await invokeReferee(chatToken, "EditCurrentPlaylistItem", [roomIdForChat, { beatmap_id: Number(argument), ruleset_id: Number(rulesetId) || 3 }]);
                           reply = "Карта сменена.";
+                        } else if (command === "!dt") {
+                          await invokeReferee(chatToken, "EditCurrentPlaylistItem", [roomIdForChat, {
+                            beatmap_id: Number(beatmapId) || 0,
+                            ruleset_id: Number(rulesetId) || 3,
+                            required_mods: [{ acronym: "DT" }],
+                            freestyle: true,
+                          }]);
+                          reply = "DT включён.";
                         } else if (command === "!close") {
                           await invokeReferee(chatToken, "CloseRoom", [roomIdForChat]);
                           reply = "Комната закрыта.";
