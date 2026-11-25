@@ -1,6 +1,6 @@
 import { handleAiChat, handleAiResearch } from "./ai-gateway.js";
 export { ChatRoom } from "./chat-room.js";
-import { makeRoom, invitePlayer, invokeReferee } from "./referee-hub.js";
+import { makeRoom, invitePlayer, invokeReferee, makeRoomPersistent } from "./referee-hub.js";
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -256,7 +256,7 @@ async function fetchOsuWithRetry(url, options, label) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") {
       return new Response(null, {
@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 20, deploy_marker: "coop-passwordless-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 21, deploy_marker: "coop-room-keepalive-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1561,10 +1561,14 @@ export default {
         const attempts = [];
         let result = null;
         let usedVariant = "";
+        let passwordCleared = false;
         for (const variant of variants) {
           try {
-            result = await invokeReferee(token, "MakeRoom", [variant.request]);
+            const created = await makeRoomPersistent(token, variant.request);
+            result = created.result;
+            passwordCleared = created.passwordCleared;
             usedVariant = variant.label;
+            if (ctx?.waitUntil) ctx.waitUntil(created.keepAlive);
             break;
           } catch (error) {
             attempts.push({ variant: variant.label, error: String(error?.message || error).slice(0, 220) });
@@ -1573,15 +1577,10 @@ export default {
         if (!result) return apiJson({ error: "referee_hub_failed", details: attempts.map(a => a.variant + '=' + a.error).join(' | ').slice(0, 600), attempts }, 502);
         const roomId = Number(result?.room_id || result?.roomId || 0);
         if (!roomId) return apiJson({ error: "room_id_missing", usedVariant }, 502);
-        // Referee hub always generates a random password. Remove it so joining
-        // by the shared room link never asks for a password we can't verify.
-        let roomPassword = "";
-        try { await invokeReferee(token, "ChangeRoomSettings", [roomId, { name: null, password: "" }]); }
-        catch { roomPassword = String(result?.password || ""); }
         const room = {
           id: roomId,
           name: result.name || name,
-          password: roomPassword,
+          password: passwordCleared ? "" : String(result?.password || ""),
           beatmapId,
           rulesetId: Number(payload?.rulesetId) || 3,
           createdAt: Date.now(),

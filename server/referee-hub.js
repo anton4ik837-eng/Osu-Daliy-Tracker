@@ -79,6 +79,45 @@ export async function invokeReferee(accessToken, target, args = []) {
   }
 }
 
+// Creates a room and keeps the referee connection alive so the room is not
+// auto-closed the moment the referee disconnects.
+export async function makeRoomPersistent(accessToken, request, holdMs = 15 * 60 * 1000) {
+  const connectionToken = await negotiate(accessToken);
+  const url = new URL(HUB + '/referee');
+  url.protocol = 'wss:';
+  url.searchParams.set('id', connectionToken);
+  url.searchParams.set('access_token', accessToken);
+  const ws = new WebSocket(url.toString());
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('referee_ws_open_timeout')), 20000);
+    ws.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
+    ws.addEventListener('error', () => { clearTimeout(timer); reject(new Error('referee_ws_open_error')); }, { once: true });
+  });
+  const handshake = waitForMessage(ws, message => !message.type);
+  ws.send(JSON.stringify({ protocol: 'json', version: 1 }) + RS);
+  await handshake;
+  let counter = 0;
+  const call = async (target, args) => {
+    const invocationId = String(++counter);
+    const completion = waitForMessage(ws, message => message.type === 3 && message.invocationId === invocationId);
+    ws.send(JSON.stringify({ type: 1, invocationId, target, arguments: args }) + RS);
+    const result = await completion;
+    if (result.error) throw new Error(String(result.error).slice(0, 300));
+    return result.result;
+  };
+  const result = await call('MakeRoom', [request]);
+  let passwordCleared = false;
+  try {
+    await call('ChangeRoomSettings', [Number(result?.room_id || 0), { name: null, password: '' }]);
+    passwordCleared = true;
+  } catch { /* keep generated password */ }
+  const keepAlive = new Promise(resolve => {
+    const timer = setTimeout(() => { try { ws.close(); } catch {} resolve(); }, holdMs);
+    ws.addEventListener('close', () => { clearTimeout(timer); resolve(); });
+  });
+  return { result, passwordCleared, keepAlive };
+}
+
 export async function makeRoom(accessToken, { name, beatmapId, rulesetId = 3, maxParticipants = 2 }) {
   return invokeReferee(accessToken, 'MakeRoom', [{
     ruleset_id: Number(rulesetId) || 3,
