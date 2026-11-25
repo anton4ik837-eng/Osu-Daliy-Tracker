@@ -3,7 +3,7 @@
 <head>
 <script src="./security.js"></script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.16.0</title>
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.17.0</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--bg-glow:#20364b;--surface:#141b28;--surface2:#1b293b;--card-bg:#101722;--panel-start:#182536;--panel-end:#141b28;--line:#2d4054;--border-strong:#38536b;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17;--theme-image:none}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,var(--bg-glow) 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
@@ -223,12 +223,14 @@ async function writeOsuSession(session){
  try{localStorage.setItem(OSU_KEY,JSON.stringify(session))}catch{}
 }
 async function renderCoopHost(){
- const s=await readOsuSession(),host=$('coopHostStatus'),link=$('coopHostLink');
- if(!s||!s.canHost){
-  host.textContent='Нужна авторизация osu! с правом создания комнат.';
-  link.replaceChildren();
-  const a=document.createElement('a');a.className='button secondary';a.href='./index.html?rooms=1';a.textContent='Подключить osu! с правами хоста ↗';link.append(a);
- }else{host.textContent='osu! подключён с правами хоста.';link.replaceChildren()}
+ const host=$('coopHostStatus'),link=$('coopHostLink');
+ try{
+  const status=await api('/api/coop/bot-session');
+  if(status.configured){host.textContent='Комнаты создаются ботом '+(status.username||'TrackingBot')+'.';link.replaceChildren();return}
+ }catch{}
+ host.textContent='Бот ещё не подключён.';
+ link.replaceChildren();
+ const a=document.createElement('a');a.className='button secondary';a.href='./index.html?rooms=1';a.textContent='Подключить бота один раз ↗';link.append(a);
 }
 async function loadPopularMaps(mode){
  const list=$('mapList');list.replaceChildren();
@@ -298,11 +300,8 @@ $('mapTabStd').addEventListener('click',()=>{coopState.mode='std';coopState.mapI
 $('coopCreate').addEventListener('click',async()=>{
  const button=$('coopCreate');button.disabled=true;setStatus('coopStatus','Создаём комнату…');
  try{
-  const session=await readOsuSession();
-  if(!session?.canHost){setStatus('coopStatus','Сначала нажми «Подключить osu! с правами хоста» выше и подтверди разрешение в браузере.','error');return}
   if(!coopState.mapId)throw new Error('Выбери карту из списка');
-  const token=await coopAccessToken();
-  const data=await api('/api/coop/rooms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('coopName').value.trim()||'Coop с другом',beatmapId:coopState.mapId,rulesetId:coopState.mode==='mania'?3:0,maxParticipants:Number($('coopSlots').value)||2})},token);
+  const data=await api('/api/coop/rooms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('coopName').value.trim()||'Coop с другом',beatmapId:coopState.mapId,rulesetId:coopState.mode==='mania'?3:0,maxParticipants:Number($('coopSlots').value)||2})});
   coopState.room=data.room;
   $('coopSendLink').disabled=false;$('coopOpenOsu').disabled=false;$('coopSetMap').disabled=false;$('coopStart').disabled=false;
   setStatus('coopStatus','Комната '+data.room.id+' создана. Пароль: '+(data.room.password||'—')+'. Ссылка: '+coopShareLink(data.room.id),'success');
@@ -330,7 +329,7 @@ $('coopSetMap').addEventListener('click',async()=>{
  if(!coopState.room||!coopState.mapId){setStatus('coopStatus','Выбери карту в списке.','error');return}
  try{
   const token=await coopAccessToken();
-  await api('/api/coop/rooms/'+coopState.room.id+'/beatmap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({beatmapId:coopState.mapId,rulesetId:coopState.mode==='mania'?3:0})},token);
+  await api('/api/coop/rooms/'+coopState.room.id+'/beatmap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({beatmapId:coopState.mapId,rulesetId:coopState.mode==='mania'?3:0})});
   setStatus('coopStatus','Карта сменена для всех участников.','success');
  }catch(error){setStatus('coopStatus','Не удалось сменить карту: '+error.message,'error')}
 });
@@ -338,7 +337,7 @@ $('coopStart').addEventListener('click',async()=>{
  if(!coopState.room){setStatus('coopStatus','Сначала создай комнату.','error');return}
  try{
   const token=await coopAccessToken();
-  await api('/api/coop/rooms/'+coopState.room.id+'/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'},token);
+  await api('/api/coop/rooms/'+coopState.room.id+'/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
   setStatus('coopStatus','Матч запущен.','success');
  }catch(error){setStatus('coopStatus','Не удалось запустить матч: '+error.message,'error')}
 });

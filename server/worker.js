@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 24, deploy_marker: "coop-any-player-maps-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 25, deploy_marker: "coop-shared-bot-session-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1468,6 +1468,55 @@ export default {
       return token;
     };
 
+    const botOsuToken = async () => {
+      const raw = await env.OAUTH_KV.get("coop:bot-session");
+      if (!raw) return "";
+      let session;
+      try { session = JSON.parse(raw); } catch { return ""; }
+      if (!session?.accessToken || !session?.refreshToken) return "";
+      if (session.expiresAt && session.expiresAt > Date.now() + 30000) return session.accessToken;
+      const clientId = String(env.OSU_CLIENT_ID || "").trim(), clientSecret = String(env.OSU_CLIENT_SECRET || "").trim();
+      const response = await fetch("https://osu.ppy.sh/oauth/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+        body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "refresh_token", refresh_token: session.refreshToken }),
+      });
+      if (!response.ok) return "";
+      const tokens = await response.json();
+      if (!tokens.access_token) return "";
+      const next = { ...session, accessToken: tokens.access_token, refreshToken: tokens.refresh_token || session.refreshToken, expiresAt: Date.now() + Number(tokens.expires_in || 0) * 1000 };
+      await env.OAUTH_KV.put("coop:bot-session", JSON.stringify(next));
+      return next.accessToken;
+    };
+
+    if (url.pathname === "/api/coop/bot-session" && request.method === "GET") {
+      const raw = await env.OAUTH_KV.get("coop:bot-session");
+      let configured = false, username = "";
+      if (raw) {
+        try { const session = JSON.parse(raw); configured = Boolean(session?.refreshToken); username = String(session?.username || ""); } catch {}
+      }
+      return apiJson({ configured, username });
+    }
+
+    if (url.pathname === "/api/coop/bot-session" && request.method === "POST") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      let payload;
+      try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      const accessToken = String(payload?.accessToken || "").trim(), refreshToken = String(payload?.refreshToken || "").trim();
+      if (!accessToken || !refreshToken) return apiJson({ error: "invalid_session" }, 400);
+      const probe = await fetch("https://osu.ppy.sh/api/v2/me", { headers: { Authorization: "Bearer " + accessToken, Accept: "application/json" } });
+      if (!probe.ok) return apiJson({ error: "bot_token_invalid" }, 401);
+      const profile = await probe.json().catch(() => ({}));
+      await env.OAUTH_KV.put("coop:bot-session", JSON.stringify({
+        accessToken, refreshToken,
+        expiresAt: Date.now() + Number(payload?.expiresIn || 3600) * 1000,
+        username: String(profile?.username || ""),
+        registeredBy: user.sub,
+      }));
+      return apiJson({ ok: true, username: String(profile?.username || "") });
+    }
+
     if (url.pathname === "/api/coop/popular-beatmaps" && request.method === "GET") {
       const mode = url.searchParams.get("mode") === "mania" ? "3" : "0";
       try {
@@ -1528,8 +1577,8 @@ export default {
 
     let startMatchMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)\/start$/);
     if (startMatchMatch && request.method === "POST") {
-      const token = osuTokenFromRequest();
-      if (!token) return apiJson({ error: "osu_token_required" }, 401);
+      const token = await botOsuToken();
+      if (!token) return apiJson({ error: "bot_session_required" }, 503);
       try {
         await invokeReferee(token, "StartMatch", [Number(startMatchMatch[1]), {}]);
         return apiJson({ ok: true });
@@ -1540,8 +1589,8 @@ export default {
 
     let setMapMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)\/beatmap$/);
     if (setMapMatch && request.method === "POST") {
-      const token = osuTokenFromRequest();
-      if (!token) return apiJson({ error: "osu_token_required" }, 401);
+      const token = await botOsuToken();
+      if (!token) return apiJson({ error: "bot_session_required" }, 503);
       let payload;
       try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
       const beatmapId = Number(payload?.beatmapId) || 0;
@@ -1560,8 +1609,8 @@ export default {
     }
 
     if (url.pathname === "/api/coop/rooms" && request.method === "POST") {
-      const token = osuTokenFromRequest();
-      if (!token) return apiJson({ error: "osu_token_required" }, 401);
+      const token = await botOsuToken();
+      if (!token) return apiJson({ error: "bot_session_required" }, 503);
       let payload;
       try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
       const name = String(payload?.name || "").trim().slice(0, 80);
@@ -1668,8 +1717,8 @@ export default {
 
     coopMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)\/invite$/);
     if (coopMatch && request.method === "POST") {
-      const token = osuTokenFromRequest();
-      if (!token) return apiJson({ error: "osu_token_required" }, 401);
+      const token = await botOsuToken();
+      if (!token) return apiJson({ error: "bot_session_required" }, 503);
       let payload;
       try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
       const userId = Number(payload?.userId) || 0;
