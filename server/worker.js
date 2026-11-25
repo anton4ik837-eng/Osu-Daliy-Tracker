@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 41, deploy_marker: "coop-chat-command-log-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 42, deploy_marker: "coop-token-scopes-diag-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1491,7 +1491,7 @@ export default {
 
     if (url.pathname === "/api/coop/bot-session" && request.method === "GET") {
       const raw = await env.OAUTH_KV.get("coop:bot-session");
-      let configured = false, username = "", chatRead = false;
+      let configured = false, username = "", chatRead = false, scopes = [];
       if (raw) {
         try {
           const session = JSON.parse(raw);
@@ -1504,13 +1504,19 @@ export default {
             try {
               const channels = await fetch("https://osu.ppy.sh/api/v2/chat/channels?limit=1", { headers: { Authorization: "Bearer " + validToken, Accept: "application/json" } });
               chatRead = channels.ok;
+              const payload = String(validToken).split(".")[1];
+              if (payload) {
+                const claims = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+                if (Array.isArray(claims.scp)) scopes = claims.scp;
+                else if (typeof claims.scp === "string") scopes = claims.scp.split(" ");
+              }
             } catch {}
           } else {
             await env.OAUTH_KV.delete("coop:bot-session");
           }
         } catch { /* ignore */ }
       }
-      return apiJson({ configured, username, chat_read: chatRead });
+      return apiJson({ configured, username, chat_read: chatRead, scopes });
     }
 
     if (url.pathname === "/api/coop/bot-session/disconnect" && request.method === "POST") {
