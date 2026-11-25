@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 30, deploy_marker: "bot-close-legacy-rooms-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 31, deploy_marker: "coop-chat-commands-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1737,6 +1737,52 @@ export default {
                   } catch { /* keep polling */ }
                 }
               })());
+              const roomIdForChat = Number(created.result?.room_id || 0);
+              const channelIdForChat = Number(created.result?.chat_channel_id || 0);
+              if (channelIdForChat) ctx.waitUntil((async () => {
+                let lastId = 0;
+                for (let tick = 0; tick < 300; tick++) {
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  try {
+                    const chatToken = await botOsuToken();
+                    const response = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelIdForChat + "/messages?limit=20", { headers: { Authorization: "Bearer " + chatToken, Accept: "application/json" } });
+                    if (!response.ok) continue;
+                    const payload = await response.json();
+                    const messages = Array.isArray(payload) ? payload : (payload.messages || []);
+                    for (const message of messages) {
+                      const messageId = Number(message?.message_id || message?.id || 0);
+                      if (messageId <= lastId) continue;
+                      lastId = Math.max(lastId, messageId);
+                      const text = String(message?.content || message?.message || "").trim();
+                      if (!text.startsWith("!")) continue;
+                      const parts = text.split(/\s+/);
+                      const command = parts[0].toLowerCase();
+                      const argument = parts[1] || "";
+                      let reply = "";
+                      try {
+                        if (command === "!help") reply = "Команды: !start, !map <beatmap_id>, !close";
+                        else if (command === "!start") {
+                          await invokeReferee(chatToken, "StartMatch", [roomIdForChat, {}]);
+                          reply = "Матч запущен.";
+                        } else if (command === "!map" && Number(argument)) {
+                          await invokeReferee(chatToken, "EditCurrentPlaylistItem", [roomIdForChat, { beatmap_id: Number(argument), ruleset_id: Number(rulesetId) || 3 }]);
+                          reply = "Карта сменена.";
+                        } else if (command === "!close") {
+                          await invokeReferee(chatToken, "CloseRoom", [roomIdForChat]);
+                          reply = "Комната закрыта.";
+                        } else reply = "Неизвестная команда. Напиши !help";
+                      } catch (error) {
+                        reply = "Ошибка: " + String(error?.message || error).slice(0, 120);
+                      }
+                      if (reply) await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelIdForChat + "/messages", {
+                        method: "POST",
+                        headers: { Authorization: "Bearer " + chatToken, "Content-Type": "application/json", Accept: "application/json" },
+                        body: JSON.stringify({ message: reply }),
+                      });
+                    }
+                  } catch { /* keep polling */ }
+                }
+              })());
             }
             break;
           } catch (error) {
@@ -1749,6 +1795,7 @@ export default {
         const room = {
           id: roomId,
           name: result.name || name,
+          chatChannelId: Number(result?.chat_channel_id || 0),
           password: passwordCleared ? "" : String(result?.password || ""),
           beatmapId,
           rulesetId: Number(payload?.rulesetId) || 3,
