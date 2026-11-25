@@ -165,7 +165,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'osu! Daily Tracker 4.15.0 · Replay Lab',
+    title: 'osu! Daily Tracker 4.15.1 · Replay Lab',
     backgroundColor: '#0b0f17',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

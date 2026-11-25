@@ -93,5 +93,15 @@
     openSettings: (onDone) => show({ mode: 'set', onDone }),
   };
 
+  function clearUnlock() {
+    try { sessionStorage.removeItem(UNLOCK_KEY); } catch {}
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearUnlock(); });
+  window.addEventListener('pagehide', clearUnlock);
+  window.addEventListener('beforeunload', clearUnlock);
+  try {
+    window.NativeApp?.addListener?.('appStateChange', ({ isActive }) => { if (!isActive) clearUnlock(); });
+  } catch { /* native bridge is optional */ }
+
   if (readStore() && !isUnlocked()) show({ mode: 'unlock' });
 })();
