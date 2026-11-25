@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 40, deploy_marker: "coop-channel-id-diag-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 41, deploy_marker: "coop-chat-command-log-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1683,7 +1683,8 @@ export default {
       const channels = (Array.isArray(listed) ? listed : (listed.channels || [])).map(c => ({ channelId: c.channel_id, name: c.name })).slice(0, 20);
       const roomInfo = await fetch("https://osu.ppy.sh/api/v2/rooms/" + roomId, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
       const roomData = await roomInfo.json().catch(() => ({}));
-      return apiJson({ status: response.status, channelId, apiChannelId: roomData?.channel_id || 0, botId: profile?.id || 0, joinStatus, joinBody, channels, messages });
+      const chatLog = await env.OAUTH_KV.get("coop:chat-log:" + roomId);
+      return apiJson({ status: response.status, channelId, apiChannelId: roomData?.channel_id || 0, botId: profile?.id || 0, joinStatus, joinBody, chatLog: chatLog ? JSON.parse(chatLog) : null, channels, messages });
     }
 
     if (url.pathname === "/api/coop/rooms" && request.method === "GET") {
@@ -1821,11 +1822,16 @@ export default {
                       } catch (error) {
                         reply = "Ошибка: " + String(error?.message || error).slice(0, 120);
                       }
-                      if (reply) await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelIdForChat + "/messages", {
-                        method: "POST",
-                        headers: { Authorization: "Bearer " + chatToken, "Content-Type": "application/json", Accept: "application/json" },
-                        body: JSON.stringify({ message: reply }),
-                      });
+                      let replyStatus = 0;
+                      if (reply) {
+                        const sent = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelIdForChat + "/messages", {
+                          method: "POST",
+                          headers: { Authorization: "Bearer " + chatToken, "Content-Type": "application/json", Accept: "application/json" },
+                          body: JSON.stringify({ message: reply }),
+                        });
+                        replyStatus = sent.status;
+                      }
+                      try { await env.OAUTH_KV.put("coop:chat-log:" + roomIdForChat, JSON.stringify({ lastId, command, reply, replyStatus, at: Date.now() }), { expirationTtl: 3600 }); } catch {}
                     }
                   } catch { /* keep polling */ }
                 }
