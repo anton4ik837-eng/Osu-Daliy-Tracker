@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 28, deploy_marker: "coop-chat-scopes-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 29, deploy_marker: "bot-session-verify-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1493,9 +1493,26 @@ export default {
       const raw = await env.OAUTH_KV.get("coop:bot-session");
       let configured = false, username = "";
       if (raw) {
-        try { const session = JSON.parse(raw); configured = Boolean(session?.refreshToken); username = String(session?.username || ""); } catch {}
+        try {
+          const session = JSON.parse(raw);
+          const probe = await fetch("https://osu.ppy.sh/api/v2/me", { headers: { Authorization: "Bearer " + session?.accessToken, Accept: "application/json" } });
+          if (probe.ok) {
+            const profile = await probe.json().catch(() => ({}));
+            configured = Boolean(session?.refreshToken);
+            username = String(profile?.username || session?.username || "");
+          } else {
+            await env.OAUTH_KV.delete("coop:bot-session");
+          }
+        } catch { /* ignore */ }
       }
       return apiJson({ configured, username });
+    }
+
+    if (url.pathname === "/api/coop/bot-session/disconnect" && request.method === "POST") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      await env.OAUTH_KV.delete("coop:bot-session");
+      return apiJson({ ok: true });
     }
 
     if (url.pathname === "/api/coop/bot-session" && request.method === "POST") {
