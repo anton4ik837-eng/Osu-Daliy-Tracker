@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 43, deploy_marker: "coop-token-claims-diag-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 44, deploy_marker: "coop-bot-playcount-diag-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1491,7 +1491,7 @@ export default {
 
     if (url.pathname === "/api/coop/bot-session" && request.method === "GET") {
       const raw = await env.OAUTH_KV.get("coop:bot-session");
-      let configured = false, username = "", chatRead = false, scopes = [], claimKeys = [], tokenFormat = "unknown";
+      let configured = false, username = "", chatRead = false, scopes = [], claimKeys = [], tokenFormat = "unknown", playCount = 0;
       if (raw) {
         try {
           const session = JSON.parse(raw);
@@ -1501,6 +1501,7 @@ export default {
             const profile = await probe.json().catch(() => ({}));
             configured = Boolean(session?.refreshToken);
             username = String(profile?.username || session?.username || "");
+            playCount = Number(profile?.statistics?.play_count ?? profile?.play_count ?? 0) || 0;
             try {
               const channels = await fetch("https://osu.ppy.sh/api/v2/chat/channels?limit=1", { headers: { Authorization: "Bearer " + validToken, Accept: "application/json" } });
               chatRead = channels.ok;
@@ -1519,7 +1520,7 @@ export default {
           }
         } catch { /* ignore */ }
       }
-      return apiJson({ configured, username, chat_read: chatRead, scopes, claimKeys, tokenFormat });
+      return apiJson({ configured, username, chat_read: chatRead, play_count: playCount, scopes, claimKeys, tokenFormat });
     }
 
     if (url.pathname === "/api/coop/bot-session/disconnect" && request.method === "POST") {
