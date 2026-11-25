@@ -3,7 +3,7 @@
 <head>
 <script src="./security.js"></script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.17.0</title>
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.17.1</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--bg-glow:#20364b;--surface:#141b28;--surface2:#1b293b;--card-bg:#101722;--panel-start:#182536;--panel-end:#141b28;--line:#2d4054;--border-strong:#38536b;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17;--theme-image:none}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,var(--bg-glow) 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
@@ -222,15 +222,28 @@ async function writeOsuSession(session){
  if(window.DesktopBridge?.secureSet){try{await window.DesktopBridge.secureSet('oauth-session',session);return}catch{}}
  try{localStorage.setItem(OSU_KEY,JSON.stringify(session))}catch{}
 }
+async function registerBotFromLocal(){
+ const s=await readOsuSession();
+ if(!s?.accessToken||!s?.refreshToken)return false;
+ try{
+  await api('/api/coop/bot-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accessToken:s.accessToken,refreshToken:s.refreshToken,expiresIn:Math.max(0,Math.floor(((s.expiresAt||Date.now())-Date.now())/1000))})});
+  return true;
+ }catch{return false}
+}
 async function renderCoopHost(){
  const host=$('coopHostStatus'),link=$('coopHostLink');
  try{
-  const status=await api('/api/coop/bot-session');
+  let status=await api('/api/coop/bot-session');
+  if(!status.configured&&await registerBotFromLocal())status=await api('/api/coop/bot-session');
   if(status.configured){host.textContent='Комнаты создаются ботом '+(status.username||'TrackingBot')+'.';link.replaceChildren();return}
  }catch{}
  host.textContent='Бот ещё не подключён.';
  link.replaceChildren();
- const a=document.createElement('a');a.className='button secondary';a.href='./index.html?rooms=1';a.textContent='Подключить бота один раз ↗';link.append(a);
+ const button=document.createElement('button');button.className='button secondary';button.type='button';button.textContent='Зарегистрировать текущий osu!-логин';button.addEventListener('click',async()=>{
+  if(await registerBotFromLocal())renderCoopHost();
+  else setStatus('coopStatus','Не удалось зарегистрировать. Сначала войди под ботом через главную страницу.','error');
+ });
+ const a=document.createElement('a');a.className='button secondary';a.href='./index.html?rooms=1';a.textContent='Подключить бота один раз ↗';link.append(button,a);
 }
 async function loadPopularMaps(mode){
  const list=$('mapList');list.replaceChildren();
