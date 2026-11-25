@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 34, deploy_marker: "coop-chat-command-prefix-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 35, deploy_marker: "coop-chat-debug-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1641,6 +1641,24 @@ export default {
       } catch (error) {
         return apiJson({ error: "coop_map_failed", details: String(error?.message || error).slice(0, 200) }, 502);
       }
+    }
+
+    if (url.pathname === "/api/coop/chat-debug" && request.method === "GET") {
+      const roomId = String(url.searchParams.get("room") || "").replace(/[^0-9]/g, "");
+      const raw = roomId ? await env.OAUTH_KV.get("coop:room:" + roomId) : null;
+      let room = null;
+      try { room = raw ? JSON.parse(raw) : null; } catch {}
+      const channelId = Number(room?.chatChannelId || 0);
+      const token = await botOsuToken();
+      if (!channelId || !token) return apiJson({ error: "no_channel_or_token", channelId }, 400);
+      const response = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelId + "/messages?limit=10", { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+      const text = await response.text().catch(() => "");
+      let messages = [];
+      try {
+        const data = JSON.parse(text);
+        messages = (Array.isArray(data) ? data : (data.messages || [])).map(m => ({ id: Number(m.message_id || m.id || 0), content: String(m.content || m.message || "") }));
+      } catch {}
+      return apiJson({ status: response.status, channelId, messages });
     }
 
     if (url.pathname === "/api/coop/rooms" && request.method === "GET") {
