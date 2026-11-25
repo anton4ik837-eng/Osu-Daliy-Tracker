@@ -9,7 +9,10 @@ async function negotiate(accessToken) {
     headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: '{}',
   });
-  if (!response.ok) throw new Error('referee_negotiate_http_' + response.status);
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error('referee_negotiate_http_' + response.status + ' ' + body.replace(/\s+/g, ' ').slice(0, 180));
+  }
   const data = await response.json();
   const token = data.connectionToken || data.connectionId;
   if (!token) throw new Error('referee_negotiate_no_token');
