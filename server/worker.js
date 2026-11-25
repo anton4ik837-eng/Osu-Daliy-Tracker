@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 29, deploy_marker: "bot-session-verify-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 30, deploy_marker: "bot-close-legacy-rooms-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1608,15 +1608,17 @@ export default {
     if (closeRoomMatch && request.method === "POST") {
       const token = await botOsuToken();
       if (!token) return apiJson({ error: "bot_session_required" }, 503);
-      try {
-        await invokeReferee(token, "CloseRoom", [Number(closeRoomMatch[1])]);
-        const rooms = (await coopRoomList()).filter(room => String(room?.id) !== closeRoomMatch[1]);
-        await env.OAUTH_KV.put("coop:rooms", JSON.stringify(rooms.slice(0, 50)));
-        await env.OAUTH_KV.delete("coop:room:" + closeRoomMatch[1]);
-        return apiJson({ ok: true });
-      } catch (error) {
-        return apiJson({ error: "coop_close_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      let note = "";
+      try { await invokeReferee(token, "CloseRoom", [Number(closeRoomMatch[1])]); }
+      catch (error) {
+        const text = String(error?.message || error);
+        if (!/not a referee/i.test(text)) return apiJson({ error: "coop_close_failed", details: text.slice(0, 200) }, 502);
+        note = "Комната создана другим аккаунтом, поэтому бот не смог её закрыть; она убрана из списка.";
       }
+      const rooms = (await coopRoomList()).filter(room => String(room?.id) !== closeRoomMatch[1]);
+      await env.OAUTH_KV.put("coop:rooms", JSON.stringify(rooms.slice(0, 50)));
+      await env.OAUTH_KV.delete("coop:room:" + closeRoomMatch[1]);
+      return apiJson({ ok: true, note });
     }
 
     let setMapMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)\/beatmap$/);
