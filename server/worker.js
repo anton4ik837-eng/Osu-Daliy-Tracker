@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 18, deploy_marker: "coop-invite-page-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 19, deploy_marker: "coop-duplicate-name-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1525,6 +1525,28 @@ export default {
       const name = String(payload?.name || "").trim().slice(0, 80);
       const beatmapId = Number(payload?.beatmapId) || 0;
       if (!name || !beatmapId) return apiJson({ error: "invalid_room" }, 400);
+      // Reuse the name only if the old room is empty; otherwise refuse explicitly.
+      try {
+        const knownRooms = await coopRoomList();
+        const duplicate = knownRooms.find(room => String(room?.name || "").trim().toLowerCase() === name.toLowerCase());
+        if (duplicate) {
+          let dissolved = false;
+          try {
+            const info = await invokeReferee(token, "JoinRoom", [Number(duplicate.id)]);
+            const players = Array.isArray(info?.players) ? info.players.length : 0;
+            if (players === 0) {
+              await invokeReferee(token, "CloseRoom", [Number(duplicate.id)]);
+              const remaining = knownRooms.filter(room => String(room?.id) !== String(duplicate.id));
+              await env.OAUTH_KV.put("coop:rooms", JSON.stringify(remaining.slice(0, 50)));
+              await env.OAUTH_KV.delete("coop:room:" + duplicate.id);
+              dissolved = true;
+            }
+          } catch { /* treat as occupied if we cannot inspect it */ }
+          if (!dissolved) {
+            return apiJson({ error: "room_name_exists", details: "Комната с таким названием уже существует и не пустая. Закрой её в lazer или придумай другое название." }, 409);
+          }
+        }
+      } catch { /* name check is best-effort */ }
       try {
         const rulesetId = Number(payload?.rulesetId) || 3;
         const maxParticipants = Number(payload?.maxParticipants) || 2;

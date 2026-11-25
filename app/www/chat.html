@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.14.8</title>
+<meta name="theme-color" content="#0b0f17"><link rel="icon" type="image/svg+xml" href="./icon.svg"><title>Чат · osu! Daily Tracker 4.14.9</title>
 <style>
 :root{color-scheme:dark;--bg:#0b0f17;--bg-glow:#20364b;--surface:#141b28;--surface2:#1b293b;--card-bg:#101722;--panel-start:#182536;--panel-end:#141b28;--line:#2d4054;--border-strong:#38536b;--pink:#57c9e8;--pink2:#a9e7ff;--text:#fff7fc;--muted:#91a3b9;--good:#8ee4b5;--danger:#ff9baf;--field:#0b0f17;--theme-image:none}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 85% -10%,var(--bg-glow) 0,transparent 36%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
@@ -302,7 +302,7 @@ $('coopCreate').addEventListener('click',async()=>{
   setStatus('coopStatus','Комната '+data.room.id+' создана. Пароль: '+(data.room.password||'—')+'. Ссылка: '+coopShareLink(data.room.id),'success');
  }catch(error){
   const text=String(error.message||error);
-  setStatus('coopStatus','osu! отклонил запрос: '+text,'error');
+  setStatus('coopStatus',text.includes('room_name_exists')?String(text).replace(/^room_name_exists:\s*/,''):'osu! отклонил запрос: '+text,'error');
  }
  finally{button.disabled=false}
 });
