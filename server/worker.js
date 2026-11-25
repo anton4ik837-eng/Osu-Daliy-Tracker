@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 33, deploy_marker: "coop-chat-scope-check-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 34, deploy_marker: "coop-chat-command-prefix-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1759,13 +1759,13 @@ export default {
                       if (messageId <= lastId) continue;
                       lastId = Math.max(lastId, messageId);
                       const text = String(message?.content || message?.message || "").trim();
-                      if (!text.startsWith("!")) continue;
-                      const parts = text.split(/\s+/);
-                      const command = parts[0].toLowerCase();
+                      if (!/^@bot\s/i.test(text)) continue;
+                      const parts = text.replace(/^@bot\s+/i, "").trim().split(/\s+/);
+                      const command = "!" + parts[0].toLowerCase();
                       const argument = parts[1] || "";
                       let reply = "";
                       try {
-                        if (command === "!help") reply = "Команды: !start, !map <beatmap_id>, !dt, !close";
+                        if (command === "!help") reply = "Команды: @bot start, @bot map <beatmap_id>, @bot dt, @bot close";
                         else if (command === "!start") {
                           await invokeReferee(chatToken, "StartMatch", [roomIdForChat, {}]);
                           reply = "Матч запущен.";
