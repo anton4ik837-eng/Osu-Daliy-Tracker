@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 38, deploy_marker: "coop-chat-channel-list-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 39, deploy_marker: "coop-keep-bot-in-channel-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1745,21 +1745,6 @@ export default {
             usedVariant = variant.label;
             if (ctx?.waitUntil) {
               ctx.waitUntil(created.keepAlive);
-              const roomIdForExit = Number(created.result?.room_id || 0);
-              ctx.waitUntil((async () => {
-                for (let attempt = 0; attempt < 20; attempt++) {
-                  await new Promise(resolve => setTimeout(resolve, 3000));
-                  try {
-                    const publicToken = await osuPublicToken();
-                    const response = await fetch("https://osu.ppy.sh/api/v2/rooms/" + roomIdForExit, { headers: { Authorization: "Bearer " + publicToken, Accept: "application/json" } });
-                    if (response.ok) {
-                      const info = await response.json();
-                      if (Number(info?.participant_count || 0) > 0) break;
-                    }
-                  } catch { /* keep waiting */ }
-                }
-                created.close();
-              })());
               const roomIdForAutoStart = Number(created.result?.room_id || 0);
               ctx.waitUntil((async () => {
                 let countdownStarted = false;
@@ -1767,15 +1752,15 @@ export default {
                 for (let tick = 0; tick < 300; tick++) {
                   await new Promise(resolve => setTimeout(resolve, 2000));
                   try {
-                    const info = await invokeReferee(token, "JoinRoom", [roomIdForAutoStart]);
+                    const info = await created.call("JoinRoom", [roomIdForAutoStart]);
                     const players = Array.isArray(info?.players) ? info.players : [];
                     const allReady = players.length > 0 && players.every(player => String(player?.status || "").toLowerCase() === "ready");
                     if (allReady && !countdownStarted) {
-                      await invokeReferee(token, "StartMatch", [roomIdForAutoStart, { countdown: 10 }]);
+                      await created.call("StartMatch", [roomIdForAutoStart, { countdown: 10 }]);
                       countdownStarted = true;
                       countdownTicks = 0;
                     } else if (!allReady && countdownStarted) {
-                      try { await invokeReferee(token, "StopMatchCountdown", [roomIdForAutoStart]); } catch {}
+                      try { await created.call("StopMatchCountdown", [roomIdForAutoStart]); } catch {}
                       countdownStarted = false;
                     } else if (countdownStarted && ++countdownTicks >= 5) {
                       break;
