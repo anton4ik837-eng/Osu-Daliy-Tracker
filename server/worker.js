@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 22, deploy_marker: "security-pin-ws-ticket-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 23, deploy_marker: "popular-beatmaps-sort-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1472,29 +1472,25 @@ export default {
       const mode = url.searchParams.get("mode") === "mania" ? "3" : "0";
       try {
         const token = await osuPublicToken();
-        const headers = { Authorization: "Bearer " + token, Accept: "application/json" };
-        let response = await fetch("https://osu.ppy.sh/api/v2/beatmaps/popular?m=" + mode + "&limit=25", { headers });
-        let items = [];
-        if (response.ok) {
-          const data = await response.json();
-          items = Array.isArray(data) ? data : (data.beatmaps || data.beatmapsets || []);
-        }
-        if (!items.length) {
-          response = await fetch("https://osu.ppy.sh/api/v2/beatmapsets/search?m=" + mode + "&s=plays.desc&c=popular", { headers });
-          if (response.ok) {
-            const data = await response.json();
-            const sets = Array.isArray(data?.beatmapsets) ? data.beatmapsets : [];
-            items = sets.flatMap(set => (set.beatmaps || []).map(beatmap => ({ ...beatmap, beatmapset: set })));
-          }
-        }
-        const maps = items.slice(0, 25).map(item => ({
-          id: Number(item.id || item.beatmap_id || 0),
-          artist: String(item.beatmapset?.artist || item.artist || ""),
-          title: String(item.beatmapset?.title || item.title || ""),
-          version: String(item.version || ""),
-          stars: Number(item.difficulty_rating || 0) || null,
-          plays: Number(item.playcount || item.beatmapset?.play_count || 0) || 0,
-        })).filter(map => map.id > 0);
+        const response = await fetch("https://osu.ppy.sh/api/v2/beatmapsets/search?m=" + mode + "&sort=plays_desc", {
+          headers: { Authorization: "Bearer " + token, Accept: "application/json" },
+        });
+        if (!response.ok) return apiJson({ error: "popular_beatmaps_http_" + response.status }, 502);
+        const data = await response.json();
+        const sets = Array.isArray(data?.beatmapsets) ? data.beatmapsets : [];
+        const maps = sets.flatMap(set => (set.beatmaps || [])
+          .filter(beatmap => Number(beatmap.mode_int ?? set.mode_int ?? 0) === Number(mode))
+          .map(beatmap => ({
+            id: Number(beatmap.id || 0),
+            artist: String(set.artist || ""),
+            title: String(set.title || ""),
+            version: String(beatmap.version || ""),
+            stars: Number(beatmap.difficulty_rating || 0) || null,
+            plays: Number(beatmap.playcount ?? set.play_count ?? 0) || 0,
+          })))
+          .sort((a, b) => b.plays - a.plays)
+          .slice(0, 25)
+          .filter(map => map.id > 0);
         return apiJson({ maps });
       } catch (error) {
         return apiJson({ error: "popular_beatmaps_failed", details: String(error?.message || error).slice(0, 200) }, 502);
