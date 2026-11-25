@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 39, deploy_marker: "coop-keep-bot-in-channel-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 40, deploy_marker: "coop-channel-id-diag-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1681,7 +1681,9 @@ export default {
       const listing = await fetch("https://osu.ppy.sh/api/v2/chat/channels?limit=50", { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
       const listed = await listing.json().catch(() => []);
       const channels = (Array.isArray(listed) ? listed : (listed.channels || [])).map(c => ({ channelId: c.channel_id, name: c.name })).slice(0, 20);
-      return apiJson({ status: response.status, channelId, botId: profile?.id || 0, joinStatus, joinBody, channels, messages });
+      const roomInfo = await fetch("https://osu.ppy.sh/api/v2/rooms/" + roomId, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+      const roomData = await roomInfo.json().catch(() => ({}));
+      return apiJson({ status: response.status, channelId, apiChannelId: roomData?.channel_id || 0, botId: profile?.id || 0, joinStatus, joinBody, channels, messages });
     }
 
     if (url.pathname === "/api/coop/rooms" && request.method === "GET") {
