@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 36, deploy_marker: "coop-chat-join-channel-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 37, deploy_marker: "coop-chat-join-diagnostics-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1665,7 +1665,12 @@ export default {
       if (!channelId || !token) return apiJson({ error: "no_channel_or_token", channelId }, 400);
       const me = await fetch("https://osu.ppy.sh/api/v2/me", { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
       const profile = await me.json().catch(() => ({}));
-      if (profile?.id) await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelId + "/users/" + profile.id, { method: "PUT", headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+      let joinStatus = 0, joinBody = "";
+      if (profile?.id) {
+        const joined = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelId + "/users/" + profile.id, { method: "PUT", headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+        joinStatus = joined.status;
+        joinBody = (await joined.text().catch(() => "")).slice(0, 160);
+      }
       const response = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelId + "/messages?limit=10", { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
       const text = await response.text().catch(() => "");
       let messages = [];
@@ -1673,7 +1678,7 @@ export default {
         const data = JSON.parse(text);
         messages = (Array.isArray(data) ? data : (data.messages || [])).map(m => ({ id: Number(m.message_id || m.id || 0), content: String(m.content || m.message || "") }));
       } catch {}
-      return apiJson({ status: response.status, channelId, messages });
+      return apiJson({ status: response.status, channelId, botId: profile?.id || 0, joinStatus, joinBody, messages });
     }
 
     if (url.pathname === "/api/coop/rooms" && request.method === "GET") {
