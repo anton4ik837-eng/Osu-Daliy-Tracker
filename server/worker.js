@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 16, deploy_marker: "coop-negotiate-details-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 17, deploy_marker: "coop-makeroom-variants-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1484,47 +1484,6 @@ export default {
       }
     }
 
-    if (url.pathname === "/api/coop/debug" && request.method === "GET") {
-      const clientId = typeof env.OSU_CLIENT_ID === "string" ? env.OSU_CLIENT_ID.trim() : "";
-      const clientSecret = typeof env.OSU_CLIENT_SECRET === "string" ? env.OSU_CLIENT_SECRET.trim() : "";
-      try {
-        const response = await fetch("https://osu.ppy.sh/oauth/token", {
-          method: "POST",
-          headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials", scope: "multiplayer.write_manage delegate" }),
-        });
-        const tokens = await response.json();
-        if (!response.ok || !tokens.access_token) {
-          return apiJson({ error: "token_failed", status: response.status, details: JSON.stringify(tokens).slice(0, 200) }, 502);
-        }
-        const stamp = Date.now();
-        const variants = [
-          { label: "strings", payload: { name: "Coop probe " + stamp, beatmap_id: 5899984, ruleset_id: 3, type: "head_to_head", queue_mode: "host_only", max_participants: 2 } },
-          { label: "numbers", payload: { name: "Coop probe " + stamp, beatmap_id: 5899984, ruleset_id: 3, type: 0, queue_mode: 0, max_participants: 2 } },
-          { label: "minimal", payload: { name: "Coop probe " + stamp, beatmap_id: 5899984, ruleset_id: 3 } },
-          { label: "ascii-name", payload: { name: "CoopProbe", beatmap_id: 5899984, ruleset_id: 3, type: "head_to_head", queue_mode: "host_only", max_participants: 2 } },
-        ];
-        const results = [];
-        for (const variant of variants) {
-          let roomId = 0;
-          try {
-            const result = await invokeReferee(tokens.access_token, "MakeRoom", [variant.payload]);
-            roomId = Number(result?.room_id || 0);
-            results.push({ label: variant.label, ok: true, roomId, password: result?.password || "" });
-          } catch (error) {
-            results.push({ label: variant.label, ok: false, error: String(error?.message || error).slice(0, 300) });
-          }
-          if (roomId) {
-            try { await invokeReferee(tokens.access_token, "CloseRoom", [roomId]); }
-            catch (error) { results[results.length - 1].closeError = String(error?.message || error).slice(0, 120); }
-          }
-        }
-        return apiJson({ results });
-      } catch (error) {
-        return apiJson({ error: "probe_failed", details: String(error?.message || error).slice(0, 200) }, 502);
-      }
-    }
-
     if (url.pathname === "/api/coop/rooms" && request.method === "GET") {
       return apiJson({ rooms: await coopRoomList() });
     }
@@ -1538,14 +1497,31 @@ export default {
       const beatmapId = Number(payload?.beatmapId) || 0;
       if (!name || !beatmapId) return apiJson({ error: "invalid_room" }, 400);
       try {
-        const result = await makeRoom(token, {
-          name,
-          beatmapId,
-          rulesetId: Number(payload?.rulesetId) || 3,
-          maxParticipants: Number(payload?.maxParticipants) || 2,
-        });
+        const rulesetId = Number(payload?.rulesetId) || 3;
+        const maxParticipants = Number(payload?.maxParticipants) || 2;
+        const variants = [
+          { label: "numbers", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: 0, queue_mode: 0, max_participants: maxParticipants } },
+          { label: "string-enums", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "host_only", max_participants: maxParticipants } },
+          { label: "minimal", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId } },
+          { label: "no-max", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "host_only" } },
+          { label: "ascii-name", request: { name: "Coop " + Date.now(), beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "host_only", max_participants: maxParticipants } },
+          { label: "std-map", request: { name, beatmap_id: 5677987, ruleset_id: 0, type: "head_to_head", queue_mode: "host_only", max_participants: maxParticipants } },
+        ];
+        const attempts = [];
+        let result = null;
+        let usedVariant = "";
+        for (const variant of variants) {
+          try {
+            result = await invokeReferee(token, "MakeRoom", [variant.request]);
+            usedVariant = variant.label;
+            break;
+          } catch (error) {
+            attempts.push({ variant: variant.label, error: String(error?.message || error).slice(0, 220) });
+          }
+        }
+        if (!result) return apiJson({ error: "referee_hub_failed", details: attempts.map(a => a.variant + '=' + a.error).join(' | ').slice(0, 600), attempts }, 502);
         const roomId = Number(result?.room_id || result?.roomId || 0);
-        if (!roomId) return apiJson({ error: "room_id_missing" }, 502);
+        if (!roomId) return apiJson({ error: "room_id_missing", usedVariant }, 502);
         const room = {
           id: roomId,
           name: result.name || name,
@@ -1560,7 +1536,7 @@ export default {
         rooms.unshift(room);
         await env.OAUTH_KV.put("coop:rooms", JSON.stringify(rooms.slice(0, 50)));
         await env.OAUTH_KV.put("coop:room:" + roomId, JSON.stringify(room), { expirationTtl: 60 * 60 * 24 * 7 });
-        return apiJson({ ok: true, room });
+        return apiJson({ ok: true, room, usedVariant });
       } catch (error) {
         return apiJson({ error: "referee_hub_failed", details: String(error?.message || error).slice(0, 200) }, 502);
       }
