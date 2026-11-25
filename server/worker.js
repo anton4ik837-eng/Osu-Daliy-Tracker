@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 23, deploy_marker: "popular-beatmaps-sort-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 24, deploy_marker: "coop-any-player-maps-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1526,6 +1526,35 @@ export default {
       return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
     }
 
+    let startMatchMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)\/start$/);
+    if (startMatchMatch && request.method === "POST") {
+      const token = osuTokenFromRequest();
+      if (!token) return apiJson({ error: "osu_token_required" }, 401);
+      try {
+        await invokeReferee(token, "StartMatch", [Number(startMatchMatch[1]), {}]);
+        return apiJson({ ok: true });
+      } catch (error) {
+        return apiJson({ error: "coop_start_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      }
+    }
+
+    let setMapMatch = url.pathname.match(/^\/api\/coop\/rooms\/(\d+)\/beatmap$/);
+    if (setMapMatch && request.method === "POST") {
+      const token = osuTokenFromRequest();
+      if (!token) return apiJson({ error: "osu_token_required" }, 401);
+      let payload;
+      try { payload = await request.json(); } catch { return apiJson({ error: "invalid_json" }, 400); }
+      const beatmapId = Number(payload?.beatmapId) || 0;
+      const rulesetId = Number(payload?.rulesetId) || 3;
+      if (!beatmapId) return apiJson({ error: "invalid_beatmap" }, 400);
+      try {
+        await invokeReferee(token, "EditCurrentPlaylistItem", [Number(setMapMatch[1]), { beatmap_id: beatmapId, ruleset_id: rulesetId }]);
+        return apiJson({ ok: true });
+      } catch (error) {
+        return apiJson({ error: "coop_map_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      }
+    }
+
     if (url.pathname === "/api/coop/rooms" && request.method === "GET") {
       return apiJson({ rooms: await coopRoomList() });
     }
@@ -1538,38 +1567,41 @@ export default {
       const name = String(payload?.name || "").trim().slice(0, 80);
       const beatmapId = Number(payload?.beatmapId) || 0;
       if (!name || !beatmapId) return apiJson({ error: "invalid_room" }, 400);
-      // Reuse the name only if the old room is empty; otherwise refuse explicitly.
+      // Old rooms with the same name: close if empty, otherwise refuse.
       try {
         const knownRooms = await coopRoomList();
-        const duplicate = knownRooms.find(room => String(room?.name || "").trim().toLowerCase() === name.toLowerCase());
-        if (duplicate) {
-          let dissolved = false;
+        const duplicates = knownRooms.filter(room => String(room?.name || "").trim().toLowerCase() === name.toLowerCase());
+        for (const duplicate of duplicates) {
+          let participants = null;
           try {
-            const info = await invokeReferee(token, "JoinRoom", [Number(duplicate.id)]);
-            const players = Array.isArray(info?.players) ? info.players.length : 0;
-            if (players === 0) {
-              await invokeReferee(token, "CloseRoom", [Number(duplicate.id)]);
-              const remaining = knownRooms.filter(room => String(room?.id) !== String(duplicate.id));
-              await env.OAUTH_KV.put("coop:rooms", JSON.stringify(remaining.slice(0, 50)));
-              await env.OAUTH_KV.delete("coop:room:" + duplicate.id);
-              dissolved = true;
+            const publicToken = await osuPublicToken();
+            const info = await fetch("https://osu.ppy.sh/api/v2/rooms/" + encodeURIComponent(duplicate.id), {
+              headers: { Authorization: "Bearer " + publicToken, Accept: "application/json" },
+            });
+            if (info.ok) {
+              const data = await info.json();
+              participants = Number(data?.participant_count ?? 0) || 0;
             }
-          } catch { /* treat as occupied if we cannot inspect it */ }
-          if (!dissolved) {
-            return apiJson({ error: "room_name_exists", details: "Комната с таким названием уже существует и не пустая. Закрой её в lazer или придумай другое название." }, 409);
+          } catch { /* unknown occupancy */ }
+          if (participants !== null && participants > 0) {
+            return apiJson({ error: "room_name_exists", details: "Комната с таким названием уже идёт. Закрой её в lazer или придумай другое название." }, 409);
           }
+          try { await invokeReferee(token, "CloseRoom", [Number(duplicate.id)]); } catch { /* not ours to close */ }
+          const remaining = knownRooms.filter(room => String(room?.id) !== String(duplicate.id));
+          await env.OAUTH_KV.put("coop:rooms", JSON.stringify(remaining.slice(0, 50)));
+          await env.OAUTH_KV.delete("coop:room:" + duplicate.id);
         }
       } catch { /* name check is best-effort */ }
       try {
         const rulesetId = Number(payload?.rulesetId) || 3;
         const maxParticipants = Number(payload?.maxParticipants) || 2;
         const variants = [
-          { label: "numbers", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: 0, queue_mode: 0, max_participants: maxParticipants } },
-          { label: "string-enums", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "host_only", max_participants: maxParticipants } },
-          { label: "minimal", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId } },
-          { label: "no-max", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "host_only" } },
-          { label: "ascii-name", request: { name: "Coop " + Date.now(), beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "host_only", max_participants: maxParticipants } },
-          { label: "std-map", request: { name, beatmap_id: 5677987, ruleset_id: 0, type: "head_to_head", queue_mode: "host_only", max_participants: maxParticipants } },
+          { label: "numbers", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: 0, queue_mode: 1, max_participants: maxParticipants } },
+          { label: "string-enums", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "all_players", max_participants: maxParticipants } },
+          { label: "minimal", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, queue_mode: 1 } },
+          { label: "no-max", request: { name, beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "all_players" } },
+          { label: "ascii-name", request: { name: "Coop " + Date.now(), beatmap_id: beatmapId, ruleset_id: rulesetId, type: "head_to_head", queue_mode: "all_players", max_participants: maxParticipants } },
+          { label: "std-map", request: { name, beatmap_id: 5677987, ruleset_id: 0, type: "head_to_head", queue_mode: "all_players", max_participants: maxParticipants } },
         ];
         const attempts = [];
         let result = null;
@@ -1581,7 +1613,24 @@ export default {
             result = created.result;
             passwordCleared = created.passwordCleared;
             usedVariant = variant.label;
-            if (ctx?.waitUntil) ctx.waitUntil(created.keepAlive);
+            if (ctx?.waitUntil) {
+              ctx.waitUntil(created.keepAlive);
+              const roomIdForExit = Number(created.result?.room_id || 0);
+              ctx.waitUntil((async () => {
+                for (let attempt = 0; attempt < 20; attempt++) {
+                  await new Promise(resolve => setTimeout(resolve, 3000));
+                  try {
+                    const publicToken = await osuPublicToken();
+                    const response = await fetch("https://osu.ppy.sh/api/v2/rooms/" + roomIdForExit, { headers: { Authorization: "Bearer " + publicToken, Accept: "application/json" } });
+                    if (response.ok) {
+                      const info = await response.json();
+                      if (Number(info?.participant_count || 0) > 0) break;
+                    }
+                  } catch { /* keep waiting */ }
+                }
+                created.close();
+              })());
+            }
             break;
           } catch (error) {
             attempts.push({ variant: variant.label, error: String(error?.message || error).slice(0, 220) });
