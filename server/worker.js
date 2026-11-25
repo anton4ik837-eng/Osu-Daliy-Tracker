@@ -1,6 +1,6 @@
 import { handleAiChat, handleAiResearch } from "./ai-gateway.js";
 export { ChatRoom } from "./chat-room.js";
-import { makeRoom, invitePlayer } from "./referee-hub.js";
+import { makeRoom, invitePlayer, invokeReferee } from "./referee-hub.js";
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -1481,6 +1481,47 @@ export default {
         return apiJson({ maps });
       } catch (error) {
         return apiJson({ error: "popular_beatmaps_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      }
+    }
+
+    if (url.pathname === "/api/coop/debug" && request.method === "GET") {
+      const clientId = typeof env.OSU_CLIENT_ID === "string" ? env.OSU_CLIENT_ID.trim() : "";
+      const clientSecret = typeof env.OSU_CLIENT_SECRET === "string" ? env.OSU_CLIENT_SECRET.trim() : "";
+      try {
+        const response = await fetch("https://osu.ppy.sh/oauth/token", {
+          method: "POST",
+          headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials", scope: "multiplayer.write_manage delegate" }),
+        });
+        const tokens = await response.json();
+        if (!response.ok || !tokens.access_token) {
+          return apiJson({ error: "token_failed", status: response.status, details: JSON.stringify(tokens).slice(0, 200) }, 502);
+        }
+        const stamp = Date.now();
+        const variants = [
+          { label: "strings", payload: { name: "Coop probe " + stamp, beatmap_id: 5899984, ruleset_id: 3, type: "head_to_head", queue_mode: "host_only", max_participants: 2 } },
+          { label: "numbers", payload: { name: "Coop probe " + stamp, beatmap_id: 5899984, ruleset_id: 3, type: 0, queue_mode: 0, max_participants: 2 } },
+          { label: "minimal", payload: { name: "Coop probe " + stamp, beatmap_id: 5899984, ruleset_id: 3 } },
+          { label: "ascii-name", payload: { name: "CoopProbe", beatmap_id: 5899984, ruleset_id: 3, type: "head_to_head", queue_mode: "host_only", max_participants: 2 } },
+        ];
+        const results = [];
+        for (const variant of variants) {
+          let roomId = 0;
+          try {
+            const result = await invokeReferee(tokens.access_token, "MakeRoom", [variant.payload]);
+            roomId = Number(result?.room_id || 0);
+            results.push({ label: variant.label, ok: true, roomId, password: result?.password || "" });
+          } catch (error) {
+            results.push({ label: variant.label, ok: false, error: String(error?.message || error).slice(0, 300) });
+          }
+          if (roomId) {
+            try { await invokeReferee(tokens.access_token, "CloseRoom", [roomId]); }
+            catch (error) { results[results.length - 1].closeError = String(error?.message || error).slice(0, 120); }
+          }
+        }
+        return apiJson({ results });
+      } catch (error) {
+        return apiJson({ error: "probe_failed", details: String(error?.message || error).slice(0, 200) }, 502);
       }
     }
 
