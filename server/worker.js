@@ -304,7 +304,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 53, deploy_marker: "coop-bot-heartbeat-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 54, deploy_marker: "coop-bot-alarm-restart-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1490,6 +1490,18 @@ export default {
       return next.accessToken;
     };
 
+    if (url.pathname === "/api/coop/bot/start" && request.method === "POST") {
+      const user = await googleAuthUser();
+      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
+      try {
+        const botStub = env.COOP_BOT.get(env.COOP_BOT.idFromName("bot"));
+        await botStub.fetch(new Request("https://coop-bot/start"));
+        return apiJson({ ok: true });
+      } catch (error) {
+        return apiJson({ error: "bot_start_failed", details: String(error?.message || error).slice(0, 200) }, 502);
+      }
+    }
+
     if (url.pathname === "/api/coop/bot-session" && request.method === "GET") {
       const raw = await env.OAUTH_KV.get("coop:bot-session");
       let configured = false, username = "", chatRead = false, scopes = [], claimKeys = [], tokenFormat = "unknown", playCount = 0, meKeys = [], statsSample = "", sessionVerified = null;
@@ -1954,6 +1966,10 @@ export default {
 
   async scheduled(controller, env, ctx) {
     if (!env.OAUTH_KV) return;
+    try {
+      const botStub = env.COOP_BOT.get(env.COOP_BOT.idFromName("bot"));
+      await botStub.fetch(new Request("https://coop-bot/start"));
+    } catch {}
     const raw = await env.OAUTH_KV.get("coop:bot-session");
     if (!raw) return;
     let session;
