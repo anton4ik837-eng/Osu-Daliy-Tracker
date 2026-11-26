@@ -64,7 +64,7 @@ export async function pollCoopRooms(env) {
         try {
           if (command === "!help") reply = "Команды: @bot start, @bot map <beatmap_id>, @bot dt, @bot close";
           else if (command === "!start") { await invokeReferee(token, "StartMatch", [roomId, {}]); reply = "Матч запущен."; }
-          else if (command === "!dt") { await invokeReferee(token, "EditCurrentPlaylistItem", [roomId, { beatmap_id: Number(room?.beatmapId || 0), ruleset_id: Number(room?.rulesetId || 3), required_mods: [{ acronym: "DT" }], freestyle: true }]); reply = "DT включён."; }
+          else if (command === "!dt") { await invokeReferee(token, "EditCurrentPlaylistItem", [roomId, { required_mods: [{ acronym: "DT" }], freestyle: true }]); reply = "DT включён."; }
           else if (command === "!map" && Number(argument)) { await invokeReferee(token, "EditCurrentPlaylistItem", [roomId, { beatmap_id: Number(argument), ruleset_id: Number(room?.rulesetId || 3) }]); reply = "Карта сменена."; }
           else if (command === "!close") { await invokeReferee(token, "CloseRoom", [roomId]); reply = "Комната закрыта."; }
           else reply = "Неизвестная команда. Напиши @bot help";

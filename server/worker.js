@@ -304,7 +304,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 55, deploy_marker: "coop-cron-pm-replies-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 56, deploy_marker: "coop-dt-current-map-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -2027,7 +2027,7 @@ export default {
           try {
             if (command === "!help") reply = "Команды: @bot start, @bot map <beatmap_id>, @bot dt, @bot close";
             else if (command === "!start") { await invokeReferee(token, "StartMatch", [roomId, {}]); reply = "Матч запущен."; }
-            else if (command === "!dt") { await invokeReferee(token, "EditCurrentPlaylistItem", [roomId, { beatmap_id: Number(room?.beatmapId || 0), ruleset_id: Number(room?.rulesetId || 3), required_mods: [{ acronym: "DT" }], freestyle: true }]); reply = "DT включён."; }
+            else if (command === "!dt") { await invokeReferee(token, "EditCurrentPlaylistItem", [roomId, { required_mods: [{ acronym: "DT" }], freestyle: true }]); reply = "DT включён."; }
             else if (command === "!map" && Number(argument)) { await invokeReferee(token, "EditCurrentPlaylistItem", [roomId, { beatmap_id: Number(argument), ruleset_id: Number(room?.rulesetId || 3) }]); reply = "Карта сменена."; }
             else if (command === "!close") { await invokeReferee(token, "CloseRoom", [roomId]); reply = "Комната закрыта."; }
             else reply = "Неизвестная команда. Напиши @bot help";
