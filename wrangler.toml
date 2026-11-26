@@ -14,6 +14,14 @@ id = "89a74d5d7e684075b84796503d1827c6"
 name = "CHAT_ROOMS"
 class_name = "ChatRoom"
 
+[[durable_objects.bindings]]
+name = "COOP_BOT"
+class_name = "CoopBot"
+
 [[migrations]]
 tag = "v1_chat_rooms"
 new_sqlite_classes = ["ChatRoom"]
+
+[[migrations]]
+tag = "v2_coop_bot"
+new_classes = ["CoopBot"]

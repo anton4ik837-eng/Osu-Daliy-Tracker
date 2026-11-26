@@ -1,5 +1,6 @@
 import { handleAiChat, handleAiResearch } from "./ai-gateway.js";
 export { ChatRoom } from "./chat-room.js";
+export { CoopBot } from "./coop-bot.js";
 import { makeRoom, invitePlayer, invokeReferee, makeRoomPersistent } from "./referee-hub.js";
 
 const JSON_HEADERS = {
@@ -303,7 +304,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 49, deploy_marker: "coop-cron-join-channel-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 50, deploy_marker: "coop-bot-durable-alarm-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1873,6 +1874,10 @@ export default {
         rooms.unshift(room);
         await env.OAUTH_KV.put("coop:rooms", JSON.stringify(rooms.slice(0, 50)));
         await env.OAUTH_KV.put("coop:room:" + roomId, JSON.stringify(room), { expirationTtl: 60 * 60 * 24 * 7 });
+        try {
+          const botStub = env.COOP_BOT.get(env.COOP_BOT.idFromName("bot"));
+          await botStub.fetch(new Request("https://coop-bot/start"));
+        } catch { /* cron fallback remains active */ }
         return apiJson({ ok: true, room, usedVariant });
       } catch (error) {
         return apiJson({ error: "referee_hub_failed", details: String(error?.message || error).slice(0, 200) }, 502);
