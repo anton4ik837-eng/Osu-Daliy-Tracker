@@ -1491,8 +1491,6 @@ export default {
     };
 
     if (url.pathname === "/api/coop/bot/start" && request.method === "POST") {
-      const user = await googleAuthUser();
-      if (!user) return apiJson({ error: "google_session_invalid" }, 401);
       try {
         const botStub = env.COOP_BOT.get(env.COOP_BOT.idFromName("bot"));
         await botStub.fetch(new Request("https://coop-bot/start"));
