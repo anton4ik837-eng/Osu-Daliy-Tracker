@@ -69,8 +69,28 @@ export async function pollCoopRooms(env) {
           else if (command === "!close") { await invokeReferee(token, "CloseRoom", [roomId]); reply = "Комната закрыта."; }
           else reply = "Неизвестная команда. Напиши @bot help";
         } catch (error) { reply = "Ошибка: " + String(error?.message || error).slice(0, 120); }
-        if (reply) await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelId + "/messages", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ message: reply }) });
-        try { await env.OAUTH_KV.put("coop:chat-log:" + roomId, JSON.stringify({ command, reply, at: Date.now() }), { expirationTtl: 3600 }); } catch {}
+        let replyStatus = 0;
+        if (reply) {
+          // osu! forbids API posts into multiplayer channels, so answer in a PM.
+          try {
+            const pm = await fetch("https://osu.ppy.sh/api/v2/chat/channels", {
+              method: "POST",
+              headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({ target_id: Number(message?.sender_id || message?.user_id || 0) }),
+            });
+            const pmData = await pm.json().catch(() => ({}));
+            const pmChannel = Number(pmData?.channel_id || 0);
+            if (pmChannel) {
+              const sent = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + pmChannel + "/messages", {
+                method: "POST",
+                headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({ message: reply }),
+              });
+              replyStatus = sent.status;
+            }
+          } catch {}
+        }
+        try { await env.OAUTH_KV.put("coop:chat-log:" + roomId, JSON.stringify({ command, reply, replyStatus, at: Date.now() }), { expirationTtl: 3600 }); } catch {}
       }
       await env.OAUTH_KV.put("coop:chat-last:" + roomId, String(lastId), { expirationTtl: 86400 });
     } catch { /* keep going */ }
