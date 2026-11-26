@@ -1,11 +1,19 @@
 import { invokeReferee } from "./referee-hub.js";
 
+// In-memory state only. KV is read rarely and never written on every tick.
+const state = { token: "", expiresAt: 0, lastIds: new Map(), started: new Set() };
+
 async function botToken(env) {
+  if (state.token && state.expiresAt > Date.now() + 30000) return state.token;
   const raw = await env.OAUTH_KV.get("coop:bot-session");
   if (!raw) return "";
   let session;
   try { session = JSON.parse(raw); } catch { return ""; }
-  if (session?.accessToken && (!session.expiresAt || session.expiresAt > Date.now() + 30000)) return session.accessToken;
+  if (session?.accessToken && (!session.expiresAt || session.expiresAt > Date.now() + 30000)) {
+    state.token = session.accessToken;
+    state.expiresAt = Number(session.expiresAt) || 0;
+    return state.token;
+  }
   const clientId = String(env.OSU_CLIENT_ID || "").trim(), clientSecret = String(env.OSU_CLIENT_SECRET || "").trim();
   if (!clientId || !clientSecret || !session?.refreshToken) return "";
   const response = await fetch("https://osu.ppy.sh/oauth/token", {
@@ -17,8 +25,29 @@ async function botToken(env) {
   const tokens = await response.json();
   const token = String(tokens.access_token || "");
   if (!token) return "";
-  await env.OAUTH_KV.put("coop:bot-session", JSON.stringify({ ...session, accessToken: token, refreshToken: tokens.refresh_token || session.refreshToken, expiresAt: Date.now() + Number(tokens.expires_in || 0) * 1000 }));
+  state.token = token;
+  state.expiresAt = Date.now() + Number(tokens.expires_in || 0) * 1000;
+  await env.OAUTH_KV.put("coop:bot-session", JSON.stringify({ ...session, accessToken: token, refreshToken: tokens.refresh_token || session.refreshToken, expiresAt: state.expiresAt }));
   return token;
+}
+
+async function sendPm(token, senderId, text) {
+  const target = Number(senderId || 0);
+  if (!target || !text) return 0;
+  const pm = await fetch("https://osu.ppy.sh/api/v2/chat/channels", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ target_id: target }),
+  });
+  const data = await pm.json().catch(() => ({}));
+  const channel = Number(data?.channel_id || 0);
+  if (!channel) return pm.status;
+  const sent = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channel + "/messages", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ message: text }),
+  });
+  return sent.status;
 }
 
 export async function pollCoopRooms(env) {
@@ -28,30 +57,26 @@ export async function pollCoopRooms(env) {
   const raw = await env.OAUTH_KV.get("coop:rooms");
   let rooms = [];
   try { rooms = raw ? JSON.parse(raw) : []; } catch {}
-  for (const room of rooms.slice(0, 50)) {
+  for (const room of rooms.slice(0, 10)) {
     const roomId = Number(room?.id || 0), channelId = Number(room?.chatChannelId || 0);
     if (!roomId) continue;
     try {
       const info = await invokeReferee(token, "JoinRoom", [roomId]);
       const players = Array.isArray(info?.players) ? info.players : [];
       const allReady = players.length > 0 && players.every(player => String(player?.status || "").toLowerCase() === "ready");
-      const alreadyStarted = await env.OAUTH_KV.get("coop:started:" + roomId);
-      if (allReady && !alreadyStarted) {
+      if (allReady && !state.started.has(roomId)) {
         await invokeReferee(token, "StartMatch", [roomId, { countdown: 10 }]);
-        await env.OAUTH_KV.put("coop:started:" + roomId, "1", { expirationTtl: 3600 });
+        state.started.add(roomId);
       }
     } catch { /* room may be closed */ }
     if (!channelId) continue;
-    try {
-      await invokeReferee(token, "JoinRoom", [roomId]);
-    } catch {}
+    try { await invokeReferee(token, "JoinRoom", [roomId]); } catch {}
     try {
       const response = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelId + "/messages?limit=10", { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
       if (!response.ok) continue;
       const payload = await response.json();
       const messages = Array.isArray(payload) ? payload : (payload.messages || []);
-      const lastRaw = await env.OAUTH_KV.get("coop:chat-last:" + roomId);
-      let lastId = Number(lastRaw || 0) || 0;
+      let lastId = state.lastIds.get(roomId) || 0;
       for (const message of messages) {
         const id = Number(message?.message_id || message?.id || 0);
         if (id <= lastId) continue;
@@ -70,39 +95,15 @@ export async function pollCoopRooms(env) {
           else if (command === "!close") { await invokeReferee(token, "CloseRoom", [roomId]); reply = "Комната закрыта."; }
           else reply = "Неизвестная команда. Напиши @bot help";
         } catch (error) { reply = "Ошибка: " + String(error?.message || error).slice(0, 120); }
-        let replyStatus = 0;
-        if (reply) {
-          // osu! forbids API posts into multiplayer channels, so answer in a PM.
-          try {
-            const pm = await fetch("https://osu.ppy.sh/api/v2/chat/channels", {
-              method: "POST",
-              headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" },
-              body: JSON.stringify({ target_id: Number(message?.sender_id || message?.user_id || 0) }),
-            });
-            const pmData = await pm.json().catch(() => ({}));
-            const pmChannel = Number(pmData?.channel_id || 0);
-            if (pmChannel) {
-              const sent = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + pmChannel + "/messages", {
-                method: "POST",
-                headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" },
-                body: JSON.stringify({ message: reply }),
-              });
-              replyStatus = sent.status;
-            }
-          } catch {}
-        }
-        try { await env.OAUTH_KV.put("coop:chat-log:" + roomId, JSON.stringify({ command, reply, replyStatus, at: Date.now() }), { expirationTtl: 3600 }); } catch {}
+        await sendPm(token, message?.sender_id || message?.user_id, reply);
       }
-      await env.OAUTH_KV.put("coop:chat-last:" + roomId, String(lastId), { expirationTtl: 86400 });
+      state.lastIds.set(roomId, lastId);
     } catch { /* keep going */ }
   }
 }
 
 export class CoopBot {
-  constructor(state, env) {
-    this.state = state;
-    this.env = env;
-  }
+  constructor(state, env) { this.state = state; this.env = env; }
 
   async fetch() {
     try { await this.state.storage.setAlarm(Date.now() + 10000); } catch {}
@@ -111,7 +112,6 @@ export class CoopBot {
 
   async alarm() {
     try { await pollCoopRooms(this.env); } catch {}
-    try { await this.env.OAUTH_KV.put("coop:bot-heartbeat", String(Date.now()), { expirationTtl: 300 }); } catch {}
     try { await this.state.storage.setAlarm(Date.now() + 10000); } catch {}
   }
 }
