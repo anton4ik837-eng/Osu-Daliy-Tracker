@@ -304,7 +304,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 52, deploy_marker: "coop-bot-pm-replies-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 53, deploy_marker: "coop-bot-heartbeat-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1525,7 +1525,8 @@ export default {
           }
         } catch { /* ignore */ }
       }
-      return apiJson({ configured, username, chat_read: chatRead, play_count: playCount, session_verified: sessionVerified, meKeys, statsSample, scopes, claimKeys, tokenFormat });
+      const heartbeat = await env.OAUTH_KV.get("coop:bot-heartbeat");
+      return apiJson({ configured, username, chat_read: chatRead, play_count: playCount, session_verified: sessionVerified, heartbeat: Number(heartbeat || 0), meKeys, statsSample, scopes, claimKeys, tokenFormat });
     }
 
     if (url.pathname === "/api/coop/bot-session/disconnect" && request.method === "POST") {
