@@ -304,7 +304,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 54, deploy_marker: "coop-bot-alarm-restart-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 55, deploy_marker: "coop-cron-pm-replies-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -2032,7 +2032,14 @@ export default {
             else if (command === "!close") { await invokeReferee(token, "CloseRoom", [roomId]); reply = "Комната закрыта."; }
             else reply = "Неизвестная команда. Напиши @bot help";
           } catch (error) { reply = "Ошибка: " + String(error?.message || error).slice(0, 120); }
-          if (reply) await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelId + "/messages", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ message: reply }) });
+          if (reply) {
+            try {
+              const pm = await fetch("https://osu.ppy.sh/api/v2/chat/channels", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ target_id: Number(message?.sender_id || message?.user_id || 0) }) });
+              const pmData = await pm.json().catch(() => ({}));
+              const pmChannel = Number(pmData?.channel_id || 0);
+              if (pmChannel) await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + pmChannel + "/messages", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ message: reply }) });
+            } catch {}
+          }
           try { await env.OAUTH_KV.put("coop:chat-log:" + roomId, JSON.stringify({ command, reply, at: Date.now() }), { expirationTtl: 3600 }); } catch {}
         }
         await env.OAUTH_KV.put("coop:chat-last:" + roomId, String(lastId), { expirationTtl: 86400 });
