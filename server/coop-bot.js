@@ -109,10 +109,8 @@ export class CoopBot {
   }
 
   async alarm() {
-    try {
-      await pollCoopRooms(this.env);
-      await this.env.OAUTH_KV.put("coop:bot-heartbeat", String(Date.now()), { expirationTtl: 300 });
-    } catch {}
+    try { await pollCoopRooms(this.env); } catch {}
+    try { await this.env.OAUTH_KV.put("coop:bot-heartbeat", String(Date.now()), { expirationTtl: 300 }); } catch {}
     try { await this.state.storage.setAlarm(Date.now() + 10000); } catch {}
   }
 }
