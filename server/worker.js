@@ -303,7 +303,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 47, deploy_marker: "coop-bot-playcount-total-2026-11-25", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 48, deploy_marker: "coop-cron-bot-commands-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1943,5 +1943,75 @@ export default {
     }
 
     return json({ error: "not_found" }, 404);
+  },
+
+  async scheduled(controller, env, ctx) {
+    if (!env.OAUTH_KV) return;
+    const raw = await env.OAUTH_KV.get("coop:bot-session");
+    if (!raw) return;
+    let session;
+    try { session = JSON.parse(raw); } catch { return; }
+    let token = String(session?.accessToken || "");
+    if (!token || (session.expiresAt && session.expiresAt < Date.now() + 30000)) {
+      const clientId = String(env.OSU_CLIENT_ID || "").trim(), clientSecret = String(env.OSU_CLIENT_SECRET || "").trim();
+      if (!clientId || !clientSecret || !session?.refreshToken) return;
+      const response = await fetch("https://osu.ppy.sh/oauth/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+        body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "refresh_token", refresh_token: session.refreshToken }),
+      });
+      if (!response.ok) return;
+      const tokens = await response.json();
+      token = String(tokens.access_token || "");
+      if (!token) return;
+      await env.OAUTH_KV.put("coop:bot-session", JSON.stringify({ ...session, accessToken: token, refreshToken: tokens.refresh_token || session.refreshToken, expiresAt: Date.now() + Number(tokens.expires_in || 0) * 1000 }));
+    }
+    const roomsRaw = await env.OAUTH_KV.get("coop:rooms");
+    let rooms = [];
+    try { rooms = roomsRaw ? JSON.parse(roomsRaw) : []; } catch {}
+    for (const room of rooms.slice(0, 50)) {
+      const roomId = Number(room?.id || 0), channelId = Number(room?.chatChannelId || 0);
+      if (!roomId) continue;
+      try {
+        const info = await invokeReferee(token, "JoinRoom", [roomId]);
+        const players = Array.isArray(info?.players) ? info.players : [];
+        const allReady = players.length > 0 && players.every(player => String(player?.status || "").toLowerCase() === "ready");
+        const alreadyStarted = await env.OAUTH_KV.get("coop:started:" + roomId);
+        if (allReady && !alreadyStarted) {
+          await invokeReferee(token, "StartMatch", [roomId, { countdown: 10 }]);
+          await env.OAUTH_KV.put("coop:started:" + roomId, "1", { expirationTtl: 3600 });
+        }
+      } catch { /* room may be closed */ }
+      if (!channelId) continue;
+      try {
+        const response = await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelId + "/messages?limit=10", { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+        if (!response.ok) continue;
+        const payload = await response.json();
+        const messages = Array.isArray(payload) ? payload : (payload.messages || []);
+        const lastRaw = await env.OAUTH_KV.get("coop:chat-last:" + roomId);
+        let lastId = Number(lastRaw || 0) || 0;
+        for (const message of messages) {
+          const id = Number(message?.message_id || message?.id || 0);
+          if (id <= lastId) continue;
+          lastId = Math.max(lastId, id);
+          const text = String(message?.content || message?.message || "").trim();
+          if (!/^@bot\s/i.test(text)) continue;
+          const parts = text.replace(/^@bot\s+/i, "").trim().split(/\s+/);
+          const command = "!" + parts[0].toLowerCase(), argument = parts[1] || "";
+          let reply = "";
+          try {
+            if (command === "!help") reply = "Команды: @bot start, @bot map <beatmap_id>, @bot dt, @bot close";
+            else if (command === "!start") { await invokeReferee(token, "StartMatch", [roomId, {}]); reply = "Матч запущен."; }
+            else if (command === "!dt") { await invokeReferee(token, "EditCurrentPlaylistItem", [roomId, { beatmap_id: Number(room?.beatmapId || 0), ruleset_id: Number(room?.rulesetId || 3), required_mods: [{ acronym: "DT" }], freestyle: true }]); reply = "DT включён."; }
+            else if (command === "!map" && Number(argument)) { await invokeReferee(token, "EditCurrentPlaylistItem", [roomId, { beatmap_id: Number(argument), ruleset_id: Number(room?.rulesetId || 3) }]); reply = "Карта сменена."; }
+            else if (command === "!close") { await invokeReferee(token, "CloseRoom", [roomId]); reply = "Комната закрыта."; }
+            else reply = "Неизвестная команда. Напиши @bot help";
+          } catch (error) { reply = "Ошибка: " + String(error?.message || error).slice(0, 120); }
+          if (reply) await fetch("https://osu.ppy.sh/api/v2/chat/channels/" + channelId + "/messages", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ message: reply }) });
+          try { await env.OAUTH_KV.put("coop:chat-log:" + roomId, JSON.stringify({ command, reply, at: Date.now() }), { expirationTtl: 3600 }); } catch {}
+        }
+        await env.OAUTH_KV.put("coop:chat-last:" + roomId, String(lastId), { expirationTtl: 86400 });
+      } catch { /* keep going */ }
+    }
   },
 };
