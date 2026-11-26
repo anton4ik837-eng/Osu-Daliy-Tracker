@@ -304,7 +304,7 @@ export default {
     }
 
     if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 50, deploy_marker: "coop-bot-durable-alarm-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
+      return json({ ok: true, service: "osu-daily-tracker-oauth", version: 51, deploy_marker: "coop-bot-verification-diag-2026-11-26", dataset_upload_configured: Boolean(env.DATASET_GITHUB_TOKEN), consent_store_configured: Boolean(env.OAUTH_KV), gemini_configured: Boolean(env.GEMINI_API_KEY), gemini_model: "gemini-3.5-flash-lite", gemini_thinking_level: "MINIMAL", gemini_timeout_ms: 90000, ai_research_configured: Boolean(env.AI_RESEARCH_TOKEN) });
     }
 
     // Proxy GitHub Releases so the in-app update check works even when the device
@@ -1492,7 +1492,7 @@ export default {
 
     if (url.pathname === "/api/coop/bot-session" && request.method === "GET") {
       const raw = await env.OAUTH_KV.get("coop:bot-session");
-      let configured = false, username = "", chatRead = false, scopes = [], claimKeys = [], tokenFormat = "unknown", playCount = 0, meKeys = [], statsSample = "";
+      let configured = false, username = "", chatRead = false, scopes = [], claimKeys = [], tokenFormat = "unknown", playCount = 0, meKeys = [], statsSample = "", sessionVerified = null;
       if (raw) {
         try {
           const session = JSON.parse(raw);
@@ -1502,6 +1502,7 @@ export default {
             const profile = await probe.json().catch(() => ({}));
             configured = Boolean(session?.refreshToken);
             username = String(profile?.username || session?.username || "");
+            sessionVerified = profile?.session_verified ?? null;
             const rulesets = Array.isArray(profile?.statistics_rulesets) ? profile.statistics_rulesets : Object.values(profile?.statistics_rulesets || {});
             playCount = rulesets.reduce((sum, item) => sum + (Number(item?.play_count) || 0), 0) || Number(profile?.statistics?.play_count ?? profile?.play_count ?? 0) || 0;
             meKeys = Object.keys(profile || {});
@@ -1524,7 +1525,7 @@ export default {
           }
         } catch { /* ignore */ }
       }
-      return apiJson({ configured, username, chat_read: chatRead, play_count: playCount, meKeys, statsSample, scopes, claimKeys, tokenFormat });
+      return apiJson({ configured, username, chat_read: chatRead, play_count: playCount, session_verified: sessionVerified, meKeys, statsSample, scopes, claimKeys, tokenFormat });
     }
 
     if (url.pathname === "/api/coop/bot-session/disconnect" && request.method === "POST") {
